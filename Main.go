@@ -542,11 +542,15 @@ func main() {
 	x = getfield(sarflag, "version")
 	fmt.Printf("Sarflag=%0b Version=%0b\n", sarflag, x)
 
-	val = 0x03
-	fmt.Println("Setting Frametype 3")
+	val = Fbeacon
 	sarflag = setfield(sarflag, "frametype", val)
 	x = getfield(sarflag, "frametype")
 	fmt.Printf("Sarflag =%032b Version=%0b\n", sarflag, x)
+
+	val = Fdescriptor16
+	sarflag = setfield(sarflag, "descriptor", val)
+	x = getfield(sarflag, "descriptor")
+	fmt.Printf("Sarflag =%032b Descriptor=%0b\n", sarflag, x)
 
 	var y uint16
 	var dflag uint16 = 0x0
