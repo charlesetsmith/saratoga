@@ -136,6 +136,11 @@ var flagfield = map[string][2]uint32{
 	"errcode":       [2]uint32{8, 24},
 }
 
+var versiontypes = map[string]uint32{
+	"version_0": 0,
+	"version_1": 1,
+}
+
 // Fversion - Version Number - BEACON,REQUEST,METADATA,DATA,STATUS
 type Fversion uint32
 
@@ -143,6 +148,14 @@ const (
 	Fversion1 Fversion = iota
 	Fversion2
 )
+
+var frametypes = map[string]uint32{
+	"beacon":   0,
+	"request":  1,
+	"metadata": 2,
+	"data":     3,
+	"status":   4,
+}
 
 // Fframetype - Saratoga Frame Type - BEACON,REQUEST,METADATA,DATA,STATUS
 type Fframetype uint32
