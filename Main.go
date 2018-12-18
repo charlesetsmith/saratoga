@@ -335,7 +335,7 @@ func SetFlag(curflag uint32, field string, flagname string) uint32 {
 	var found = false
 	// Get the value of the flag
 	for _, fi := range flagvals[field] {
-		fmt.Println("Flags for field ", field, fi.name, fi.val)
+		// fmt.Println("Flags for field ", field, fi.name, fi.val)
 		if fi.name == flagname {
 			newval = fi.val
 			found = true
@@ -358,6 +358,24 @@ func SetFlag(curflag uint32, field string, flagname string) uint32 {
 	result |= (newval << shiftbits)
 	// fmt.Printf("Result=%032b\n", result)
 	return result
+}
+
+// TestFlag - true if the flag is set in curflag
+func TestFlag(curflag uint32, field string, flagname string) bool {
+	return GetFlag(curflag, field) == GetFlag(SetFlag(0, field, flagname), field)
+}
+
+// NameFlag - return the name of the flag for field in curflag
+func NameFlag(curflag uint32, field string) string {
+
+	x := GetFlag(curflag, field)
+	for _, fi := range flagvals[field] {
+		// fmt.Println("Flags for field ", field, fi.name, fi.val)
+		if fi.val == x {
+			return fi.name
+		}
+	}
+	panic("NameFlag out of range")
 }
 
 // *******************************************************************
@@ -456,7 +474,7 @@ func SetDFlag(curflag uint16, field string, flagname string) uint16 {
 	var found = false
 	// Get the value of the flag
 	for _, fi := range dflagvals[field] {
-		fmt.Println("DFlags for field ", field, fi.name, fi.val)
+		// fmt.Println("DFlags for field ", field, fi.name, fi.val)
 		if fi.name == flagname {
 			newval = fi.val
 			found = true
@@ -478,6 +496,24 @@ func SetDFlag(curflag uint16, field string, flagname string) uint16 {
 	result |= (newval << shiftbits)
 	// fmt.Printf("Result=%016b\n", result)
 	return result
+}
+
+// TestDFlag - true if the flag is set in curflag
+func TestDFlag(curdflag uint16, field string, flagname string) bool {
+	return GetDFlag(curdflag, field) == GetDFlag(SetDFlag(0, field, flagname), field)
+}
+
+// NameDFlag - return the name of the flag for field in curdflag
+func NameDFlag(curdflag uint16, field string) string {
+
+	x := GetDFlag(curdflag, field)
+	for _, fi := range dflagvals[field] {
+		// fmt.Println("Flags for field ", field, fi.name, fi.val)
+		if fi.val == x {
+			return fi.name
+		}
+	}
+	panic("NameDFlag out of range")
 }
 
 // *******************************************************************
@@ -549,7 +585,7 @@ func SetTFlag(curflag uint8, field string, flagname string) uint8 {
 	var found = false
 	// Get the value of the flag
 	for _, fi := range tflagvals[field] {
-		fmt.Println("TFlags for field ", field, fi.name, fi.val)
+		// fmt.Println("TFlags for field ", field, fi.name, fi.val)
 		if fi.name == flagname {
 			newval = fi.val
 			found = true
@@ -573,55 +609,78 @@ func SetTFlag(curflag uint8, field string, flagname string) uint8 {
 	return result
 }
 
+// TestTFlag - true if the flag is set in curflag
+func TestTFlag(curtflag uint8, field string, flagname string) bool {
+	return GetTFlag(curtflag, field) == GetTFlag(SetTFlag(0, field, flagname), field)
+}
+
+// NameTFlag - return the name of the flag for field in curtflag
+func NameTFlag(curtflag uint8, field string) string {
+
+	x := GetTFlag(curtflag, field)
+	for _, fi := range tflagvals[field] {
+		// fmt.Println("Flags for field ", field, fi.name, fi.val)
+		if fi.val == x {
+			return fi.name
+		}
+	}
+	panic("NameTFlag out of range")
+}
+
 // *******************************************************************
 
 func main() {
 
-	fmt.Println("Handle Saratoga Headers")
+	fmt.Println("Handle Saratoga Flags")
 
 	var x uint32
 	var sarflag uint32 = 0x0
 
-	fmt.Println("Setting Version 1")
 	sarflag = SetFlag(sarflag, "version", "v1")
 	x = GetFlag(sarflag, "version")
-	fmt.Printf("Sarflag=%0b Version=%0b\n", sarflag, x)
+	fmt.Printf("Sarflag=%032b version=%032b\n", sarflag, x)
 
 	sarflag = SetFlag(sarflag, "frametype", "data")
 	x = GetFlag(sarflag, "frametype")
-	fmt.Printf("Sarflag =%032b Version=%0b\n", sarflag, x)
+	fmt.Printf("Sarflag=%032b frametype=%032b\n", sarflag, x)
 
-	sarflag = SetFlag(sarflag, "descriptor", "d32")
+	sarflag = SetFlag(sarflag, "descriptor", "d64")
 	x = GetFlag(sarflag, "descriptor")
-	fmt.Printf("Sarflag =%032b Descriptor=%0b\n", sarflag, x)
+	fmt.Printf("Sarflag =%032b descriptor=%032b\n", sarflag, x)
+
+	fmt.Println("Sarflag frametype=beacon", TestFlag(sarflag, "frametype", "data"))
+	fmt.Println("descriptor=", NameFlag(sarflag, "descriptor"))
 
 	// **********************************************************
 
 	var y uint16
 	var dflag uint16 = 0x0
 
-	fmt.Println("Setting sof to 1")
 	dflag = SetDFlag(dflag, "sod", "startofdirectory")
 	y = GetDFlag(dflag, "sod")
-	fmt.Printf("Dflag =%016b sod=%0b\n", dflag, y)
+	fmt.Printf("Dflag =%016b sod=%016b\n", dflag, y)
 
-	fmt.Println("Setting properties to 3")
 	dflag = SetDFlag(dflag, "properties", "normalfile")
 	y = GetDFlag(dflag, "properties")
-	fmt.Printf("dflag =%016b properties=%0b\n", dflag, y)
+	fmt.Printf("Dflag =%016b properties=%016b\n", dflag, y)
 
-	fmt.Println("Setting descriptor to d32")
 	dflag = SetDFlag(dflag, "descriptor", "d32")
 	y = GetDFlag(dflag, "descriptor")
-	fmt.Printf("dflag =%016b descriptor=%0b\n", dflag, y)
+	fmt.Printf("Dflag =%016b descriptor=%016b\n", dflag, y)
+
+	fmt.Println("Directory Properties=normalfile", TestDFlag(dflag, "properties", "normalfile"))
+	fmt.Println("properties=", NameDFlag(dflag, "properties"))
 
 	// ******************************************************
 
 	var z uint8
 	var tflag uint8 = 0x0
 
-	fmt.Println("Setting timestamp to posix32_32")
 	tflag = SetTFlag(tflag, "timestamp", "posix32_32")
 	z = GetTFlag(tflag, "timestamp")
-	fmt.Printf("tflag =%08b timestamp=%0b\n", tflag, z)
+	fmt.Printf("Tflag =%08b timestamp=%08b\n", tflag, z)
+
+	fmt.Println("Timestamp=posix32_32", TestTFlag(tflag, "timestamp", "posix32_32"))
+	fmt.Println("timestamp=", NameTFlag(tflag, "timestamp"))
+
 }
