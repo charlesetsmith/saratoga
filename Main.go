@@ -115,7 +115,7 @@ const fieldmsb = 1
 // The 0 element (fieldlen) value in the uint32[2] is the length in bits of the flag
 // The 1 element (fieldmsb) value in the uint32[2] is the bit offset from the front.
 // This is all in network byte order
-var flagfield = map[string][2]uint32{
+var flagbits = map[string][2]uint32{
 	"version":       [2]uint32{3, 0},
 	"frametype":     [2]uint32{5, 3},
 	"descriptor":    [2]uint32{2, 8},
@@ -287,34 +287,37 @@ var flagvals = map[string][]flaginfo{
 		flaginfo{name: "sha1", val: 3},
 	},
 	"errcode": []flaginfo{
-		flaginfo{name: "success", val: 0},
-		flaginfo{name: "unspecified", val: 1},
-		flaginfo{name: "nosend", val: 2},
-		flaginfo{name: "noreceive", val: 3},
-		flaginfo{name: "nofile", val: 4},
-		flaginfo{name: "noaccess", val: 5},
-		flaginfo{name: "noid", val: 6},
-		flaginfo{name: "toobig", val: 7},
-		flaginfo{name: "baddescriptor", val: 8},
-		flaginfo{name: "badpacket", val: 9},
-		flaginfo{name: "badflag", val: 10},
-		flaginfo{name: "shutdown", val: 11},
-		flaginfo{name: "pause", val: 12},
-		flaginfo{name: "resume", val: 13},
-		flaginfo{name: "inuse", val: 14},
-		flaginfo{name: "nometadata", val: 15},
+		flaginfo{name: "success", val: 0x0},
+		flaginfo{name: "unspecified", val: 0x1},
+		flaginfo{name: "cantsend", val: 0x2},
+		flaginfo{name: "cantreceive", val: 0x3},
+		flaginfo{name: "filenotfound", val: 0x4},
+		flaginfo{name: "accessdenied", val: 0x5},
+		flaginfo{name: "unknownid", val: 0x6},
+		flaginfo{name: "didnotdelete", val: 0x7},
+		flaginfo{name: "filetobig", val: 0x8},
+		flaginfo{name: "badoffset", val: 0x9},
+		flaginfo{name: "badpacket", val: 0xA},
+		flaginfo{name: "badrequest", val: 0xB},
+		flaginfo{name: "internaltimeout", val: 0xC},
+		flaginfo{name: "baddataflag", val: 0xD},
+		flaginfo{name: "rxnotinterested", val: 0xE},
+		flaginfo{name: "fileinuse", val: 0xF},
+		flaginfo{name: "metadatarequired", val: 0x10},
+		flaginfo{name: "badstatus", val: 0x11},
+		flaginfo{name: "rxtimeout", val: 0x12},
 	},
 }
 
 // Given a current flag and bitfield name return the integer value of the bitfield
-func getfield(curflag uint32, field string) uint32 {
-	if _, ok := flagfield[field]; !ok {
-		fmt.Println("Invalid field name:", field)
-		panic("Flagfield lookup fail")
+func GetFlag(curflag uint32, field string) uint32 {
+	if _, ok := flagbits[field]; !ok {
+		fmt.Println("Invalid Flag", field)
+		panic("GetFlag lookup fail")
 	}
 
-	var len = flagfield[field][fieldlen]
-	var msb = flagfield[field][fieldmsb]
+	var len = flagbits[field][fieldlen]
+	var msb = flagbits[field][fieldmsb]
 	var shiftbits = flagsize - len - msb
 	var maskbits uint32 = (1 << len) - 1
 	var setbits = maskbits << shiftbits
@@ -322,23 +325,30 @@ func getfield(curflag uint32, field string) uint32 {
 }
 
 // Given a current header and bitfield name with a new value return the revised header
-func setfield(curflag uint32, field string, flagname string) uint32 {
-	if _, ok := flagfield[field]; !ok {
-		fmt.Println("Invalid field name:", field)
-		panic("Flagfield lookup fail")
+func SetFlag(curflag uint32, field string, flagname string) uint32 {
+	if _, ok := flagbits[field]; !ok {
+		fmt.Println("Invalid Flag", field)
+		panic("SetFlag lookup fail")
 	}
 
-	var newval uint32 = 9
+	var newval uint32
+	var found = false
+	// Get the value of the flag
 	for _, fi := range flagvals[field] {
 		fmt.Println("Flags for field ", field, fi.name, fi.val)
-
 		if fi.name == flagname {
 			newval = fi.val
+			found = true
+			break
 		}
 	}
+	if !found {
+		fmt.Println("Invalid flagname", flagname, "in Flag", field)
+		panic("setfield lookup fail")
+	}
 
-	var len = flagfield[field][fieldlen]
-	var msb = flagfield[field][fieldmsb]
+	var len = flagbits[field][fieldlen]
+	var msb = flagbits[field][fieldmsb]
 	var shiftbits = flagsize - len - msb
 	var maskbits uint32 = (1 << len) - 1
 	var setbits = maskbits << shiftbits
@@ -369,7 +379,8 @@ func setfield(curflag uint32, field string, flagname string) uint32 {
 // |1|-> Bit 0 is always set
 // | | | | | | |X|X|-> Dirent Properties - d_properties
 // | | | | | | | | |X|X|-> Dirent Descriptor - d_descriptor
-// | | | | | | | | | | |0|-> Dirent File
+// | | | | | | | | | | |0|-> Dirent Reserved
+// | | | | | | | | | | | | | |X| | |-> Dirent d_reliability
 // | | | | | | | | | | | | | | | | |
 //  0                   1
 //  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
@@ -381,43 +392,91 @@ const dflagsize uint16 = 16
 // The 0 element (fieldlen) value in the uint16[2] is the length in bits of the flag
 // The 1 element (fieldmsb) value in the uint16[2] is the bit offset from the front.
 // This is all in network byte order
-var dflagfield = map[string][2]uint16{
-	"sof":        [2]uint16{1, 0},
-	"properties": [2]uint16{2, 6},
-	"descriptor": [2]uint16{2, 8},
-	"file":       [2]uint16{1, 10},
+var dflagbits = map[string][2]uint16{
+	"sod":         [2]uint16{1, 0},
+	"properties":  [2]uint16{2, 6},
+	"descriptor":  [2]uint16{2, 8},
+	"reserved":    [2]uint16{1, 10},
+	"reliability": [2]uint16{1, 13},
 }
 
-// Given a current flag and bitfield name return the integer value of the bitfield
-func dgetfield(curflag uint16, fieldname string) uint16 {
-	if _, ok := dflagfield[fieldname]; !ok {
-		fmt.Println("Invalid Dflagfield name:", fieldname)
-		panic("Dflagfield lookup fail")
+type dflaginfo struct {
+	name string
+	val  uint16
+}
+
+var dflagvals = map[string][]dflaginfo{
+	"sod": []dflaginfo{
+		dflaginfo{name: "startofdirectory", val: 1},
+	},
+	"properties": []dflaginfo{
+		dflaginfo{name: "normalfile", val: 0},
+		dflaginfo{name: "normaldirectory", val: 1},
+		dflaginfo{name: "specialfile", val: 2},
+		dflaginfo{name: "specialdirectory", val: 3},
+	},
+	"descriptor": []dflaginfo{
+		dflaginfo{name: "d16", val: 0},
+		dflaginfo{name: "d32", val: 1},
+		dflaginfo{name: "d64", val: 2},
+		dflaginfo{name: "d128", val: 3},
+	},
+	"reserved": []dflaginfo{
+		dflaginfo{name: "reserved", val: 0},
+	},
+	"reliability": []dflaginfo{
+		dflaginfo{name: "yes", val: 0},
+		dflaginfo{name: "no", val: 1},
+	},
+}
+
+// GetDFlag - Given a current flag and bitfield name return the integer value of the bitfield
+func GetDFlag(curflag uint16, field string) uint16 {
+	if _, ok := dflagbits[field]; !ok {
+		fmt.Println("Invalid DFlag", field)
+		panic("GetDFlag lookup fail")
 	}
 
-	len := dflagfield[fieldname][fieldlen]
-	msb := dflagfield[fieldname][fieldmsb]
+	var len = dflagbits[field][fieldlen]
+	var msb = dflagbits[field][fieldmsb]
 	var shiftbits = dflagsize - len - msb
 	var maskbits uint16 = (1 << len) - 1
 	var setbits = maskbits << shiftbits
 	return (curflag & setbits) >> shiftbits
 }
 
-// Given a current header and bitfield name with a new value return the revised header
-func dsetfield(curflag uint16, fieldname string, newval uint16) uint16 {
-	if _, ok := dflagfield[fieldname]; !ok {
-		fmt.Println("Invalid Dflagfield name:", fieldname)
-		panic("Dflagfield lookup fail")
+// SetDFlag - Given a current header and bitfield name with a new value return the revised header
+func SetDFlag(curflag uint16, field string, flagname string) uint16 {
+	if _, ok := dflagbits[field]; !ok {
+		fmt.Println("Invalid DFlag", field)
+		panic("SetDFlag lookup fail")
 	}
-	len := dflagfield[fieldname][fieldlen]
-	msb := dflagfield[fieldname][fieldmsb]
+
+	var newval uint16
+	var found = false
+	// Get the value of the flag
+	for _, fi := range dflagvals[field] {
+		fmt.Println("DFlags for field ", field, fi.name, fi.val)
+		if fi.name == flagname {
+			newval = fi.val
+			found = true
+			break
+		}
+	}
+	if !found {
+		fmt.Println("Invalid flagname", flagname, "in DFlag", field)
+		panic("SetDFlag lookup fail")
+	}
+
+	var len = dflagbits[field][fieldlen]
+	var msb = dflagbits[field][fieldmsb]
 	var shiftbits = dflagsize - len - msb
 	var maskbits uint16 = (1 << len) - 1
 	var setbits = maskbits << shiftbits
-	// fmt.Printf("DShiftbits=%d DMaskbits=%b DSetbits=%b\n", shiftbits, maskbits, setbits)
+	// fmt.Printf("Shiftbits=%d Maskbits=%b Setbits=%b\n", shiftbits, maskbits, setbits)
 	var result = ((curflag) & (^setbits))
 	result |= (newval << shiftbits)
-	// fmt.Printf("DResult=%016b\n", result)
+	// fmt.Printf("Result=%016b\n", result)
 	return result
 }
 
@@ -444,40 +503,73 @@ const tflagsize uint8 = 8
 // The 0 element (fieldlen) value in the uint8[2] is the length in bits of the flag
 // The 1 element (fieldmsb) value in the uint8[2] is the bit offset from the front.
 // This is all in network byte order
-var tflagfield = map[string][2]uint8{
+var tflagbits = map[string][2]uint8{
 	"timestamp": [2]uint8{3, 5},
 }
 
-// Given a current flag and bitfield name return the integer value of the bitfield
-func tgetfield(curflag uint8, fieldname string) uint8 {
-	if _, ok := tflagfield[fieldname]; !ok {
-		fmt.Println("Invalid Tflagfield name:", fieldname)
-		panic("Tflagfield lookup fail")
+type tflaginfo struct {
+	name string
+	val  uint8
+}
+
+var tflagvals = map[string][]tflaginfo{
+	"timestamp": []tflaginfo{
+		tflaginfo{name: "localinterp", val: 0},
+		tflaginfo{name: "posix32", val: 1},
+		tflaginfo{name: "posix64", val: 2},
+		tflaginfo{name: "posix32_32", val: 3},
+		tflaginfo{name: "posix64_32", val: 4},
+		tflaginfo{name: "epoch2000_32", val: 5},
+	},
+}
+
+// GetTFlag - Given a current flag and bitfield name return the integer value of the bitfield
+func GetTFlag(curflag uint8, field string) uint8 {
+	if _, ok := tflagbits[field]; !ok {
+		fmt.Println("Invalid TFlag", field)
+		panic("GetTFlag lookup fail")
 	}
 
-	len := tflagfield[fieldname][fieldlen]
-	msb := tflagfield[fieldname][fieldmsb]
+	var len = tflagbits[field][fieldlen]
+	var msb = tflagbits[field][fieldmsb]
 	var shiftbits = tflagsize - len - msb
 	var maskbits uint8 = (1 << len) - 1
 	var setbits = maskbits << shiftbits
 	return (curflag & setbits) >> shiftbits
 }
 
-// Given a current header and bitfield name with a new value return the revised header
-func tsetfield(curflag uint8, fieldname string, newval uint8) uint8 {
-	if _, ok := tflagfield[fieldname]; !ok {
-		fmt.Println("Invalid Tflagfield name:", fieldname)
-		panic("Tflagfield lookup fail")
+// SetTFlag Given a current header and bitfield name with a new value return the revised header
+func SetTFlag(curflag uint8, field string, flagname string) uint8 {
+	if _, ok := tflagbits[field]; !ok {
+		fmt.Println("Invalid TFlag", field)
+		panic("SetTFlag lookup fail")
 	}
-	len := tflagfield[fieldname][fieldlen]
-	msb := tflagfield[fieldname][fieldmsb]
+
+	var newval uint8
+	var found = false
+	// Get the value of the flag
+	for _, fi := range tflagvals[field] {
+		fmt.Println("TFlags for field ", field, fi.name, fi.val)
+		if fi.name == flagname {
+			newval = fi.val
+			found = true
+			break
+		}
+	}
+	if !found {
+		fmt.Println("Invalid flagname", flagname, "in TFlag", field)
+		panic("SetTFlag lookup fail")
+	}
+
+	var len = tflagbits[field][fieldlen]
+	var msb = tflagbits[field][fieldmsb]
 	var shiftbits = tflagsize - len - msb
 	var maskbits uint8 = (1 << len) - 1
 	var setbits = maskbits << shiftbits
-	// fmt.Printf("TShiftbits=%d TMaskbits=%b TSetbits=%b\n", shiftbits, maskbits, setbits)
+	// fmt.Printf("Shiftbits=%d Maskbits=%b Setbits=%b\n", shiftbits, maskbits, setbits)
 	var result = ((curflag) & (^setbits))
 	result |= (newval << shiftbits)
-	// fmt.Printf("DResult=%08b\n", result)
+	// fmt.Printf("Result=%08b\n", result)
 	return result
 }
 
@@ -485,53 +577,51 @@ func tsetfield(curflag uint8, fieldname string, newval uint8) uint8 {
 
 func main() {
 
-	// Three flag types in Saratoga
-
-	// var SarDFlag uint16 // Directory 16 bit Entry Flag
-	// var SarTFlag uint8  // Time 8 bit Flag
 	fmt.Println("Handle Saratoga Headers")
 
 	var x uint32
 	var sarflag uint32 = 0x0
 
 	fmt.Println("Setting Version 1")
-	sarflag = setfield(sarflag, "version", "v1")
-	x = getfield(sarflag, "version")
+	sarflag = SetFlag(sarflag, "version", "v1")
+	x = GetFlag(sarflag, "version")
 	fmt.Printf("Sarflag=%0b Version=%0b\n", sarflag, x)
 
-	sarflag = setfield(sarflag, "frametype", "beacon")
-	x = getfield(sarflag, "frametype")
+	sarflag = SetFlag(sarflag, "frametype", "data")
+	x = GetFlag(sarflag, "frametype")
 	fmt.Printf("Sarflag =%032b Version=%0b\n", sarflag, x)
 
-	sarflag = setfield(sarflag, "descriptor", "d32")
-	x = getfield(sarflag, "descriptor")
+	sarflag = SetFlag(sarflag, "descriptor", "d32")
+	x = GetFlag(sarflag, "descriptor")
 	fmt.Printf("Sarflag =%032b Descriptor=%0b\n", sarflag, x)
+
+	// **********************************************************
 
 	var y uint16
 	var dflag uint16 = 0x0
 
-	var dval uint16 = 0x01
 	fmt.Println("Setting sof to 1")
-	dflag = dsetfield(dflag, "sof", dval)
-	y = dgetfield(dflag, "sof")
-	fmt.Printf("dflag =%016b sof=%0b\n", dflag, y)
+	dflag = SetDFlag(dflag, "sod", "startofdirectory")
+	y = GetDFlag(dflag, "sod")
+	fmt.Printf("Dflag =%016b sod=%0b\n", dflag, y)
 
-	dval = 0x03
 	fmt.Println("Setting properties to 3")
-	dflag = dsetfield(dflag, "properties", dval)
-	y = dgetfield(dflag, "properties")
+	dflag = SetDFlag(dflag, "properties", "normalfile")
+	y = GetDFlag(dflag, "properties")
 	fmt.Printf("dflag =%016b properties=%0b\n", dflag, y)
 
-	dval = 0x02
-	fmt.Println("Setting descriptor to 2")
-	dflag = dsetfield(dflag, "descriptor", dval)
-	y = dgetfield(dflag, "descriptor")
+	fmt.Println("Setting descriptor to d32")
+	dflag = SetDFlag(dflag, "descriptor", "d32")
+	y = GetDFlag(dflag, "descriptor")
 	fmt.Printf("dflag =%016b descriptor=%0b\n", dflag, y)
 
-	dval = 0x01
-	fmt.Println("Setting file to 1")
-	dflag = dsetfield(dflag, "file", dval)
-	y = dgetfield(dflag, "file")
-	fmt.Printf("dflag =%016b file=%0b\n", dflag, y)
+	// ******************************************************
 
+	var z uint8
+	var tflag uint8 = 0x0
+
+	fmt.Println("Setting timestamp to posix32_32")
+	tflag = SetTFlag(tflag, "timestamp", "posix32_32")
+	z = GetTFlag(tflag, "timestamp")
+	fmt.Printf("tflag =%08b timestamp=%0b\n", tflag, z)
 }
