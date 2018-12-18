@@ -309,7 +309,7 @@ var flagvals = map[string][]flaginfo{
 	},
 }
 
-// Given a current flag and bitfield name return the integer value of the bitfield
+// GetFlag - Given a current flag and bitfield name return the integer value of the bitfield
 func GetFlag(curflag uint32, field string) uint32 {
 	if _, ok := flagbits[field]; !ok {
 		fmt.Println("Invalid Flag", field)
@@ -324,7 +324,7 @@ func GetFlag(curflag uint32, field string) uint32 {
 	return (curflag & setbits) >> shiftbits
 }
 
-// Given a current header and bitfield name with a new value return the revised header
+// SetFlag - Given a current header and bitfield name with a new value return the revised header
 func SetFlag(curflag uint32, field string, flagname string) uint32 {
 	if _, ok := flagbits[field]; !ok {
 		fmt.Println("Invalid Flag", field)
