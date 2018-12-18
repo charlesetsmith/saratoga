@@ -4,7 +4,6 @@ package sarflags
 
 import "fmt"
 
-
 // Saratoga Sflag Header Field Format - 32 bit unsigned integer (uint32)
 
 //             111111 11112222 22222233
@@ -105,10 +104,6 @@ import "fmt"
 // *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 // *
 // *******************************************************************
-
-package main
-
-import "fmt"
 
 // Length in bits of the saratoga header flag
 const flagsize uint32 = 32
