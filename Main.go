@@ -10,89 +10,94 @@
 //         ZZ -> Descriptor Size = uint16, uint32 , uint64 or 128 bit
 // Note: Descriptor of 128 bit is not implemented in this release.
 
-// BEACON FRAME FLAGS - Frame type 00000 = 0x20 in Ver 1
-//  0                   1                   2                   3
-//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-// | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |
-// |0|0|1|-> Version 1 - f_version
-// | | | |0|0|0|0|0|-> Beacon Frame - f_frametype
-// | | | | | | | | |X|X|-> Descriptor - f_descriptor
-// | | | | | | | | | | |0|-> Undefined used to be Bundles
-// | | | | | | | | | | | |X|-> Streaming - f_stream
-// | | | | | | | | | | | | |X|X| | |-> Tx Willing - f_txwilling
-// | | | | | | | | | | | | | | |X|X|-> Rx Willing - f_rxwilling
-// | | | | | | | | | | | | | | | | |X|-> UDP Lite - f_udptype
-// | | | | | | | | | | | | | | | | | |X|-> Freespace Advertise - f_freespace
-// | | | | | | | | | | | | | | | | | | |X|X|-> Freespace Descriptor - f_freespaced
-// | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |
-//  0                   1                   2                   3
-//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-
+// * BEACON FRAME FLAGS
+// *  0                   1                   2                   3
+// *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// * | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |
+// * |0|0|1|-> Version 1 - f_version
+// * | | | |0|0|0|0|0|-> Beacon Frame - f_frametype
+// * | | | | | | | | |X|X|-> Descriptor - f_descriptor
+// * | | | | | | | | | | |0|-> Undefined used to be Bundles
+// * | | | | | | | | | | | |X|-> Streaming - f_stream
+// * | | | | | | | | | | | | |X|X| | |-> Tx Willing - f_txwilling
+// * | | | | | | | | | | | | | | |X|X|-> Rx Willing - f_rxwilling
+// * | | | | | | | | | | | | | | | | |X|-> UDP Lite - f_udptype
+// * | | | | | | | | | | | | | | | | | |X|-> Freespace Advertise - f_freespace
+// * | | | | | | | | | | | | | | | | | | |X|X|-> Freespace Descriptor - f_freespaced
+// * | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |
+// *  0                   1                   2                   3
+// *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 // *******************************************************************
-// REQUEST FRAME FLAGS - Frame tye 00001 = 0x21 in Ver 1
-//  0                   1                   2                   3
-//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-// | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |
-// |0|0|1|-> Version 1 - f_version
-// | | | |0|0|0|0|1|-> Request Frame - f_frametype
-// | | | | | | | | |X|X|-> Descriptor - f_descriptor
-// | | | | | | | | | | |0|-> Undefined used to be Bundles
-// | | | | | | | | | | | |X|-> Streams - f_stream
-// | | | | | | | | | | | | | | | | |X|-> UDP Lite - f_udptype
-// | | | | | | | | | | | | | | | | | | | | | | | | |X|X|X|X|X|X|X|X|-> f_requesttype
-// | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |
-//  0                   1                   2                   3
-//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 
+// * REQUEST FRAME FLAGS
+// *  0                   1                   2                   3
+// *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// * | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |
+// * |0|0|1|-> Version 1 - f_version
+// * | | | |0|0|0|0|1|-> Request Frame - f_frametype
+// * | | | | | | | | |X|X|-> Descriptor - f_descriptor
+// * | | | | | | | | | | |0|-> Undefined used to be Bundles
+// * | | | | | | | | | | | |X|-> Streams - f_stream
+// * | | | | | | | | | | | | | | | | |X|-> UDP Lite - f_udptype
+// * | | | | | | | | | | | | | | | | | | | | | | | | |X|X|X|X|X|X|X|X|-> f_requesttype
+// * | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |
+// *  0                   1                   2                   3
+// *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// *
 // *******************************************************************
-// METADATA FRAME FLAGS - Frame type 00010 = 0x22 in Ver 1
-//  0                   1                   2                   3
-//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-// | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |
-// |0|0|1|-> Version 1 - f_version
-// | | | |0|0|0|1|0|-> Metadata Frame - f_frametype
-// | | | | | | | | |X|X|-> Descriptor - f_descriptor
-// | | | | | | | | | | |X|X|-> Type of Transfer - f_transfer
-// | | | | | | | | | | | | |X|-> Transfer in Progress - f_progress
-// | | | | | | | | | | | | | |X|-> Reliability - f_udptype
-// | | | | | | | | | | | | | | | | | | | | | | | | |X|X|X|X|-> Checksum Length - f_csumlen
-// | | | | | | | | | | | | | | | | | | | | | | | | | | | | |X|X|X|X|-> Checksum Type - f_csumtype
-// | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |
-//  0                   1                   2                   3
-//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 
+// * METADATA FRAME FLAGS
+// *  0                   1                   2                   3
+// *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// * | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |
+// * |0|0|1|-> Version 1 - f_version
+// * | | | |0|0|0|1|0|-> Metadata Frame - f_frametype
+// * | | | | | | | | |X|X|-> Descriptor - f_descriptor
+// * | | | | | | | | | | |X|X|-> Type of Transfer - f_transfer
+// * | | | | | | | | | | | | |X|-> Transfer in Progress - f_progress
+// * | | | | | | | | | | | | | |X|-> Reliability - f_udptype
+// * | | | | | | | | | | | | | | | | | | | | | | | | |X|X|X|X|-> Checksum Length - f_csumlen
+// * | | | | | | | | | | | | | | | | | | | | | | | | | | | | |X|X|X|X|-> Checksum Type - f_csumtype
+// * | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |
+// *  0                   1                   2                   3
+// *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// *
 // *******************************************************************
-// DATA FRAME FLAGS - Frame type 00011 = 0x23 in Ver 1
-//  0                   1                   2                   3
-//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-// | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |
-// |0|0|1|-> Version 1 - f_version
-// | | | |0|0|0|1|1|-> Data Frame - f_frametype
-// | | | | | | | | |X|X|-> Descriptor - f_descriptor
-// | | | | | | | | | | |X|X|-> Type of Transfer - f_transfer
-// | | | | | | | | | | | | |X|-> Timestamps - f_reqtstamp
-// | | | | | | | | | | | | | | | |X|-> Request Status - f_reqstatus
-// | | | | | | | | | | | | | | | | |X|-> End of Data - f_eod
-// | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |
-//  0                   1                   2                   3
-//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 
+// * DATA FRAME FLAGS
+// *  0                   1                   2                   3
+// *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// * | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |
+// * |0|0|1|-> Version 1 - f_version
+// * | | | |0|0|0|1|1|-> Data Frame - f_frametype
+// * | | | | | | | | |X|X|-> Descriptor - f_descriptor
+// * | | | | | | | | | | |X|X|-> Type of Transfer - f_transfer
+// * | | | | | | | | | | | | |X|-> Timestamps - f_reqtstamp
+// * | | | | | | | | | | | | | | | |X|-> Request Status - f_reqstatus
+// * | | | | | | | | | | | | | | | | |X|-> End of Data - f_eod
+// * | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |
+// *  0                   1                   2                   3
+// *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// *
 // *******************************************************************
-// STATUS FRAME FLAGS - Frame Type 00100 = 0x24 in Ver 1
-//  0                   1                   2                   3
-//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-// | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |
-// |0|0|1|-> Version 1 - f_version
-// | | | |0|0|1|0|0|-> Status Frame - f_frametype
-// | | | | | | | | |X|X|-> Descriptor - f_descriptor
-// | | | | | | | | | | | | |X|-> Timestamp - f_reqtstamp
-// | | | | | | | | | | | | | |X|->Metadata Received - f_metadatarecvd
-// | | | | | | | | | | | | | | |X|-> All Holes - f_allholes
-// | | | | | | | | | | | | | | | |X|-> Holes Requested or Sent - f_reqholes
-// | | | | | | | | | | | | | | | | | | | | | | | | |X|X|X|X|X|X|X|X|-> Error Code - f_errcode
-// | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |
-//  0                   1                   2                   3
-//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+
+// * STATUS FRAME FLAGS
+// *  0                   1                   2                   3
+// *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// * | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |
+// * |0|0|1|-> Version 1 - f_version
+// * | | | |0|0|1|0|0|-> Status Frame - f_frametype
+// * | | | | | | | | |X|X|-> Descriptor - f_descriptor
+// * | | | | | | | | | | | | |X|-> Timestamp - f_reqtstamp
+// * | | | | | | | | | | | | | |X|->Metadata Received - f_metadatarecvd
+// * | | | | | | | | | | | | | | |X|-> All Holes - f_allholes
+// * | | | | | | | | | | | | | | | |X|-> Holes Requested or Sent - f_reqholes
+// * | | | | | | | | | | | | | | | | | | | | | | | | |X|X|X|X|X|X|X|X|-> Error Code - f_errcode
+// * | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |
+// *  0                   1                   2                   3
+// *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// *
+// *******************************************************************
 
 package main
 
@@ -119,7 +124,7 @@ var flagfield = map[string][2]uint32{
 	"reqtstamp":     [2]uint32{1, 12},
 	"progress":      [2]uint32{1, 12},
 	"txwilling":     [2]uint32{2, 12},
-	"udptype":       [2]uint32{1, 13},
+	"udpsupport":    [2]uint32{1, 13},
 	"metadatarecvd": [2]uint32{1, 13},
 	"allholes":      [2]uint32{1, 14},
 	"requesttype":   [2]uint32{8, 24},
@@ -136,251 +141,180 @@ var flagfield = map[string][2]uint32{
 	"errcode":       [2]uint32{8, 24},
 }
 
-var versiontypes = map[string]uint32{
-	"version_0": 0,
-	"version_1": 1,
+// Map of which flags are applicable to which frame types
+var flagframe = map[string][]string{
+	"version":       []string{"beacon", "request", "metadata", "data", "status"},
+	"frametype":     []string{"beacon", "request", "metadata", "data", "status"},
+	"descriptor":    []string{"beacon", "request", "metadata", "data", "status"},
+	"stream":        []string{"beacon", "request"},
+	"transfer":      []string{"metadata", "data"},
+	"reqtstamp":     []string{"data", "status"},
+	"progress":      []string{"metadata"},
+	"txwilling":     []string{"beacon", "request"},
+	"udptype":       []string{"metadata"},
+	"metadatarecvd": []string{"status"},
+	"allholes":      []string{"status"},
+	"requesttype":   []string{"request"},
+	"rxwilling":     []string{"beacon"},
+	"reqholes":      []string{"status"},
+	"fileordir":     []string{"request"},
+	"reqstatus":     []string{"data"},
+	"udplite":       []string{"beacon", "request"},
+	"eod":           []string{"data"},
+	"freespace":     []string{"beacon"},
+	"freespaced":    []string{"beacon"},
+	"csumlen":       []string{"metadata"},
+	"csumtype":      []string{"metadata"},
+	"errcode":       []string{"status"},
 }
 
-// Fversion - Version Number - BEACON,REQUEST,METADATA,DATA,STATUS
-type Fversion uint32
-
-const (
-	Fversion1 Fversion = iota
-	Fversion2
-)
-
-var frametypes = map[string]uint32{
-	"beacon":   0,
-	"request":  1,
-	"metadata": 2,
-	"data":     3,
-	"status":   4,
+type flaginfo struct {
+	name string
+	val  uint32
 }
 
-// Fframetype - Saratoga Frame Type - BEACON,REQUEST,METADATA,DATA,STATUS
-type Fframetype uint32
-
-const (
-	Fbeacon Fframetype = iota
-	Frequest
-	Fmetadata
-	Fdata
-	Fstatus
-)
-
-// Fdescriptor - Descriptor Size - BEACON,REQUEST,METADATA,DATA,STATUS
-type Fdescriptor uint32
-
-const (
-	Fdescriptor16 Fdescriptor = iota
-	Fdescriptor32
-	Fdescriptor64
-	Fdescriptor128
-)
-
-// Fstreams - Are streams supported - BEACON,REQUEST
-type Fstreams uint32
-
-const (
-	Fstreamsno = iota
-	Fstreamsyes
-)
-
-// Ftransfer - Transfer Type - METADATA, DATA
-type Ftransfer uint32
-
-const (
-	Ftransferfile Ftransfer = iota
-	Ftransferdir
-	Ftransferbundle
-	Ftransferstream
-)
-
-// Freqtstamp - Timestamp/nonce - DATA,STATUS
-type Freqtstamp uint32
-
-const (
-	Ftimestampno Freqtstamp = iota
-	Ftimestampyes
-)
-
-// Fprogress - Transfer progress - METADATA
-type Fprogress uint32
-
-const (
-	Finprogress Fprogress = iota
-	Fterminated
-)
-
-// Ftxwilling - Transmitter willingness - BEACON,REQUEST
-type Ftxwilling uint32
-
-const (
-	Ftxwillingno Ftxwilling = iota
-	Ftxwillinginvalid
-	Ftxwillingcapable
-	Ftxwillingyes
-)
-
-// Fudplite - UDP & UDP Lite Supported - METADATA
-type Fudptype uint32
-
-const (
-	Fudptypeudponly Fudplite = iota
-	Fudptypeudplitecapable
-)
-
-// Fmetadatarecvd - Has metadata been received yet - STATUS
-type Fmetadatarecvd uint32
-
-const (
-	Fmetadatarecvdyes Fmetadatarecvd = iota
-	Fmetadatarecvdno
-)
-
-// Fallholes - Are all holes in this packet - STATUS
-type Fallholes uint32
-
-const (
-	Fallholesyes Fallholes = iota
-	Fallholesno
-)
-
-// Freqesttype - What transaction request is this - REQUEST
-type Frequesttype uint32
-
-const (
-	Frequestnoaction Frequesttype = iota
-	Frequestget
-	Frequestput
-	Frequestgetdelete
-	Frequestputdelete
-	Frequestdelete
-	Frequestgetdir
-)
-
-// Frxwilling - Is our receiver ready - BEACON
-type Frxwilling uint32
-
-const (
-	Frxwillingno Frxwilling = iota
-	Frxwillinginvalid
-	Frxwillingcapable
-	Frxwillingyes
-)
-
-// Freqholes - Were holes requested or sent voluntarily - STATUS
-type Freqholes uint32
-
-const (
-	Fholesrequested Freqholes = iota
-	Fholessentvoluntarily
-)
-
-// Ffileordir - Are we requesting a file or directory - REQUEST
-type Ffileordir uint32
-
-const (
-	Ffileordirfile Ffileordir = iota
-	Ffileordirdirectory
-)
-
-// Freqstatus - Do we wish to request for a status update - DATA
-type Freqstatus uint32
-
-const (
-	Freqstatusno Freqstatus = iota
-	Freqstatusyes
-)
-
-// Fudplite - UDP and/or UDP Lite Supported - BEACON,REQUEST
-type Fudplite uint32
-
-const (
-	Fudpliteudponly Fudplite = iota
-	Fudpliteudplitecapable
-)
-
-// Feod - Last frame in the data transfer eof or eos - DATA
-type Feod uint32
-
-const (
-	Feodno Feod = iota
-	Feodyes
-)
-
-// Ffreespace - Do we Advertise Free Space - BEACON
-type Ffreespace uint32
-
-const (
-	Ffreespaceno Ffreespace = iota
-	Ffreespaceyes
-)
-
-// Ffreespaced Saratoga Header - Advertise Descriptor Size of Free Space - BEACON
-type Ffreespaced uint32
-
-const (
-	Ffreespaced16 Ffreespaced = iota
-	Ffreespaced32
-	Ffreespaced64
-	Ffreespaced128
-)
-
-// Fcsumlen Saratoga Header - Checksum Length - METADATA
-type Fcsumlen uint32
-
-const (
-	Fcsumlennone Fcsumlen = iota
-	Fcsumlencrc32
-	Fcsumleninvalid2
-	Fcsumleninvalid3
-	Fcsumlenmd5
-	Fcsumlensha1
-)
-
-// Fcsumtype Saratoga Header - Checksum Type - METADATA
-type Fcsumtype uint32
-
-const (
-	Fcsumnone Fcsumtype = iota
-	Fcsumcrc32
-	Fcsummd5
-	Fcsumsha1
-)
-
-// Ferrcode Saratoga Header - Status & Error codes - STATUS
-type Ferrcode uint32
-
-const (
-	Ferrsuccess Ferrcode = iota
-	Ferrunspec
-	Ferrnosend
-	Ferrnoreceive
-	Ferrnofile
-	Ferrnoaccess
-	Ferrnoid
-	Ferrnodelete
-	Ferrtoobig
-	Ferrbaddesc
-	Ferrbadpacket
-	Ferrbadflag
-	Ferrshutdown
-	Ferrpause
-	Ferrresume
-	Ferrinuse
-	Ferrnometadata
-)
+var flagvals = map[string][]flaginfo{
+	"version": []flaginfo{
+		flaginfo{name: "v0", val: 0},
+		flaginfo{name: "v1", val: 1},
+	},
+	"frametype": []flaginfo{
+		flaginfo{name: "beacon", val: 0},
+		flaginfo{name: "request", val: 1},
+		flaginfo{name: "metadata", val: 2},
+		flaginfo{name: "data", val: 3},
+		flaginfo{name: "status", val: 4},
+	},
+	"descriptor": []flaginfo{
+		flaginfo{name: "d16", val: 0},
+		flaginfo{name: "d32", val: 1},
+		flaginfo{name: "d64", val: 3},
+		flaginfo{name: "d128", val: 4},
+	},
+	"stream": []flaginfo{
+		flaginfo{name: "no", val: 0},
+		flaginfo{name: "yes", val: 1},
+	},
+	"transfer": []flaginfo{
+		flaginfo{name: "file", val: 0},
+		flaginfo{name: "directory", val: 1},
+		flaginfo{name: "bundle", val: 2},
+		flaginfo{name: "stream", val: 3},
+	},
+	"reqtstamp": []flaginfo{
+		flaginfo{name: "no", val: 0},
+		flaginfo{name: "yes", val: 1},
+	},
+	"progress": []flaginfo{
+		flaginfo{name: "inprogress", val: 0},
+		flaginfo{name: "terminated", val: 1},
+	},
+	"txwilling": []flaginfo{
+		flaginfo{name: "no", val: 0},
+		flaginfo{name: "invalid", val: 1},
+		flaginfo{name: "capable", val: 2},
+		flaginfo{name: "yes", val: 3},
+	},
+	"udptype": []flaginfo{
+		flaginfo{name: "udponly", val: 0},
+		flaginfo{name: "udplitecapable", val: 1},
+	},
+	"metadatarecvd": []flaginfo{
+		flaginfo{name: "yes", val: 0},
+		flaginfo{name: "no", val: 1},
+	},
+	"allholes": []flaginfo{
+		flaginfo{name: "yes", val: 0},
+		flaginfo{name: "no", val: 1},
+	},
+	"requesttype": []flaginfo{
+		flaginfo{name: "noaction", val: 0},
+		flaginfo{name: "get", val: 1},
+		flaginfo{name: "put", val: 2},
+		flaginfo{name: "getdelete", val: 3},
+		flaginfo{name: "putdelete", val: 4},
+		flaginfo{name: "delete", val: 5},
+		flaginfo{name: "getdir", val: 6},
+	},
+	"rxwilling": []flaginfo{
+		flaginfo{name: "no", val: 0},
+		flaginfo{name: "invalid", val: 1},
+		flaginfo{name: "capable", val: 2},
+		flaginfo{name: "yes", val: 3},
+	},
+	"reqholes": []flaginfo{
+		flaginfo{name: "requested", val: 0},
+		flaginfo{name: "voluntarily", val: 1},
+	},
+	"fileordir": []flaginfo{
+		flaginfo{name: "file", val: 0},
+		flaginfo{name: "directory", val: 1},
+	},
+	"reqstatus": []flaginfo{
+		flaginfo{name: "no", val: 0},
+		flaginfo{name: "yes", val: 1},
+	},
+	"udplite": []flaginfo{
+		flaginfo{name: "udpoly", val: 0},
+		flaginfo{name: "udplitecapable", val: 1},
+	},
+	"eod": []flaginfo{
+		flaginfo{name: "no", val: 0},
+		flaginfo{name: "yes", val: 1},
+	},
+	"freespace": []flaginfo{
+		flaginfo{name: "no", val: 0},
+		flaginfo{name: "yes", val: 1},
+	},
+	"freespaced": []flaginfo{
+		flaginfo{name: "d16", val: 0},
+		flaginfo{name: "d32", val: 1},
+		flaginfo{name: "d64", val: 2},
+		flaginfo{name: "d128", val: 3},
+	},
+	"csumlen": []flaginfo{
+		flaginfo{name: "none", val: 0},
+		flaginfo{name: "crc32", val: 1},
+		flaginfo{name: "invalid2", val: 2},
+		flaginfo{name: "invalid3", val: 3},
+		flaginfo{name: "md5", val: 4},
+		flaginfo{name: "sha1", val: 5},
+	},
+	"csumtype": []flaginfo{
+		flaginfo{name: "none", val: 0},
+		flaginfo{name: "crc32", val: 1},
+		flaginfo{name: "md5", val: 2},
+		flaginfo{name: "sha1", val: 3},
+	},
+	"errcode": []flaginfo{
+		flaginfo{name: "success", val: 0},
+		flaginfo{name: "unspecified", val: 1},
+		flaginfo{name: "nosend", val: 2},
+		flaginfo{name: "noreceive", val: 3},
+		flaginfo{name: "nofile", val: 4},
+		flaginfo{name: "noaccess", val: 5},
+		flaginfo{name: "noid", val: 6},
+		flaginfo{name: "toobig", val: 7},
+		flaginfo{name: "baddescriptor", val: 8},
+		flaginfo{name: "badpacket", val: 9},
+		flaginfo{name: "badflag", val: 10},
+		flaginfo{name: "shutdown", val: 11},
+		flaginfo{name: "pause", val: 12},
+		flaginfo{name: "resume", val: 13},
+		flaginfo{name: "inuse", val: 14},
+		flaginfo{name: "nometadata", val: 15},
+	},
+}
 
 // Given a current flag and bitfield name return the integer value of the bitfield
-func getfield(curflag uint32, fieldname string) uint32 {
-	if _, ok := flagfield[fieldname]; !ok {
-		fmt.Println("Invalid Flagfield name:", fieldname)
+func getfield(curflag uint32, field string) uint32 {
+	if _, ok := flagfield[field]; !ok {
+		fmt.Println("Invalid field name:", field)
 		panic("Flagfield lookup fail")
 	}
 
-	var len = flagfield[fieldname][fieldlen]
-	var msb = flagfield[fieldname][fieldmsb]
+	var len = flagfield[field][fieldlen]
+	var msb = flagfield[field][fieldmsb]
 	var shiftbits = flagsize - len - msb
 	var maskbits uint32 = (1 << len) - 1
 	var setbits = maskbits << shiftbits
@@ -388,18 +322,29 @@ func getfield(curflag uint32, fieldname string) uint32 {
 }
 
 // Given a current header and bitfield name with a new value return the revised header
-func setfield(curflag uint32, fieldname string, newval uint32) uint32 {
-	if _, ok := flagfield[fieldname]; !ok {
-		fmt.Println("Invalid Flagfield name:", fieldname)
+func setfield(curflag uint32, field string, flagname string) uint32 {
+	if _, ok := flagfield[field]; !ok {
+		fmt.Println("Invalid field name:", field)
 		panic("Flagfield lookup fail")
 	}
-	var len = flagfield[fieldname][fieldlen]
-	var msb = flagfield[fieldname][fieldmsb]
+
+	var newval uint32 = 9
+	for _, fi := range flagvals[field] {
+		fmt.Println("Flags for field ", field, fi.name, fi.val)
+
+		if fi.name == flagname {
+			newval = fi.val
+		}
+	}
+
+	var len = flagfield[field][fieldlen]
+	var msb = flagfield[field][fieldmsb]
 	var shiftbits = flagsize - len - msb
 	var maskbits uint32 = (1 << len) - 1
 	var setbits = maskbits << shiftbits
 	// fmt.Printf("Shiftbits=%d Maskbits=%b Setbits=%b\n", shiftbits, maskbits, setbits)
 	var result = ((curflag) & (^setbits))
+	// var newval = flagvals[field].flaginfo[name].val
 	result |= (newval << shiftbits)
 	// fmt.Printf("Result=%032b\n", result)
 	return result
@@ -549,19 +494,16 @@ func main() {
 	var x uint32
 	var sarflag uint32 = 0x0
 
-	var val uint32 = 0x01
 	fmt.Println("Setting Version 1")
-	sarflag = setfield(sarflag, "version", val)
+	sarflag = setfield(sarflag, "version", "v1")
 	x = getfield(sarflag, "version")
 	fmt.Printf("Sarflag=%0b Version=%0b\n", sarflag, x)
 
-	val = Fbeacon
-	sarflag = setfield(sarflag, "frametype", val)
+	sarflag = setfield(sarflag, "frametype", "beacon")
 	x = getfield(sarflag, "frametype")
 	fmt.Printf("Sarflag =%032b Version=%0b\n", sarflag, x)
 
-	val = Fdescriptor16
-	sarflag = setfield(sarflag, "descriptor", val)
+	sarflag = setfield(sarflag, "descriptor", "d32")
 	x = getfield(sarflag, "descriptor")
 	fmt.Printf("Sarflag =%032b Descriptor=%0b\n", sarflag, x)
 
