@@ -311,11 +311,11 @@ var flagvals = map[string][]flaginfo{
 	},
 }
 
-// GetFlag - Given a current flag and bitfield name return the integer value of the bitfield
-func GetFlag(curflag uint32, field string) uint32 {
+// Get - Given a current flag and bitfield name return the integer value of the bitfield
+func Get(curflag uint32, field string) uint32 {
 	if _, ok := flagbits[field]; !ok {
 		fmt.Println("Invalid Flag", field)
-		panic("GetFlag lookup fail")
+		panic("Get lookup fail")
 	}
 
 	var len = flagbits[field][fieldlen]
@@ -326,11 +326,11 @@ func GetFlag(curflag uint32, field string) uint32 {
 	return (curflag & setbits) >> shiftbits
 }
 
-// SetFlag - Given a current header and bitfield name with a new value return the revised header
-func SetFlag(curflag uint32, field string, flagname string) uint32 {
+// Set - Given a current header and bitfield name with a new value return the revised header
+func Set(curflag uint32, field string, flagname string) uint32 {
 	if _, ok := flagbits[field]; !ok {
 		fmt.Println("Invalid Flag", field)
-		panic("SetFlag lookup fail")
+		panic("Set lookup fail")
 	}
 
 	var newval uint32
@@ -346,7 +346,7 @@ func SetFlag(curflag uint32, field string, flagname string) uint32 {
 	}
 	if !found {
 		fmt.Println("Invalid flagname", flagname, "in Flag", field)
-		panic("setfield lookup fail")
+		panic("Set lookup fail")
 	}
 
 	var len = flagbits[field][fieldlen]
@@ -362,22 +362,22 @@ func SetFlag(curflag uint32, field string, flagname string) uint32 {
 	return result
 }
 
-// TestFlag - true if the flag is set in curflag
-func TestFlag(curflag uint32, field string, flagname string) bool {
-	return GetFlag(curflag, field) == GetFlag(SetFlag(0, field, flagname), field)
+// Test - true if the flag is set in curflag
+func Test(curflag uint32, field string, flagname string) bool {
+	return Get(curflag, field) == Get(Set(0, field, flagname), field)
 }
 
-// NameFlag - return the name of the flag for field in curflag
-func NameFlag(curflag uint32, field string) string {
+// Name - return the name of the flag for field in curflag
+func Name(curflag uint32, field string) string {
 
-	x := GetFlag(curflag, field)
+	x := Get(curflag, field)
 	for _, fi := range flagvals[field] {
 		// fmt.Println("Flags for field ", field, fi.name, fi.val)
 		if fi.val == x {
 			return fi.name
 		}
 	}
-	panic("NameFlag out of range")
+	panic("Name out of range")
 }
 
 // *******************************************************************
@@ -450,11 +450,11 @@ var dflagvals = map[string][]dflaginfo{
 	},
 }
 
-// GetDFlag - Given a current flag and bitfield name return the integer value of the bitfield
-func GetDFlag(curflag uint16, field string) uint16 {
+// GetD - Given a current flag and bitfield name return the integer value of the bitfield
+func GetD(curflag uint16, field string) uint16 {
 	if _, ok := dflagbits[field]; !ok {
 		fmt.Println("Invalid DFlag", field)
-		panic("GetDFlag lookup fail")
+		panic("GetD lookup fail")
 	}
 
 	var len = dflagbits[field][fieldlen]
@@ -465,11 +465,11 @@ func GetDFlag(curflag uint16, field string) uint16 {
 	return (curflag & setbits) >> shiftbits
 }
 
-// SetDFlag - Given a current header and bitfield name with a new value return the revised header
-func SetDFlag(curflag uint16, field string, flagname string) uint16 {
+// SetD - Given a current header and bitfield name with a new value return the revised header
+func SetD(curflag uint16, field string, flagname string) uint16 {
 	if _, ok := dflagbits[field]; !ok {
 		fmt.Println("Invalid DFlag", field)
-		panic("SetDFlag lookup fail")
+		panic("SetD lookup fail")
 	}
 
 	var newval uint16
@@ -485,7 +485,7 @@ func SetDFlag(curflag uint16, field string, flagname string) uint16 {
 	}
 	if !found {
 		fmt.Println("Invalid flagname", flagname, "in DFlag", field)
-		panic("SetDFlag lookup fail")
+		panic("SetD lookup fail")
 	}
 
 	var len = dflagbits[field][fieldlen]
@@ -500,22 +500,22 @@ func SetDFlag(curflag uint16, field string, flagname string) uint16 {
 	return result
 }
 
-// TestDFlag - true if the flag is set in curflag
-func TestDFlag(curdflag uint16, field string, flagname string) bool {
-	return GetDFlag(curdflag, field) == GetDFlag(SetDFlag(0, field, flagname), field)
+// TestD - true if the flag is set in curflag
+func TestD(curdflag uint16, field string, flagname string) bool {
+	return GetD(curdflag, field) == GetD(SetD(0, field, flagname), field)
 }
 
-// NameDFlag - return the name of the flag for field in curdflag
-func NameDFlag(curdflag uint16, field string) string {
+// NameD - return the name of the flag for field in curdflag
+func NameD(curdflag uint16, field string) string {
 
-	x := GetDFlag(curdflag, field)
+	x := GetD(curdflag, field)
 	for _, fi := range dflagvals[field] {
 		// fmt.Println("Flags for field ", field, fi.name, fi.val)
 		if fi.val == x {
 			return fi.name
 		}
 	}
-	panic("NameDFlag out of range")
+	panic("NameD out of range")
 }
 
 // *******************************************************************
@@ -561,11 +561,11 @@ var tflagvals = map[string][]tflaginfo{
 	},
 }
 
-// GetTFlag - Given a current flag and bitfield name return the integer value of the bitfield
-func GetTFlag(curflag uint8, field string) uint8 {
+// GetT - Given a current flag and bitfield name return the integer value of the bitfield
+func GetT(curflag uint8, field string) uint8 {
 	if _, ok := tflagbits[field]; !ok {
 		fmt.Println("Invalid TFlag", field)
-		panic("GetTFlag lookup fail")
+		panic("GetT lookup fail")
 	}
 
 	var len = tflagbits[field][fieldlen]
@@ -576,11 +576,11 @@ func GetTFlag(curflag uint8, field string) uint8 {
 	return (curflag & setbits) >> shiftbits
 }
 
-// SetTFlag Given a current header and bitfield name with a new value return the revised header
-func SetTFlag(curflag uint8, field string, flagname string) uint8 {
+// SetT Given a current header and bitfield name with a new value return the revised header
+func SetT(curflag uint8, field string, flagname string) uint8 {
 	if _, ok := tflagbits[field]; !ok {
 		fmt.Println("Invalid TFlag", field)
-		panic("SetTFlag lookup fail")
+		panic("SetT lookup fail")
 	}
 
 	var newval uint8
@@ -596,7 +596,7 @@ func SetTFlag(curflag uint8, field string, flagname string) uint8 {
 	}
 	if !found {
 		fmt.Println("Invalid flagname", flagname, "in TFlag", field)
-		panic("SetTFlag lookup fail")
+		panic("SetT lookup fail")
 	}
 
 	var len = tflagbits[field][fieldlen]
@@ -611,22 +611,22 @@ func SetTFlag(curflag uint8, field string, flagname string) uint8 {
 	return result
 }
 
-// TestTFlag - true if the flag is set in curflag
-func TestTFlag(curtflag uint8, field string, flagname string) bool {
-	return GetTFlag(curtflag, field) == GetTFlag(SetTFlag(0, field, flagname), field)
+// TestT - true if the flag is set in curflag
+func TestT(curtflag uint8, field string, flagname string) bool {
+	return GetT(curtflag, field) == GetT(SetT(0, field, flagname), field)
 }
 
-// NameTFlag - return the name of the flag for field in curtflag
-func NameTFlag(curtflag uint8, field string) string {
+// NameT - return the name of the flag for field in curtflag
+func NameT(curtflag uint8, field string) string {
 
-	x := GetTFlag(curtflag, field)
+	x := GetT(curtflag, field)
 	for _, fi := range tflagvals[field] {
 		// fmt.Println("Flags for field ", field, fi.name, fi.val)
 		if fi.val == x {
 			return fi.name
 		}
 	}
-	panic("NameTFlag out of range")
+	panic("NameT out of range")
 }
 
 // *******************************************************************
