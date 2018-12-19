@@ -380,6 +380,20 @@ func Name(curflag uint32, field string) string {
 	panic("Name out of range")
 }
 
+// Frame - return a slice of flags that are used by frametype
+func Frame(frametype string) []string {
+	var s []string
+	for k := range flagframe {
+		for _, fi := range flagframe[k] {
+			if fi == frametype {
+				// fmt.Println(k)
+				s = append(s, k)
+			}
+		}
+	}
+	return s
+}
+
 // *******************************************************************
 
 // Saratoga Dflag Header Field Format - 16 bit unsigned integer (uint16)

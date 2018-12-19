@@ -59,4 +59,19 @@ func main() {
 	fmt.Println("Timestamp=posix32_32", sarflags.TestT(tflag, "timestamp", "posix32_32"))
 	fmt.Println("timestamp=", sarflags.NameT(tflag, "timestamp"))
 
+	re := sarflags.Frame("status")
+	fmt.Println("request flags: ", re)
+
+	st := sarflags.Frame("status")
+	fmt.Println("status flags: ", st)
+
+	md := sarflags.Frame("metadata")
+	fmt.Println("metadata flags:", md)
+
+	da := sarflags.Frame("data")
+	fmt.Println("data flags:", da)
+
+	be := sarflags.Frame("beacon")
+	fmt.Println("beacon frame flags:", be)
+
 }
