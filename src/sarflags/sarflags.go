@@ -2,7 +2,9 @@
 
 package sarflags
 
-import "fmt"
+import (
+	"log"
+)
 
 // Saratoga Sflag Header Field Format - 32 bit unsigned integer (uint32)
 
@@ -314,8 +316,7 @@ var flagvals = map[string][]flaginfo{
 // Get - Given a current flag and bitfield name return the integer value of the bitfield
 func Get(curflag uint32, field string) uint32 {
 	if _, ok := flagbits[field]; !ok {
-		fmt.Println("Invalid Flag", field)
-		panic("Get lookup fail")
+		log.Fatalln("Get lookup fail Invalid Flag", field)
 	}
 
 	var len = flagbits[field][fieldlen]
@@ -329,15 +330,14 @@ func Get(curflag uint32, field string) uint32 {
 // Set - Given a current header and bitfield name with a new value return the revised header
 func Set(curflag uint32, field string, flagname string) uint32 {
 	if _, ok := flagbits[field]; !ok {
-		fmt.Println("Invalid Flag", field)
-		panic("Set lookup fail")
+		log.Fatal("Set lookup fail Invalid Flag", field)
 	}
 
 	var newval uint32
 	var found = false
 	// Get the value of the flag
 	for _, fi := range flagvals[field] {
-		// fmt.Println("Flags for field ", field, fi.name, fi.val)
+		// log.Println("Flags for field ", field, fi.name, fi.val)
 		if fi.name == flagname {
 			newval = fi.val
 			found = true
@@ -345,8 +345,7 @@ func Set(curflag uint32, field string, flagname string) uint32 {
 		}
 	}
 	if !found {
-		fmt.Println("Invalid flagname", flagname, "in Flag", field)
-		panic("Set lookup fail")
+		log.Fatal("Set lookup fail Invalid flagname", flagname, "in Flag", field)
 	}
 
 	var len = flagbits[field][fieldlen]
@@ -354,11 +353,10 @@ func Set(curflag uint32, field string, flagname string) uint32 {
 	var shiftbits = flagsize - len - msb
 	var maskbits uint32 = (1 << len) - 1
 	var setbits = maskbits << shiftbits
-	// fmt.Printf("Shiftbits=%d Maskbits=%b Setbits=%b\n", shiftbits, maskbits, setbits)
+	// log.Printf("Shiftbits=%d Maskbits=%b Setbits=%b\n", shiftbits, maskbits, setbits)
 	var result = ((curflag) & (^setbits))
-	// var newval = flagvals[field].flaginfo[name].val
 	result |= (newval << shiftbits)
-	// fmt.Printf("Result=%032b\n", result)
+	// log.Printf("Result=%032b\n", result)
 	return result
 }
 
@@ -372,12 +370,13 @@ func Name(curflag uint32, field string) string {
 
 	x := Get(curflag, field)
 	for _, fi := range flagvals[field] {
-		// fmt.Println("Flags for field ", field, fi.name, fi.val)
+		// log.Println("Flags for field ", field, fi.name, fi.val)
 		if fi.val == x {
 			return fi.name
 		}
 	}
-	panic("Name out of range")
+	log.Fatalln("Name out of range")
+	return ""
 }
 
 // Frame - return a slice of flags that are used by frametype
@@ -467,8 +466,7 @@ var dflagvals = map[string][]dflaginfo{
 // GetD - Given a current flag and bitfield name return the integer value of the bitfield
 func GetD(curflag uint16, field string) uint16 {
 	if _, ok := dflagbits[field]; !ok {
-		fmt.Println("Invalid DFlag", field)
-		panic("GetD lookup fail")
+		log.Fatal("GetD lookup fail Invalid DFlag", field)
 	}
 
 	var len = dflagbits[field][fieldlen]
@@ -482,15 +480,14 @@ func GetD(curflag uint16, field string) uint16 {
 // SetD - Given a current header and bitfield name with a new value return the revised header
 func SetD(curflag uint16, field string, flagname string) uint16 {
 	if _, ok := dflagbits[field]; !ok {
-		fmt.Println("Invalid DFlag", field)
-		panic("SetD lookup fail")
+		log.Fatalln("Invalid DFlag SetD lookup fail", field)
 	}
 
 	var newval uint16
 	var found = false
 	// Get the value of the flag
 	for _, fi := range dflagvals[field] {
-		// fmt.Println("DFlags for field ", field, fi.name, fi.val)
+		// log.Println("DFlags for field ", field, fi.name, fi.val)
 		if fi.name == flagname {
 			newval = fi.val
 			found = true
@@ -498,8 +495,7 @@ func SetD(curflag uint16, field string, flagname string) uint16 {
 		}
 	}
 	if !found {
-		fmt.Println("Invalid flagname", flagname, "in DFlag", field)
-		panic("SetD lookup fail")
+		log.Fatalln("SetD lookup fail Invalid flagname", flagname, "in DFlag", field)
 	}
 
 	var len = dflagbits[field][fieldlen]
@@ -507,10 +503,10 @@ func SetD(curflag uint16, field string, flagname string) uint16 {
 	var shiftbits = dflagsize - len - msb
 	var maskbits uint16 = (1 << len) - 1
 	var setbits = maskbits << shiftbits
-	// fmt.Printf("Shiftbits=%d Maskbits=%b Setbits=%b\n", shiftbits, maskbits, setbits)
+	// log.Printf("Shiftbits=%d Maskbits=%b Setbits=%b\n", shiftbits, maskbits, setbits)
 	var result = ((curflag) & (^setbits))
 	result |= (newval << shiftbits)
-	// fmt.Printf("Result=%016b\n", result)
+	// log.Printf("Result=%016b\n", result)
 	return result
 }
 
@@ -524,12 +520,13 @@ func NameD(curdflag uint16, field string) string {
 
 	x := GetD(curdflag, field)
 	for _, fi := range dflagvals[field] {
-		// fmt.Println("Flags for field ", field, fi.name, fi.val)
+		// log.Println("Flags for field ", field, fi.name, fi.val)
 		if fi.val == x {
 			return fi.name
 		}
 	}
-	panic("NameD out of range")
+	log.Fatalln("NameD out of range")
+	return ""
 }
 
 // *******************************************************************
@@ -578,8 +575,7 @@ var tflagvals = map[string][]tflaginfo{
 // GetT - Given a current flag and bitfield name return the integer value of the bitfield
 func GetT(curflag uint8, field string) uint8 {
 	if _, ok := tflagbits[field]; !ok {
-		fmt.Println("Invalid TFlag", field)
-		panic("GetT lookup fail")
+		log.Fatalln("GetT lookup fail Invalid TFlag", field)
 	}
 
 	var len = tflagbits[field][fieldlen]
@@ -593,15 +589,14 @@ func GetT(curflag uint8, field string) uint8 {
 // SetT Given a current header and bitfield name with a new value return the revised header
 func SetT(curflag uint8, field string, flagname string) uint8 {
 	if _, ok := tflagbits[field]; !ok {
-		fmt.Println("Invalid TFlag", field)
-		panic("SetT lookup fail")
+		log.Fatalln("SetT lookup fail Invalid TFlag", field)
 	}
 
 	var newval uint8
 	var found = false
 	// Get the value of the flag
 	for _, fi := range tflagvals[field] {
-		// fmt.Println("TFlags for field ", field, fi.name, fi.val)
+		// log.Println("TFlags for field ", field, fi.name, fi.val)
 		if fi.name == flagname {
 			newval = fi.val
 			found = true
@@ -609,8 +604,7 @@ func SetT(curflag uint8, field string, flagname string) uint8 {
 		}
 	}
 	if !found {
-		fmt.Println("Invalid flagname", flagname, "in TFlag", field)
-		panic("SetT lookup fail")
+		log.Fatalln("SetT lookup fail Invalid flagname", flagname, "in TFlag", field)
 	}
 
 	var len = tflagbits[field][fieldlen]
@@ -618,10 +612,10 @@ func SetT(curflag uint8, field string, flagname string) uint8 {
 	var shiftbits = tflagsize - len - msb
 	var maskbits uint8 = (1 << len) - 1
 	var setbits = maskbits << shiftbits
-	// fmt.Printf("Shiftbits=%d Maskbits=%b Setbits=%b\n", shiftbits, maskbits, setbits)
+	// log.Printf("Shiftbits=%d Maskbits=%b Setbits=%b\n", shiftbits, maskbits, setbits)
 	var result = ((curflag) & (^setbits))
 	result |= (newval << shiftbits)
-	// fmt.Printf("Result=%08b\n", result)
+	// log.Printf("Result=%08b\n", result)
 	return result
 }
 
@@ -635,12 +629,13 @@ func NameT(curtflag uint8, field string) string {
 
 	x := GetT(curtflag, field)
 	for _, fi := range tflagvals[field] {
-		// fmt.Println("Flags for field ", field, fi.name, fi.val)
+		// log.Println("Flags for field ", field, fi.name, fi.val)
 		if fi.val == x {
 			return fi.name
 		}
 	}
-	panic("NameT out of range")
+	log.Fatalln("NameT out of range")
+	return ""
 }
 
 // *******************************************************************

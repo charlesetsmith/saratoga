@@ -1,12 +1,22 @@
 package main
 
-import "fmt"
-import "sarflags"
+import (
+	"fmt"
+	"log"
+	"os"
+	"sarflags"
+
+	"github.com/urfave/cli"
+)
 
 // *******************************************************************
 
 func main() {
 
+	err := cli.NewApp().Run(os.Args)
+	if err != nil {
+		log.Fatal(err)
+	}
 	fmt.Println("Handle Saratoga Flags")
 
 	var x uint32
@@ -22,7 +32,7 @@ func main() {
 
 	sarflag = sarflags.Set(sarflag, "descriptor", "d64")
 	x = sarflags.Get(sarflag, "descriptor")
-	fmt.Printf("Sarflag =%032b descriptor=%032b\n", sarflag, x)
+	f.Printf("Sarflag =%032b descriptor=%032b\n", sarflag, x)
 
 	fmt.Println("Sarflag frametype=beacon", sarflags.Test(sarflag, "frametype", "data"))
 	fmt.Println("descriptor=", sarflags.Name(sarflag, "descriptor"))
