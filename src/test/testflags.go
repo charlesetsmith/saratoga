@@ -1,11 +1,10 @@
+// Test Saratoga Flags
+
 package main
 
 import (
 	"fmt"
-	"log"
 	"sarflags"
-
-	termbox "github.com/nsf/termbox-go"
 	// "github.com/urfave/cli"
 )
 
@@ -15,11 +14,11 @@ var IsInit bool = false
 
 func main() {
 
-	err := termbox.Init()
-	if err != nil {
-		log.Fatalln("Cannot initialise termbox")
-	}
-	defer termbox.Close()
+	// err := termbox.Init()
+	// if err != nil {
+	//	log.Fatalln("Cannot initialise termbox")
+	// }
+	// defer termbox.Close()
 
 	// err := cli.NewApp().Run(os.Args)
 	// if err != nil {
