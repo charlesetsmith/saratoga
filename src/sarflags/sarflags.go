@@ -330,7 +330,7 @@ func Get(curflag uint32, field string) uint32 {
 // Set - Given a current header and bitfield name with a new value return the revised header
 func Set(curflag uint32, field string, flagname string) uint32 {
 	if _, ok := flagbits[field]; !ok {
-		log.Fatal("Set lookup fail Invalid Flag", field)
+		log.Fatalln("Set lookup fail Invalid Flag", field)
 	}
 
 	var newval uint32
@@ -345,7 +345,7 @@ func Set(curflag uint32, field string, flagname string) uint32 {
 		}
 	}
 	if !found {
-		log.Fatal("Set lookup fail Invalid flagname", flagname, "in Flag", field)
+		log.Fatalln("Set lookup fail Invalid flagname", flagname, "in Flag", field)
 	}
 
 	var len = flagbits[field][fieldlen]
