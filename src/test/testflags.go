@@ -89,6 +89,6 @@ func main() {
 	fmt.Println("data flags:", da)
 
 	be := sarflags.Frame("beacon")
-	fmt.Println("beacon frame flags:", be)
+	fmt.Println("beacon flags:", be)
 
 }
