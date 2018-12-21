@@ -10,8 +10,6 @@ import (
 
 // *******************************************************************
 
-var IsInit bool = false
-
 func main() {
 
 	// err := termbox.Init()
@@ -90,5 +88,4 @@ func main() {
 
 	be := sarflags.Frame("beacon")
 	fmt.Println("beacon flags:", be)
-
 }
