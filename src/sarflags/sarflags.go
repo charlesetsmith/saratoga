@@ -3,8 +3,27 @@
 package sarflags
 
 import (
+	"errors"
 	"log"
 )
+
+// Flags - Where Flags are kept after you set them in cli
+type Flags struct {
+	Descriptor string
+	Checksum   string
+	Eid        int
+	Freespace  string
+	Txwilling  string
+	Rxwilling  string
+	Stream     string
+}
+
+// Global - Where the cli flags are set
+var Global Flags
+
+// MaxFrameSize -- Maximum Saratoga Frame Size
+// Move this to Network Section & Calculate it
+const MaxFrameSize = 1500 - 60 // After MTU & IPv6 Header
 
 // Saratoga Sflag Header Field Format - 32 bit unsigned integer (uint32)
 
@@ -107,6 +126,18 @@ import (
 // *
 // *******************************************************************
 
+// MaxUint - Maximum unsigned int on this platform
+const MaxUint = ^uint(0) // What is the biggest unsigned integer supported on platform
+
+// MaxUint16 -- Biggest unsigned 16 bit integer
+const MaxUint16 = 65535
+
+// MaxUint32 -- Biggest unsigned 32 bit integer
+const MaxUint32 = 4294967295
+
+// MaxUint64 -- Biggest unsigned 64 bit integer
+const MaxUint64 = 18446744073709551615
+
 // Length in bits of the saratoga header flag
 const flagsize uint32 = 32
 
@@ -128,10 +159,10 @@ var flagbits = map[string][2]uint32{
 	"reqtstamp":     [2]uint32{1, 12},
 	"progress":      [2]uint32{1, 12},
 	"txwilling":     [2]uint32{2, 12},
-	"udpsupport":    [2]uint32{1, 13},
+	"udptype":       [2]uint32{1, 13},
 	"metadatarecvd": [2]uint32{1, 13},
 	"allholes":      [2]uint32{1, 14},
-	"requesttype":   [2]uint32{8, 24},
+	"reqtype":       [2]uint32{8, 24},
 	"rxwilling":     [2]uint32{2, 14},
 	"reqholes":      [2]uint32{1, 15},
 	"fileordir":     [2]uint32{1, 15},
@@ -154,11 +185,11 @@ var flagframe = map[string][]string{
 	"transfer":      []string{"metadata", "data"},
 	"reqtstamp":     []string{"data", "status"},
 	"progress":      []string{"metadata"},
-	"txwilling":     []string{"beacon", "request"},
+	"txwilling":     []string{"beacon"},
 	"udptype":       []string{"metadata"},
 	"metadatarecvd": []string{"status"},
 	"allholes":      []string{"status"},
-	"requesttype":   []string{"request"},
+	"reqtype":       []string{"request"},
 	"rxwilling":     []string{"beacon"},
 	"reqholes":      []string{"status"},
 	"fileordir":     []string{"request"},
@@ -192,8 +223,8 @@ var flagvals = map[string][]flaginfo{
 	"descriptor": []flaginfo{
 		flaginfo{name: "d16", val: 0},
 		flaginfo{name: "d32", val: 1},
-		flaginfo{name: "d64", val: 3},
-		flaginfo{name: "d128", val: 4},
+		flaginfo{name: "d64", val: 2},
+		// flaginfo{name: "d128", val: 3}, INVALID AT THIS TIME WAIT FOR 128 bit int's
 	},
 	"stream": []flaginfo{
 		flaginfo{name: "no", val: 0},
@@ -221,7 +252,7 @@ var flagvals = map[string][]flaginfo{
 	},
 	"udptype": []flaginfo{
 		flaginfo{name: "udponly", val: 0},
-		flaginfo{name: "udplitecapable", val: 1},
+		flaginfo{name: "udplite", val: 1},
 	},
 	"metadatarecvd": []flaginfo{
 		flaginfo{name: "yes", val: 0},
@@ -231,7 +262,7 @@ var flagvals = map[string][]flaginfo{
 		flaginfo{name: "yes", val: 0},
 		flaginfo{name: "no", val: 1},
 	},
-	"requesttype": []flaginfo{
+	"reqtype": []flaginfo{
 		flaginfo{name: "noaction", val: 0},
 		flaginfo{name: "get", val: 1},
 		flaginfo{name: "put", val: 2},
@@ -242,7 +273,7 @@ var flagvals = map[string][]flaginfo{
 	},
 	"rxwilling": []flaginfo{
 		flaginfo{name: "no", val: 0},
-		flaginfo{name: "invalid", val: 1},
+		//		flaginfo{name: "invalid", val: 1},
 		flaginfo{name: "capable", val: 2},
 		flaginfo{name: "yes", val: 3},
 	},
@@ -259,8 +290,8 @@ var flagvals = map[string][]flaginfo{
 		flaginfo{name: "yes", val: 1},
 	},
 	"udplite": []flaginfo{
-		flaginfo{name: "udpoly", val: 0},
-		flaginfo{name: "udplitecapable", val: 1},
+		flaginfo{name: "no", val: 0},
+		flaginfo{name: "yes", val: 1},
 	},
 	"eod": []flaginfo{
 		flaginfo{name: "no", val: 0},
@@ -274,13 +305,13 @@ var flagvals = map[string][]flaginfo{
 		flaginfo{name: "d16", val: 0},
 		flaginfo{name: "d32", val: 1},
 		flaginfo{name: "d64", val: 2},
-		flaginfo{name: "d128", val: 3},
+		// flaginfo{name: "d128", val: 3}, INVALID AT THIS TIME WIAT FOR 128 bit ints
 	},
 	"csumlen": []flaginfo{
 		flaginfo{name: "none", val: 0},
 		flaginfo{name: "crc32", val: 1},
-		flaginfo{name: "invalid2", val: 2},
-		flaginfo{name: "invalid3", val: 3},
+		// flaginfo{name: "invalid2", val: 2},
+		// flaginfo{name: "invalid3", val: 3},
 		flaginfo{name: "md5", val: 4},
 		flaginfo{name: "sha1", val: 5},
 	},
@@ -313,24 +344,95 @@ var flagvals = map[string][]flaginfo{
 	},
 }
 
+// Valid - Check for valid flag and value
+func Valid(field string, info string) bool {
+	for f := range flagvals {
+		if field == f {
+			for _, fi := range flagvals[field] {
+				if fi.name == info {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// Values - Return slice of flag values
+func Values(field string) []string {
+	var vals []string
+
+	for f := range flagvals {
+		if field == f {
+			for _, fi := range flagvals[field] {
+				vals = append(vals, fi.name)
+			}
+			break
+		}
+	}
+	return vals
+}
+
+// Value - Return the integer value of the flag or -1 if not valid
+func Value(field string, info string) int {
+	for f := range flagvals {
+		if field == f {
+			for _, fi := range flagvals[field] {
+				if fi.name == info {
+					return int(fi.val)
+				}
+			}
+		}
+	}
+	return -1
+}
+
 // Get - Given a current flag and bitfield name return the integer value of the bitfield
 func Get(curflag uint32, field string) uint32 {
 	if _, ok := flagbits[field]; !ok {
 		log.Fatalln("Get lookup fail Invalid Flag", field)
 	}
 
-	var len = flagbits[field][fieldlen]
-	var msb = flagbits[field][fieldmsb]
-	var shiftbits = flagsize - len - msb
-	var maskbits uint32 = (1 << len) - 1
-	var setbits = maskbits << shiftbits
+	var len, msb, shiftbits, maskbits, setbits uint32
+
+	len = flagbits[field][fieldlen]
+	msb = flagbits[field][fieldmsb]
+	shiftbits = flagsize - len - msb
+	maskbits = (1 << len) - 1
+	setbits = maskbits << shiftbits
 	return (curflag & setbits) >> shiftbits
 }
 
+// GetStr - Given a current flag and bitfield name return the string name of the bitfield set in curflag
+func GetStr(curflag uint32, field string) string {
+	if _, ok := flagbits[field]; !ok {
+		log.Fatalln("Get lookup fail Invalid Flag", field)
+	}
+
+	var len, msb, shiftbits, maskbits, setbits, val uint32
+
+	len = flagbits[field][fieldlen]
+	msb = flagbits[field][fieldmsb]
+	shiftbits = flagsize - len - msb
+	maskbits = (1 << len) - 1
+	setbits = maskbits << shiftbits
+	val = (curflag & setbits) >> shiftbits
+	for _, fi := range flagvals[field] {
+		if fi.val == val {
+			return fi.name
+		}
+	}
+	log.Fatalln("GetStr fail Invalid field", field, "in Flag", curflag)
+	return ""
+}
+
 // Set - Given a current header and bitfield name with a new value return the revised header
-func Set(curflag uint32, field string, flagname string) uint32 {
+// If invalid return the current flag and error
+func Set(curflag uint32, field string, flagname string) (uint32, error) {
 	if _, ok := flagbits[field]; !ok {
 		log.Fatalln("Set lookup fail Invalid Flag", field)
+		e := "invalid Flag: " + field
+		return curflag, errors.New(e)
 	}
 
 	var newval uint32
@@ -348,21 +450,24 @@ func Set(curflag uint32, field string, flagname string) uint32 {
 		log.Fatalln("Set lookup fail Invalid flagname", flagname, "in Flag", field)
 	}
 
-	var len = flagbits[field][fieldlen]
-	var msb = flagbits[field][fieldmsb]
-	var shiftbits = flagsize - len - msb
-	var maskbits uint32 = (1 << len) - 1
-	var setbits = maskbits << shiftbits
+	var len, msb, shiftbits, maskbits, setbits, result uint32
+
+	len = flagbits[field][fieldlen]
+	msb = flagbits[field][fieldmsb]
+	shiftbits = flagsize - len - msb
+	maskbits = (1 << len) - 1
+	setbits = maskbits << shiftbits
 	// log.Printf("Shiftbits=%d Maskbits=%b Setbits=%b\n", shiftbits, maskbits, setbits)
-	var result = ((curflag) & (^setbits))
+	result = ((curflag) & (^setbits))
 	result |= (newval << shiftbits)
 	// log.Printf("Result=%032b\n", result)
-	return result
+	return result, nil
 }
 
 // Test - true if the flag is set in curflag
-func Test(curflag uint32, field string, flagname string) bool {
-	return Get(curflag, field) == Get(Set(0, field, flagname), field)
+func Test(curflag uint32, field, string, flagname string) bool {
+	v, _ := Set(0, field, flagname)
+	return Get(curflag, field) == Get(v, field)
 }
 
 // Name - return the name of the flag for field in curflag
@@ -391,6 +496,16 @@ func Frame(frametype string) []string {
 		}
 	}
 	return s
+}
+
+// Good - Is this a valid flagname
+func Good(field string) bool {
+	for k := range flagframe {
+		if k == field {
+			return true
+		}
+	}
+	return false
 }
 
 // *******************************************************************
@@ -426,10 +541,10 @@ const dflagsize uint16 = 16
 // The 1 element (fieldmsb) value in the uint16[2] is the bit offset from the front.
 // This is all in network byte order
 var dflagbits = map[string][2]uint16{
-	"sod":         [2]uint16{1, 0},
-	"properties":  [2]uint16{2, 6},
-	"descriptor":  [2]uint16{2, 8},
-	"reserved":    [2]uint16{1, 10},
+	"sod":        [2]uint16{1, 0},
+	"property":   [2]uint16{2, 6},
+	"descriptor": [2]uint16{2, 8},
+	//	"reserved":    [2]uint16{1, 10},
 	"reliability": [2]uint16{1, 13},
 }
 
@@ -440,9 +555,9 @@ type dflaginfo struct {
 
 var dflagvals = map[string][]dflaginfo{
 	"sod": []dflaginfo{
-		dflaginfo{name: "startofdirectory", val: 1},
+		dflaginfo{name: "sod", val: 1},
 	},
-	"properties": []dflaginfo{
+	"property": []dflaginfo{
 		dflaginfo{name: "normalfile", val: 0},
 		dflaginfo{name: "normaldirectory", val: 1},
 		dflaginfo{name: "specialfile", val: 2},
@@ -452,11 +567,11 @@ var dflagvals = map[string][]dflaginfo{
 		dflaginfo{name: "d16", val: 0},
 		dflaginfo{name: "d32", val: 1},
 		dflaginfo{name: "d64", val: 2},
-		dflaginfo{name: "d128", val: 3},
+		// dflaginfo{name: "d128", val: 3}, INVALID AS OF THIS TIME WAIT FOR 128 bit int's
 	},
-	"reserved": []dflaginfo{
-		dflaginfo{name: "reserved", val: 0},
-	},
+	//	"reserved": []dflaginfo{
+	//		dflaginfo{name: "reserved", val: 0},
+	//	},
 	"reliability": []dflaginfo{
 		dflaginfo{name: "yes", val: 0},
 		dflaginfo{name: "no", val: 1},
@@ -469,18 +584,44 @@ func GetD(curflag uint16, field string) uint16 {
 		log.Fatal("GetD lookup fail Invalid DFlag", field)
 	}
 
-	var len = dflagbits[field][fieldlen]
-	var msb = dflagbits[field][fieldmsb]
-	var shiftbits = dflagsize - len - msb
-	var maskbits uint16 = (1 << len) - 1
-	var setbits = maskbits << shiftbits
+	var len, msb, shiftbits, maskbits, setbits uint16
+
+	len = dflagbits[field][fieldlen]
+	msb = dflagbits[field][fieldmsb]
+	shiftbits = dflagsize - len - msb
+	maskbits = (1 << len) - 1
+	setbits = maskbits << shiftbits
 	return (curflag & setbits) >> shiftbits
 }
 
+// GetDStr - Given a current flag and bitfield name return the string name of the bitfield set in curflag
+func GetDStr(curflag uint16, field string) string {
+	if _, ok := dflagbits[field]; !ok {
+		log.Fatalln("Get lookup fail Invalid DFlag", field)
+	}
+	var len, msb, shiftbits, maskbits, setbits, val uint16
+
+	len = dflagbits[field][fieldlen]
+	msb = dflagbits[field][fieldmsb]
+	shiftbits = dflagsize - len - msb
+	maskbits = (1 << len) - 1
+	setbits = maskbits << shiftbits
+	val = (curflag & setbits) >> shiftbits
+	for _, fi := range dflagvals[field] {
+		if fi.val == val {
+			return fi.name
+		}
+	}
+	log.Fatalln("GetDStr fail Invalid field", field, "in DFlag:", curflag)
+	return ""
+}
+
 // SetD - Given a current header and bitfield name with a new value return the revised header
-func SetD(curflag uint16, field string, flagname string) uint16 {
+func SetD(curflag uint16, field string, flagname string) (uint16, error) {
 	if _, ok := dflagbits[field]; !ok {
 		log.Fatalln("Invalid DFlag SetD lookup fail", field)
+		e := "invalid DFlag: " + field
+		return curflag, errors.New(e)
 	}
 
 	var newval uint16
@@ -496,23 +637,46 @@ func SetD(curflag uint16, field string, flagname string) uint16 {
 	}
 	if !found {
 		log.Fatalln("SetD lookup fail Invalid flagname", flagname, "in DFlag", field)
+		e := "invalid DFlag: " + field
+		return curflag, errors.New(e)
 	}
 
-	var len = dflagbits[field][fieldlen]
-	var msb = dflagbits[field][fieldmsb]
-	var shiftbits = dflagsize - len - msb
-	var maskbits uint16 = (1 << len) - 1
-	var setbits = maskbits << shiftbits
+	var len, msb, shiftbits, maskbits, setbits, result uint16
+
+	len = dflagbits[field][fieldlen]
+	msb = dflagbits[field][fieldmsb]
+	shiftbits = dflagsize - len - msb
+	maskbits = (1 << len) - 1
+	setbits = maskbits << shiftbits
 	// log.Printf("Shiftbits=%d Maskbits=%b Setbits=%b\n", shiftbits, maskbits, setbits)
-	var result = ((curflag) & (^setbits))
+	result = ((curflag) & (^setbits))
 	result |= (newval << shiftbits)
 	// log.Printf("Result=%016b\n", result)
-	return result
+	return result, nil
+}
+
+// FrameD - return a slice of flag names matching field
+func FrameD(field string) []string {
+	var s []string
+	for _, fi := range dflagvals[field] {
+		s = append(s, fi.name)
+	}
+	return s
+}
+
+// FlagD - return a slice of flag names that are used by Dirent
+func FlagD() []string {
+	var s []string
+	for fi := range dflagbits {
+		s = append(s, fi)
+	}
+	return s
 }
 
 // TestD - true if the flag is set in curflag
 func TestD(curdflag uint16, field string, flagname string) bool {
-	return GetD(curdflag, field) == GetD(SetD(0, field, flagname), field)
+	v, _ := SetD(0, field, flagname)
+	return GetD(curdflag, field) == GetD(v, field)
 }
 
 // NameD - return the name of the flag for field in curdflag
@@ -527,6 +691,16 @@ func NameD(curdflag uint16, field string) string {
 	}
 	log.Fatalln("NameD out of range")
 	return ""
+}
+
+// GoodD -- Is this a valid Descriptor Flag
+func GoodD(field string) bool {
+	for f := range dflagvals {
+		if f == field {
+			return true
+		}
+	}
+	return false
 }
 
 // *******************************************************************
@@ -553,7 +727,7 @@ const tflagsize uint8 = 8
 // The 1 element (fieldmsb) value in the uint8[2] is the bit offset from the front.
 // This is all in network byte order
 var tflagbits = map[string][2]uint8{
-	"timestamp": [2]uint8{3, 5},
+	"timestamp": [2]uint8{8, 0},
 }
 
 type tflaginfo struct {
@@ -573,29 +747,56 @@ var tflagvals = map[string][]tflaginfo{
 }
 
 // GetT - Given a current flag and bitfield name return the integer value of the bitfield
-func GetT(curflag uint8, field string) uint8 {
-	if _, ok := tflagbits[field]; !ok {
-		log.Fatalln("GetT lookup fail Invalid TFlag", field)
+func GetT(curflag uint8) uint8 {
+	if _, ok := tflagbits["timestamp"]; !ok {
+		log.Fatalln("GetT lookup fail Invalid TFlag A", curflag)
 	}
+	var len, msb, shiftbits, maskbits, setbits uint8
 
-	var len = tflagbits[field][fieldlen]
-	var msb = tflagbits[field][fieldmsb]
-	var shiftbits = tflagsize - len - msb
-	var maskbits uint8 = (1 << len) - 1
-	var setbits = maskbits << shiftbits
+	len = tflagbits["timestamp"][fieldlen]
+	msb = tflagbits["timestamp"][fieldmsb]
+	shiftbits = tflagsize - len - msb
+	maskbits = (1 << len) - 1
+	setbits = maskbits << shiftbits
 	return (curflag & setbits) >> shiftbits
 }
 
+// GetTStr - Given a current flag and bitfield name return the string name of the bitfield set in curflag
+func GetTStr(curflag uint8) string {
+	if _, ok := tflagbits["timestamp"]; !ok {
+		log.Fatalln("Get lookup fail Invalid TFlag:", curflag)
+	}
+
+	var len, msb, shiftbits, maskbits, setbits, val uint8
+
+	len = tflagbits["timestamp"][fieldlen]
+	msb = tflagbits["timetamp"][fieldmsb]
+	shiftbits = tflagsize - len - msb
+	maskbits = (1 << len) - 1
+	setbits = maskbits << shiftbits
+	val = (curflag & setbits) >> shiftbits
+	for _, fi := range tflagvals["timestamp"] {
+		if fi.val == val {
+			return fi.name
+		}
+	}
+
+	log.Fatalln("GetTStr fail Invalid Tflag:", curflag)
+	return ""
+}
+
 // SetT Given a current header and bitfield name with a new value return the revised header
-func SetT(curflag uint8, field string, flagname string) uint8 {
-	if _, ok := tflagbits[field]; !ok {
-		log.Fatalln("SetT lookup fail Invalid TFlag", field)
+func SetT(curflag uint8, flagname string) (uint8, error) {
+	if _, ok := tflagbits["timestamp"]; !ok {
+		log.Fatalln("SetT lookup fail Invalid TFlag:", flagname)
+		e := "Invalid TFlag: " + flagname
+		return curflag, errors.New(e)
 	}
 
 	var newval uint8
 	var found = false
 	// Get the value of the flag
-	for _, fi := range tflagvals[field] {
+	for _, fi := range tflagvals["timestamp"] {
 		// log.Println("TFlags for field ", field, fi.name, fi.val)
 		if fi.name == flagname {
 			newval = fi.val
@@ -604,11 +805,13 @@ func SetT(curflag uint8, field string, flagname string) uint8 {
 		}
 	}
 	if !found {
-		log.Fatalln("SetT lookup fail Invalid flagname", flagname, "in TFlag", field)
+		log.Fatalln("SetT lookup fail Invalid flagname", flagname, "in TFlag")
+		e := "invalid TFlag: " + flagname
+		return curflag, errors.New(e)
 	}
 
-	var len = tflagbits[field][fieldlen]
-	var msb = tflagbits[field][fieldmsb]
+	var len = tflagbits["timestamp"][fieldlen]
+	var msb = tflagbits["timestamp"][fieldmsb]
 	var shiftbits = tflagsize - len - msb
 	var maskbits uint8 = (1 << len) - 1
 	var setbits = maskbits << shiftbits
@@ -616,19 +819,20 @@ func SetT(curflag uint8, field string, flagname string) uint8 {
 	var result = ((curflag) & (^setbits))
 	result |= (newval << shiftbits)
 	// log.Printf("Result=%08b\n", result)
-	return result
+	return result, nil
 }
 
 // TestT - true if the flag is set in curflag
-func TestT(curtflag uint8, field string, flagname string) bool {
-	return GetT(curtflag, field) == GetT(SetT(0, field, flagname), field)
+func TestT(curflag uint8, flagname string) bool {
+	v, _ := SetT(curflag, flagname)
+	return GetT(curflag) == GetT(v)
 }
 
 // NameT - return the name of the flag for field in curtflag
-func NameT(curtflag uint8, field string) string {
+func NameT(curflag uint8, field string) string {
 
-	x := GetT(curtflag, field)
-	for _, fi := range tflagvals[field] {
+	x := GetT(curflag)
+	for _, fi := range tflagvals["timestamp"] {
 		// log.Println("Flags for field ", field, fi.name, fi.val)
 		if fi.val == x {
 			return fi.name
@@ -636,6 +840,25 @@ func NameT(curtflag uint8, field string) string {
 	}
 	log.Fatalln("NameT out of range")
 	return ""
+}
+
+// FrameT - return a slice of flag names that are used by Timeinfo
+func FrameT() []string {
+	var s []string
+	for _, fi := range tflagvals["timestamp"] {
+		s = append(s, fi.name)
+	}
+	return s
+}
+
+// GoodT - Is this a valid time flag
+func GoodT(field string) bool {
+	for t := range tflagvals {
+		if field == t {
+			return true
+		}
+	}
+	return false
 }
 
 // *******************************************************************
