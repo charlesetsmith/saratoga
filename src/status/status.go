@@ -1,4 +1,4 @@
-package frames
+package status
 
 import (
 	"encoding/binary"
@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"sarflags"
+	"timestamp"
 )
 
 // Hole -- Beggining and End of a hole
@@ -17,32 +18,29 @@ type Hole struct {
 
 // Status -- Status of the transfer and holes
 type Status struct {
-	flags    uint32
+	header   uint32
 	session  uint32
-	tstamp   Timestamp
+	tstamp   timestamp.Timestamp
 	progress uint64
 	inrespto uint64
 	holes    []Hole
 }
 
-// StatusMake - Construct a Status frame - return byte slice of frame
+// New - Construct a Status frame - return byte slice of frame
 // Flags is of format "flagname1=flagval1,flagname2=flagval2...
 // The timestamp type to use is also in the flags as "timestamp=flagval"
-func StatusMake(flags string, session uint32, progress uint64, inrespto uint64, holes []Hole) ([]byte, error) {
+func (s *Status) New(flags string, session uint32, progress uint64, inrespto uint64, holes []Hole) error {
 
-	var header uint32
 	var err error
-	var havetstamp = false
-	var tstamp []byte
 
 	flags = strings.Replace(flags, " ", "", -1) // Get rid of extra spaces in flags
 
-	if header, err = sarflags.Set(header, "version", "v1"); err != nil {
-		return nil, err
+	if s.header, err = sarflags.Set(s.header, "version", "v1"); err != nil {
+		return err
 	}
 
-	if header, err = sarflags.Set(header, "frametype", "status"); err != nil {
-		return nil, err
+	if s.header, err = sarflags.Set(s.header, "frametype", "status"); err != nil {
+		return err
 	}
 
 	// Grab the flags and set the frame header
@@ -51,33 +49,45 @@ func StatusMake(flags string, session uint32, progress uint64, inrespto uint64, 
 		f := strings.Split(flag[fl], "=") // f[0]=name f[1]=val
 		switch f[0] {
 		case "descriptor", "stream", "reqtstamp", "metadatarecvd", "allholes", "reqholes", "errcode":
-			if header, err = sarflags.Set(header, f[0], f[1]); err != nil {
-				return nil, err
+			if s.header, err = sarflags.Set(s.header, f[0], f[1]); err != nil {
+				return err
 			}
 		case "localinterp", "posix32", "posix64", "posix32_32", "posix64_32":
-			if tstamp, err = TimeStampNow(f[0]); err != nil {
-				return nil, err
+			if err = s.tstamp.Now(f[0]); err != nil {
+				return err
 			}
-			havetstamp = true
+			s.header, err = sarflags.Set(s.header, "reqtsamp", "yes")
 		default:
 			e := "Invalid Flag " + f[0] + " for Status Frame"
-			return nil, errors.New(e)
+			return errors.New(e)
 		}
 	}
+	s.session = session
+	s.progress = progress
+	s.inrespto = inrespto
+	for i := range holes {
+		s.holes[i].Start = holes[i].Start
+		s.holes[i].End = holes[i].End
+	}
+
+	return nil
+}
+
+// Put - Encode the Saratoga Status frame
+func (s Status) Put() ([]byte, error) {
+
+	havetstamp := false
 
 	// Create the frame slice
 	framelen := 4 + 4 // Header + Session
 
-	if sarflags.GetStr(header, "reqtstamp") == "yes" {
-		if havetstamp == false {
-			return nil, errors.New("Status Timestamps Requested but type not specified")
-		}
+	if sarflags.GetStr(s.header, "reqtstamp") == "yes" {
 		framelen += 16 // Timestamp
 	}
 
 	var dsize int
 
-	switch sarflags.GetStr(header, "descriptor") { // Offset
+	switch sarflags.GetStr(s.header, "descriptor") { // Offset
 	case "d16":
 		dsize = 2
 	case "d32":
@@ -87,81 +97,80 @@ func StatusMake(flags string, session uint32, progress uint64, inrespto uint64, 
 	default:
 		return nil, errors.New("Invalid descriptor in Status frame")
 	}
-	framelen += (dsize*2 + (dsize * len(holes) * 2)) // progress + inrespto + holes
+	framelen += (dsize*2 + (dsize * len(s.holes) * 2)) // progress + inrespto + holes
 	if framelen > sarflags.MaxFrameSize {
 		return nil, errors.New("Status - Maximum Frame Size Exceeded")
 	}
 	frame := make([]byte, framelen)
 
-	binary.BigEndian.PutUint32(frame[:4], header)
-	binary.BigEndian.PutUint32(frame[4:8], session)
+	binary.BigEndian.PutUint32(frame[:4], s.header)
+	binary.BigEndian.PutUint32(frame[4:8], s.session)
 
 	pos := 8
-	if havetstamp == true {
-		copy(frame[pos:24], tstamp[:16])
+	if havetstamp {
+		ts := s.tstamp.Put()
+		copy(frame[pos:24], ts)
 		pos = 24
 	}
 	switch dsize {
 	case 2:
-		binary.BigEndian.PutUint16(frame[pos:pos+dsize], uint16(progress))
+		binary.BigEndian.PutUint16(frame[pos:pos+dsize], uint16(s.progress))
 		pos += dsize
-		binary.BigEndian.PutUint16(frame[pos:pos+dsize], uint16(inrespto))
+		binary.BigEndian.PutUint16(frame[pos:pos+dsize], uint16(s.inrespto))
 		pos += dsize
-		for i := range holes {
-			binary.BigEndian.PutUint16(frame[pos:pos+dsize], uint16(holes[i].Start))
+		for i := range s.holes {
+			binary.BigEndian.PutUint16(frame[pos:pos+dsize], uint16(s.holes[i].Start))
 			pos += dsize
-			binary.BigEndian.PutUint16(frame[pos:pos+dsize], uint16(holes[i].End))
+			binary.BigEndian.PutUint16(frame[pos:pos+dsize], uint16(s.holes[i].End))
 			pos += dsize
 		}
 	case 4:
-		binary.BigEndian.PutUint32(frame[pos:pos+dsize], uint32(progress))
+		binary.BigEndian.PutUint32(frame[pos:pos+dsize], uint32(s.progress))
 		pos += dsize
-		binary.BigEndian.PutUint32(frame[pos:pos+4], uint32(inrespto))
+		binary.BigEndian.PutUint32(frame[pos:pos+4], uint32(s.inrespto))
 		pos += dsize
-		for i := range holes {
-			binary.BigEndian.PutUint32(frame[pos:pos+dsize], uint32(holes[i].Start))
+		for i := range s.holes {
+			binary.BigEndian.PutUint32(frame[pos:pos+dsize], uint32(s.holes[i].Start))
 			pos += dsize
-			binary.BigEndian.PutUint32(frame[pos:pos+dsize], uint32(holes[i].End))
+			binary.BigEndian.PutUint32(frame[pos:pos+dsize], uint32(s.holes[i].End))
 			pos += dsize
 		}
 	case 8:
-		binary.BigEndian.PutUint64(frame[pos:pos+dsize], uint64(progress))
+		binary.BigEndian.PutUint64(frame[pos:pos+dsize], uint64(s.progress))
 		pos += dsize
-		binary.BigEndian.PutUint64(frame[pos:pos+dsize], uint64(inrespto))
+		binary.BigEndian.PutUint64(frame[pos:pos+dsize], uint64(s.inrespto))
 		pos += dsize
-		for i := range holes {
-			binary.BigEndian.PutUint64(frame[pos:pos+dsize], uint64(holes[i].Start))
+		for i := range s.holes {
+			binary.BigEndian.PutUint64(frame[pos:pos+dsize], uint64(s.holes[i].Start))
 			pos += dsize
-			binary.BigEndian.PutUint64(frame[pos:pos+dsize], uint64(holes[i].End))
+			binary.BigEndian.PutUint64(frame[pos:pos+dsize], uint64(s.holes[i].End))
 			pos += dsize
 		}
 	}
 	return frame, nil
 }
 
-// StatusGet -- Decode Data byte slice frame into Data struct
-func StatusGet(frame []byte) (Status, error) {
-	var s Status
+// Get -- Decode Data byte slice frame into Data struct
+func (s *Status) Get(frame []byte) error {
 
 	if len(frame) < 16 {
-		return s, errors.New("Status Frame too short")
+		return errors.New("Status Frame too short")
 	}
-	s.flags = binary.BigEndian.Uint32(frame[:4])
+	s.header = binary.BigEndian.Uint32(frame[:4])
 	s.session = binary.BigEndian.Uint32(frame[4:8])
 	pos := 8
-	if sarflags.GetStr(s.flags, "reqtstamp") == "yes" {
-		var ts Timestamp
+	if sarflags.GetStr(s.header, "reqtstamp") == "yes" {
 		var err error
-		if ts, err = TimeStampGet(frame[pos:24]); err != nil {
-			return s, err
+
+		if err = s.tstamp.Get(frame[pos:24]); err != nil {
+			return err
 		}
-		s.tstamp = ts
 		pos = 24
 	}
 
 	var dsize int
 
-	switch sarflags.GetStr(s.flags, "descriptor") {
+	switch sarflags.GetStr(s.header, "descriptor") {
 	case "d16":
 		dsize = 2
 		s.progress = uint64(binary.BigEndian.Uint16(frame[pos : pos+dsize]))
@@ -209,22 +218,22 @@ func StatusGet(frame []byte) (Status, error) {
 			s.holes = append(s.holes, ah)
 		}
 	default:
-		return s, errors.New("Invalid descriptor in Status frame")
+		return errors.New("Invalid descriptor in Status frame")
 	}
-	return s, nil
+	return nil
 }
 
-// StatusPrint - Print out details of Beacon struct
-func StatusPrint(s Status) string {
-	sflag := fmt.Sprintf("Status: 0x%x\n", s.flags)
-	sflags := sarflags.Frame("status")
+// Print - Print out details of Beacon struct
+func (s Status) Print() string {
+	sflag := fmt.Sprintf("Status: 0x%x\n", s.header)
+	sflags := sarflags.Values("status")
 	for f := range sflags {
-		n := sarflags.GetStr(s.flags, sflags[f])
+		n := sarflags.GetStr(s.header, sflags[f])
 		sflag += fmt.Sprintf("  %s:%s\n", sflags[f], n)
 	}
 	sflag += fmt.Sprintf("  session:%d\n", s.session)
-	if sarflags.GetStr(s.flags, "reqtstamp") == "yes" {
-		sflag += fmt.Sprintf("  timestamp:%s\n", TimeStampPrint(s.tstamp))
+	if sarflags.GetStr(s.header, "reqtstamp") == "yes" {
+		sflag += fmt.Sprintf("  timestamp:%s\n", s.tstamp.Print())
 	}
 	sflag += fmt.Sprintf("  progress:%d", s.progress)
 	sflag += fmt.Sprintf("  inresponseto:%d\n", s.inrespto)

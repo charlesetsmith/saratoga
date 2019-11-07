@@ -7,20 +7,6 @@ import (
 	"log"
 )
 
-// Flags - Where Flags are kept after you set them in cli
-type Flags struct {
-	Descriptor string
-	Checksum   string
-	Eid        int
-	Freespace  string
-	Txwilling  string
-	Rxwilling  string
-	Stream     string
-}
-
-// Global - Where the cli flags are set
-var Global Flags
-
 // MaxFrameSize -- Maximum Saratoga Frame Size
 // Move this to Network Section & Calculate it
 const MaxFrameSize = 1500 - 60 // After MTU & IPv6 Header
@@ -464,6 +450,14 @@ func Set(curflag uint32, field string, flagname string) (uint32, error) {
 	return result, nil
 }
 
+// SetFlags - Set all flags in flag map flags["field"] = "value"
+func SetFlags(curflag uint32, flags map[string]string) uint32 {
+	for f := range flags {
+		curflag, _ = Set(curflag, f, flags[f])
+	}
+	return curflag
+}
+
 // Test - true if the flag is set in curflag
 func Test(curflag uint32, field, string, flagname string) bool {
 	v, _ := Set(0, field, flagname)
@@ -484,8 +478,8 @@ func Name(curflag uint32, field string) string {
 	return ""
 }
 
-// Frame - return a slice of flags that are used by frametype
-func Frame(frametype string) []string {
+// Fields - return a slice of flag fields that are used by frametype
+func Fields(frametype string) []string {
 	var s []string
 	for k := range flagframe {
 		for _, fi := range flagframe[k] {
@@ -829,8 +823,7 @@ func TestT(curflag uint8, flagname string) bool {
 }
 
 // NameT - return the name of the flag for field in curtflag
-func NameT(curflag uint8, field string) string {
-
+func NameT(curflag uint8) string {
 	x := GetT(curflag)
 	for _, fi := range tflagvals["timestamp"] {
 		// log.Println("Flags for field ", field, fi.name, fi.val)

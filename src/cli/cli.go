@@ -52,6 +52,20 @@ func appendunique(slice []string, i string) []string {
 	return append(slice, i)
 }
 
+// We only want global flags set for the particular frame type
+func setglobal(frametype string) uint32 {
+	var bflags uint32
+
+	for f := range sarflags.Fields(frametype) {
+		for g := range Global {
+			if g == f {
+				bflags = sarflags.Set(bflags, f, Global[f])
+			}
+		}
+	}
+	return bflags
+}
+
 // CurLine -- Current line number in buffer
 var CurLine int
 
@@ -59,11 +73,12 @@ var CurLine int
 
 // Beacon CLI Info
 type cmdBeacon struct {
-	v4flag bool     // Send to all on the v4 multicast
-	v6flag bool     // Send to all on the v6 multicast
-	timer  uint     // How often to send beacon (secs) 0 = dont send beacons
-	v4addr []string // List of v4 addresses to send beacons to
-	v6addr []string // List of v6 addresses to send beacons to
+	header  uint32   // Header Flags set for beacons
+	timer   uint     // How often to send beacon (secs) 0 = send a single beacon
+	v4mcast bool     // Send to v4 multicast address
+	v6mcast bool     // Send to v6 multicast address
+	v4addr  []string // Send to List of v4 unicast addresses
+	v6addr  []string // Sendend to List of v6 unicast addresses
 }
 
 // clibeacon - Beacon commands
@@ -71,37 +86,42 @@ var clibeacon = cmdBeacon{}
 
 func beacon(args []string) {
 
-	// Show current Cbeacon flags and lists
+	errflag := make(chan uint32, 1) // The return channel holding the saratoga errflag
+
+	clibeacon.header := setglobal("beacon") // Initialise flags to Global settings
+
+	// Show current Cbeacon flags and lists - beacon
 	if len(args) == 1 {
 		if clibeacon.timer != 0 {
-			screen.Fprintln(screen.Msg, "green_black", "Beacons set to be sent every", clibeacon.timer, "seconds")
+			screen.Fprintln(screen.Msg, "green_black", "Beacons to be sent every", clibeacon.timer, "seconds")
 		} else {
-			screen.Fprintln(screen.Msg, "green_black", "Beacon timer not set")
+			screen.Fprintln(screen.Msg, "green_black", "Single Beacon to be sent")
 		}
-		if clibeacon.v4flag == true {
-			screen.Fprintln(screen.Msg, "green_black", "Sending multicast beacons to IPv4")
+		if clibeacon.v4mcast == true {
+			screen.Fprintln(screen.Msg, "green_black", "Sending IPv4 multicast beacons")
 		}
-		if clibeacon.v6flag == true {
-			screen.Fprintln(screen.Msg, "green_black", "Sending multicast beacons to IPv6")
+		if clibeacon.v6mcast == true {
+			screen.Fprintln(screen.Msg, "green_black", "Sending IPv6 multicast beacons")
 		}
 		if len(clibeacon.v4addr) > 0 {
-			screen.Fprintln(screen.Msg, "green_black", "Sending Unicast IPv4 beacons to:")
+			screen.Fprintln(screen.Msg, "green_black", "Sending IPv4 beacons to:")
 			for _, i := range clibeacon.v4addr {
 				screen.Fprintln(screen.Msg, "green_black", "\t", i)
 			}
 		}
 		if len(clibeacon.v6addr) > 0 {
-			screen.Fprintln(screen.Msg, "green_black", "Sending Unicast IPv6 Beacons to:")
+			screen.Fprintln(screen.Msg, "green_black", "Sending IPv6 Beacons to:")
 			for _, i := range clibeacon.v6addr {
 				screen.Fprintln(screen.Msg, "green_black", "\t", i)
 			}
 		}
-		if clibeacon.v4flag == false && clibeacon.v6flag == false &&
+		if clibeacon.v4mcast == false && clibeacon.v6mcast == false &&
 			len(clibeacon.v4addr) == 0 && len(clibeacon.v6addr) == 0 {
 			screen.Fprintln(screen.Msg, "green_black", "No beacons currently being sent")
 		}
 		return
 	}
+
 	if len(args) == 2 {
 		switch args[1] {
 		case "?": // usage
@@ -109,24 +129,23 @@ func beacon(args []string) {
 			screen.Fprintln(screen.Msg, "green_black", cmd["beacon"][1])
 			return
 		case "off": // remove and disable all beacons
+			clibeacon.header = setglobal("beacon")
 			clibeacon.timer = 0
-			clibeacon.v4flag = false
-			clibeacon.v6flag = false
+			clibeacon.v4mcast = false
+			clibeacon.v6mcast = false
 			clibeacon.v4addr = nil
 			clibeacon.v6addr = nil
 			screen.Fprintln(screen.Msg, "green_black", "Beacons Disabled")
 			return
 		case "v4": // V4 Multicast
 			errflag := make(chan uint32)
-			if !clibeacon.v4flag {
-				clibeacon.v4flag = true
+			if !clibeacon.v4mcast {
+				clibeacon.v4mcast = true
 				screen.Fprintln(screen.Msg, "green_black", "Sending beacons to IPv4 Multicast")
-				if clibeacon.timer > 0 {
-					// Start up the beacon client sending IPv4 beacons every timer secs
-					go client.Beacon(IPv4Multicast, SaratogaPort, clibeacon.timer, errflag)
-				}
+				// Start up the beacon client sending IPv4 beacons every timer secs
+				go client.V4McastBeacon(IPv4Multicast, SaratogaPort, clibeacon.timer, clibeacon.header, errflag)
 				f := <-errflag
-				if sarflags.GetStr(errflag, "errcode") != "success" {
+				if sarflags.GetStr(f, "errcode") != "success" {
 					screen.Fprintln(screen.Msg, "red_black", "Bad Beacon")
 				}
 				return
@@ -134,12 +153,14 @@ func beacon(args []string) {
 			screen.Fprintln(screen.Msg, "green_red", "Beacon IPv4 Multicast already being sent")
 			return
 		case "v6": // V6 Multicast
-			if !clibeacon.v6flag {
-				clibeacon.v6flag = true
+			if !clibeacon.v6mcast {
+				clibeacon.v6mcast = true
 				screen.Fprintln(screen.Msg, "green_black", "Sending beacons to IPv6 Multicast")
-				if clibeacon.timer > 0 {
-					// Start up the beacon client sending IPv6 beacons every timer secs
-					go client.Beacon(IPv6Multicast, SaratogaPort, clibeacon.timer, errflag)
+				// Start up the beacon client sending IPv6 beacons every timer secs
+				go client.V6McastBeacon(IPv6Multicast, SaratogaPort, clibeacon.timer, clibeacon.header, errflag)
+				f := <-errflag
+				if sarflags.GetStr(f, "errcode") != "success" {
+					screen.Fprintln(screen.Msg, "red_black", "Bad Beacon")
 				}
 				return
 			}
@@ -158,11 +179,27 @@ func beacon(args []string) {
 
 					clibeacon.v4addr = appendunique(clibeacon.v4addr, args[1])
 					screen.Fprintln(screen.Msg, "green_black", "Sending beacons to", clibeacon.v4addr)
+					if clibeacon.timer > 0 {
+						// Start up the beacon client sending IPv6 beacons every timer secs
+						go client.Beacon(clibeacon.v4addr, SaratogaPort, clibeacon.timer, clibeacon.header, errflag)
+					}
+					f := <-errflag
+					if sarflags.GetStr(f, "errcode") != "success" {
+						screen.Fprintln(screen.Msg, "red_black", "Bad IPv4 Beacon to ", clibeacon.v4addr)
+					}
 					return
 				}
 				if strings.Contains(args[1], ":") == true { // IPv6
 					clibeacon.v6addr = appendunique(clibeacon.v6addr, args[1])
 					screen.Fprintln(screen.Msg, "green_black", "Sending beacons to", clibeacon.v6addr)
+					if clibeacon.timer > 0 {
+						// Start up the beacon client sending IPv6 beacons every timer secs
+						go client.Beacon(clibeacon.v6addr, SaratogaPort, clibeacon.timer, clibeacon.header, errflag)
+					}
+					f := <-errflag
+					if sarflags.GetStr(f, "errcode") != "success" {
+						screen.Fprintln(screen.Msg, "red_black", "Bad IPv6 Beacon to ", clibeacon.v6addr)
+					}
 					return
 				}
 			}
@@ -335,11 +372,12 @@ func eid(args []string) {
 	}
 	if len(args) == 2 {
 		if args[1] == "off" { // Default is the PID
-			sarflags.Global.Eid = os.Getpid()
+			eid := os.Getpid()
+			sarflags.Global.Eid = strconv.Itoa(os.Getpid())
 			return
 		}
 		if n, err := strconv.Atoi(args[1]); err == nil && n >= 0 {
-			sarflags.Global.Eid = n
+			sarflags.Global.Eid = strconv.Itoa(n)
 			return
 		}
 	}

@@ -10,6 +10,7 @@ import (
 	"cli"
 	"screen"
 
+	"github.com/charlesetsmith/saratoga/src/sarflags"
 	"github.com/jroimartin/gocui"
 )
 
@@ -417,7 +418,28 @@ func layout(g *gocui.Gui) error {
 	return nil
 }
 
+// Global - map of fields and flags
+var Global map[string]string
+
 func main() {
+
+	// Global Flags set in cli
+	Global = make(map[string]string)
+	// Give them some defaults
+	Global["descriptor"] = "d64"
+	Global["csumtype"] = "none"
+	Global["freespace"] = "no"
+	Global["txwilling"] = "yes"
+	Global["rxwilling"] = "yes"
+	Global["stream"] = "no"
+	Global["reqtstamp"] = "no"
+	Global["reqstatus"] = "no"
+
+	for f := range Global {
+		if !sarflags.Valid(f, Global[f]) {
+			panic("Invalid Flag:", f, "=", Global[f])
+		}
+	}
 
 	g, err := gocui.NewGui(gocui.OutputNormal)
 	if err != nil {
