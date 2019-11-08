@@ -235,9 +235,9 @@ func (d DirEnt) Print() string {
 	sflag := fmt.Sprintf("  Directory Entry: 0x%x\n", d.header)
 	dflags := sarflags.FlagD()
 	// sarflags.FrameD("dirent")
-	for f := range dflags {
-		n := sarflags.GetDStr(d.header, dflags[f])
-		sflag += fmt.Sprintf("    %s:%s\n", dflags[f], n)
+	for _, f := range dflags {
+		n := sarflags.GetDStr(d.header, f)
+		sflag += fmt.Sprintf("    %s:%s\n", f, n)
 	}
 	sflag += fmt.Sprintf("    Path:%s\n", d.path)
 	sflag += fmt.Sprintf("    Size:%d\n", d.size)

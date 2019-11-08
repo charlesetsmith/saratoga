@@ -3,26 +3,13 @@ package cli
 import (
 	"errors"
 	"net"
-	"os"
 	"screen"
 	"strconv"
 	"strings"
 
-	"sarflags"
-
-	"client"
+	"github.com/charlesetsmith/saratoga/src/client"
+	"github.com/charlesetsmith/saratoga/src/sarflags"
 )
-
-// MOVE THESE TO NETWORKING SECTION WHEN WE HAVE ONE!!!!
-
-// SaratogaPort - IANA allocated Saratoga UDP & TCP Port #'s
-const SaratogaPort = 7542
-
-// IPv4Multicast -- IANA allocated Saratoga IPV4 all-hosts Multicast Address
-const IPv4Multicast = "224.0.0.108"
-
-// IPv6Multicast -- IANA allocated Saratoga IPV6 link-local Multicast Address
-const IPv6Multicast = "FF02:0:0:0:0:0:0:6c"
 
 // Remove an entry in a slice of strings by index #
 func removeIndex(s []string, index int) []string {
@@ -52,18 +39,19 @@ func appendunique(slice []string, i string) []string {
 	return append(slice, i)
 }
 
-// We only want global flags set for the particular frame type
-func setglobal(frametype string) uint32 {
-	var bflags uint32
-
-	for f := range sarflags.Fields(frametype) {
-		for g := range Global {
+// Set the global flags applicable for the particular frame type
+func setglobal(frametype string) string {
+	fs := ""
+	for _, f := range sarflags.Fields(frametype) {
+		// fmt.Println("f=", f)
+		for g := range sarflags.Global {
+			// fmt.Println("g=", g)
 			if g == f {
-				bflags = sarflags.Set(bflags, f, Global[f])
+				fs += f + "=" + sarflags.Global[f] + ","
 			}
 		}
 	}
-	return bflags
+	return strings.TrimRight(fs, ",")
 }
 
 // CurLine -- Current line number in buffer
@@ -73,22 +61,21 @@ var CurLine int
 
 // Beacon CLI Info
 type cmdBeacon struct {
-	header  uint32   // Header Flags set for beacons
+	flags   string   // Header Flags set for beacons
 	timer   uint     // How often to send beacon (secs) 0 = send a single beacon
 	v4mcast bool     // Send to v4 multicast address
 	v6mcast bool     // Send to v6 multicast address
-	v4addr  []string // Send to List of v4 unicast addresses
-	v6addr  []string // Sendend to List of v6 unicast addresses
+	host    []string // Send unicast beacon to List of hosts
 }
 
 // clibeacon - Beacon commands
-var clibeacon = cmdBeacon{}
+var clibeacon cmdBeacon
 
 func beacon(args []string) {
 
 	errflag := make(chan uint32, 1) // The return channel holding the saratoga errflag
 
-	clibeacon.header := setglobal("beacon") // Initialise flags to Global settings
+	clibeacon.flags = setglobal("beacon") // Initialise Global Beacon flags
 
 	// Show current Cbeacon flags and lists - beacon
 	if len(args) == 1 {
@@ -103,20 +90,14 @@ func beacon(args []string) {
 		if clibeacon.v6mcast == true {
 			screen.Fprintln(screen.Msg, "green_black", "Sending IPv6 multicast beacons")
 		}
-		if len(clibeacon.v4addr) > 0 {
-			screen.Fprintln(screen.Msg, "green_black", "Sending IPv4 beacons to:")
-			for _, i := range clibeacon.v4addr {
-				screen.Fprintln(screen.Msg, "green_black", "\t", i)
-			}
-		}
-		if len(clibeacon.v6addr) > 0 {
-			screen.Fprintln(screen.Msg, "green_black", "Sending IPv6 Beacons to:")
-			for _, i := range clibeacon.v6addr {
+		if len(clibeacon.host) > 0 {
+			screen.Fprintln(screen.Msg, "green_black", "Sending beacons to:")
+			for _, i := range clibeacon.host {
 				screen.Fprintln(screen.Msg, "green_black", "\t", i)
 			}
 		}
 		if clibeacon.v4mcast == false && clibeacon.v6mcast == false &&
-			len(clibeacon.v4addr) == 0 && len(clibeacon.v6addr) == 0 {
+			len(clibeacon.host) == 0 {
 			screen.Fprintln(screen.Msg, "green_black", "No beacons currently being sent")
 		}
 		return
@@ -129,12 +110,11 @@ func beacon(args []string) {
 			screen.Fprintln(screen.Msg, "green_black", cmd["beacon"][1])
 			return
 		case "off": // remove and disable all beacons
-			clibeacon.header = setglobal("beacon")
+			clibeacon.flags = setglobal("beacon")
 			clibeacon.timer = 0
 			clibeacon.v4mcast = false
 			clibeacon.v6mcast = false
-			clibeacon.v4addr = nil
-			clibeacon.v6addr = nil
+			clibeacon.host = nil
 			screen.Fprintln(screen.Msg, "green_black", "Beacons Disabled")
 			return
 		case "v4": // V4 Multicast
@@ -143,7 +123,7 @@ func beacon(args []string) {
 				clibeacon.v4mcast = true
 				screen.Fprintln(screen.Msg, "green_black", "Sending beacons to IPv4 Multicast")
 				// Start up the beacon client sending IPv4 beacons every timer secs
-				go client.V4McastBeacon(IPv4Multicast, SaratogaPort, clibeacon.timer, clibeacon.header, errflag)
+				go client.V4McastBeacon(clibeacon.timer, clibeacon.flags, errflag)
 				f := <-errflag
 				if sarflags.GetStr(f, "errcode") != "success" {
 					screen.Fprintln(screen.Msg, "red_black", "Bad Beacon")
@@ -157,7 +137,7 @@ func beacon(args []string) {
 				clibeacon.v6mcast = true
 				screen.Fprintln(screen.Msg, "green_black", "Sending beacons to IPv6 Multicast")
 				// Start up the beacon client sending IPv6 beacons every timer secs
-				go client.V6McastBeacon(IPv6Multicast, SaratogaPort, clibeacon.timer, clibeacon.header, errflag)
+				go client.V6McastBeacon(clibeacon.timer, clibeacon.flags, errflag)
 				f := <-errflag
 				if sarflags.GetStr(f, "errcode") != "success" {
 					screen.Fprintln(screen.Msg, "red_black", "Bad Beacon")
@@ -174,38 +154,25 @@ func beacon(args []string) {
 				screen.Fprintln(screen.Msg, "green_black", "Beacon timer", clibeacon.timer, "secs")
 				return
 			}
-			if net.ParseIP(args[1]) != nil {
-				if strings.Contains(args[1], ".") == true { // IPv4
-
-					clibeacon.v4addr = appendunique(clibeacon.v4addr, args[1])
-					screen.Fprintln(screen.Msg, "green_black", "Sending beacons to", clibeacon.v4addr)
-					if clibeacon.timer > 0 {
-						// Start up the beacon client sending IPv6 beacons every timer secs
-						go client.Beacon(clibeacon.v4addr, SaratogaPort, clibeacon.timer, clibeacon.header, errflag)
-					}
-					f := <-errflag
-					if sarflags.GetStr(f, "errcode") != "success" {
-						screen.Fprintln(screen.Msg, "red_black", "Bad IPv4 Beacon to ", clibeacon.v4addr)
-					}
-					return
-				}
-				if strings.Contains(args[1], ":") == true { // IPv6
-					clibeacon.v6addr = appendunique(clibeacon.v6addr, args[1])
-					screen.Fprintln(screen.Msg, "green_black", "Sending beacons to", clibeacon.v6addr)
-					if clibeacon.timer > 0 {
-						// Start up the beacon client sending IPv6 beacons every timer secs
-						go client.Beacon(clibeacon.v6addr, SaratogaPort, clibeacon.timer, clibeacon.header, errflag)
-					}
-					f := <-errflag
-					if sarflags.GetStr(f, "errcode") != "success" {
-						screen.Fprintln(screen.Msg, "red_black", "Bad IPv6 Beacon to ", clibeacon.v6addr)
-					}
-					return
+			// We have a hostname maybe with multiple addresses
+			var addrs []string
+			if addrs, err = net.LookupHost(args[1]); err != nil {
+				screen.Fprintln(screen.Msg, "red_black", "Cannot resolve hostname: ", err)
+				return
+			}
+			// Loop thru the address(s) for the host and send a beacon to them
+			for _, addr := range addrs {
+				go client.Beacon(addr, clibeacon.timer, clibeacon.flags, errflag)
+				f := <-errflag
+				if sarflags.GetStr(f, "errcode") != "success" {
+					screen.Fprintln(screen.Msg, "red_black", "Bad Beacon to ", args[1])
 				}
 			}
+			clibeacon.host = appendunique(clibeacon.host, args[1])
+			screen.Fprintln(screen.Msg, "green_black", "Sending beacons to ", args[1])
+			return
 		}
-		screen.Fprintln(screen.Cmd, "red_black", cmd["beacon"][0])
-		return
+		// screen.Fprintln(screen.Cmd, "red_black", cmd["beacon"][0])
 	}
 
 	// beacon off <ipaddr> ...
@@ -213,12 +180,7 @@ func beacon(args []string) {
 		screen.Fprintf(screen.Msg, "green_black", "%s ", "Beacons turned off to")
 		for i := 2; i < len(args); i++ { // Remove Address'es from lists
 			if net.ParseIP(args[i]) != nil { // Do We have a valid IP Address
-				if strings.Contains(args[i], ".") == true { // IPv4
-					clibeacon.v4addr = removeValue(clibeacon.v4addr, args[i])
-				}
-				if strings.Contains(args[i], ":") == true { // IPv6
-					clibeacon.v6addr = removeValue(clibeacon.v6addr, args[i])
-				}
+				clibeacon.host = removeValue(clibeacon.host, args[i])
 				screen.Fprintf(screen.Msg, "green_black", "%s ", args[i])
 				if i == len(args)-1 {
 					screen.Fprintln(screen.Msg, "green_black", "")
@@ -234,12 +196,7 @@ func beacon(args []string) {
 	screen.Fprintf(screen.Msg, "green_black", "Sending beacons to:")
 	for i := 1; i < len(args); i++ { // Add Address'es to lists
 		if net.ParseIP(args[i]) != nil { // We have a valid IP Address
-			if strings.Contains(args[i], ".") == true { // IPv4
-				clibeacon.v4addr = appendunique(clibeacon.v4addr, args[i])
-			}
-			if strings.Contains(args[i], ":") == true { // IPv6
-				clibeacon.v6addr = appendunique(clibeacon.v6addr, args[i])
-			}
+			clibeacon.host = appendunique(clibeacon.host, args[i])
 			screen.Fprintf(screen.Msg, "green_black", " %s", args[i])
 			if i == len(args)-1 {
 				screen.Fprintln(screen.Msg, "green_black", "")
@@ -256,7 +213,7 @@ func cancel(args []string) {
 
 func checksum(args []string) {
 	if len(args) == 1 {
-		screen.Fprintln(screen.Msg, "green_black", "Checksum", sarflags.Global.Checksum)
+		screen.Fprintln(screen.Msg, "green_black", "Checksum", sarflags.Global["csumtype"])
 		return
 	}
 	if len(args) == 2 && args[1] == "?" { // usage
@@ -267,13 +224,13 @@ func checksum(args []string) {
 	if len(args) == 2 {
 		switch args[1] {
 		case "off", "none":
-			sarflags.Global.Checksum = "none"
+			sarflags.Global["csumtype"] = "none"
 		case "crc32":
-			sarflags.Global.Checksum = "crc32"
+			sarflags.Global["csumtype"] = "crc32"
 		case "md5":
-			sarflags.Global.Checksum = "md5"
+			sarflags.Global["csumtype"] = "md5"
 		case "sha1":
-			sarflags.Global.Checksum = "sha1"
+			sarflags.Global["csumtype"] = "sha1"
 		default:
 			screen.Fprintln(screen.Cmd, "green_red", cmd["checksum"][0])
 		}
@@ -311,7 +268,7 @@ func debug(args []string) {
 
 func descriptor(args []string) {
 	if len(args) == 1 {
-		screen.Fprintln(screen.Msg, "green_black", "Descriptor", sarflags.Global.Descriptor)
+		screen.Fprintln(screen.Msg, "green_black", "Descriptor", sarflags.Global["descriptor"])
 		return
 	}
 	if len(args) == 2 && args[1] == "?" { // usage
@@ -323,29 +280,29 @@ func descriptor(args []string) {
 		switch args[1] {
 		case "auto":
 			if sarflags.MaxUint <= sarflags.MaxUint16 {
-				sarflags.Global.Descriptor = "d16"
+				sarflags.Global["descriptor"] = "d16"
 			}
 			if sarflags.MaxUint <= sarflags.MaxUint32 {
-				sarflags.Global.Descriptor = "d32"
+				sarflags.Global["descriptor"] = "d32"
 			}
 			if sarflags.MaxUint <= sarflags.MaxUint64 {
-				sarflags.Global.Descriptor = "d64"
+				sarflags.Global["descriptor"] = "d64"
 			}
 		case "64":
 			if sarflags.MaxUint <= sarflags.MaxUint64 {
-				sarflags.Global.Descriptor = "d64"
+				sarflags.Global["descriptor"] = "d64"
 			} else {
 				screen.Fprintln(screen.Msg, "red_black", "64 bit descriptors not supported on this platform")
 			}
 		case "16":
 			if sarflags.MaxUint <= sarflags.MaxUint16 {
-				sarflags.Global.Descriptor = "d16"
+				sarflags.Global["descriptor"] = "d16"
 			} else {
 				screen.Fprintln(screen.Msg, "red_black", "16 bit descriptors not supported on this platform")
 			}
 		case "32":
 			if sarflags.MaxUint <= sarflags.MaxUint32 {
-				sarflags.Global.Descriptor = "d32"
+				sarflags.Global["descriptor"] = "d32"
 			} else {
 				screen.Fprintln(screen.Msg, "red_black", "16 bit descriptors not supported on this platform")
 			}
@@ -354,34 +311,10 @@ func descriptor(args []string) {
 		default:
 			screen.Fprintln(screen.Msg, "green_red", cmd["descriptor"][0])
 		}
-		screen.Fprintln(screen.Msg, "green_red", "Descriptor size set to", sarflags.Global.Descriptor)
+		screen.Fprintln(screen.Msg, "green_red", "Descriptor size set to", sarflags.Global["descriptor"])
 		return
 	}
 	screen.Fprintln(screen.Msg, "green_red", cmd["descriptor"][0])
-}
-
-func eid(args []string) {
-	if len(args) == 1 {
-		screen.Fprintln(screen.Msg, "green_black", "EID", sarflags.Global.Eid)
-		return
-	}
-	if len(args) == 2 && args[1] == "?" { // usage
-		screen.Fprintln(screen.Msg, "green_black", cmd["eid"][0])
-		screen.Fprintln(screen.Msg, "green_black", cmd["eid"][1])
-		return
-	}
-	if len(args) == 2 {
-		if args[1] == "off" { // Default is the PID
-			eid := os.Getpid()
-			sarflags.Global.Eid = strconv.Itoa(os.Getpid())
-			return
-		}
-		if n, err := strconv.Atoi(args[1]); err == nil && n >= 0 {
-			sarflags.Global.Eid = strconv.Itoa(n)
-			return
-		}
-	}
-	screen.Fprintln(screen.Msg, "red_black", cmd["eid"][0])
 }
 
 // Cexit = Exit level to quit from saratoga
@@ -441,7 +374,7 @@ func files(args []string) {
 
 func freespace(args []string) {
 	if len(args) == 1 {
-		if sarflags.Global.Freespace == "yes" {
+		if sarflags.Global["freespace"] == "yes" {
 			screen.Fprintln(screen.Msg, "green_black", "Free space advertised")
 		} else {
 			screen.Fprintln(screen.Msg, "green_black", "Free space not advertised")
@@ -455,11 +388,11 @@ func freespace(args []string) {
 	}
 	if len(args) == 2 {
 		if args[1] == "on" {
-			sarflags.Global.Freespace = "yes"
+			sarflags.Global["freespace"] = "yes"
 			return
 		}
 		if args[1] == "off" {
-			sarflags.Global.Freespace = "no"
+			sarflags.Global["freespace"] = "no"
 			return
 		}
 	}
@@ -714,7 +647,7 @@ func rmdir(args []string) {
 
 func rxwilling(args []string) {
 	if len(args) == 1 {
-		screen.Fprintln(screen.Msg, "green_black", "Receive Files", sarflags.Global.Rxwilling)
+		screen.Fprintln(screen.Msg, "green_black", "Receive Files", sarflags.Global["rxwilling"])
 		return
 	}
 	if len(args) == 2 && args[1] == "?" {
@@ -724,13 +657,13 @@ func rxwilling(args []string) {
 	}
 	if len(args) == 2 {
 		if args[1] == "on" {
-			sarflags.Global.Rxwilling = "yes"
+			sarflags.Global["rxwilling"] = "yes"
 		}
 		if args[1] == "off" {
-			sarflags.Global.Rxwilling = "no"
+			sarflags.Global["rxwilling"] = "no"
 		}
 		if args[1] == "capable" {
-			sarflags.Global.Rxwilling = "capable"
+			sarflags.Global["rxwilling"] = "capable"
 		}
 		return
 	}
@@ -742,7 +675,7 @@ var Cstream = "off"
 
 func stream(args []string) {
 	if len(args) == 1 {
-		if sarflags.Global.Stream == "yes" {
+		if sarflags.Global["stream"] == "yes" {
 			screen.Fprintln(screen.Msg, "green_black", "Can stream")
 		} else {
 			screen.Fprintln(screen.Msg, "green_black", "Cannot stream")
@@ -756,10 +689,10 @@ func stream(args []string) {
 	}
 	if len(args) == 2 {
 		if args[1] == "yes" {
-			sarflags.Global.Stream = "yes"
+			sarflags.Global["stream"] = "yes"
 		}
 		if args[1] == "no" {
-			sarflags.Global.Stream = "no"
+			sarflags.Global["stream"] = "no"
 		}
 		return
 	}
@@ -969,7 +902,7 @@ func transfers(args []string) {
 
 func txwilling(args []string) {
 	if len(args) == 1 {
-		screen.Fprintln(screen.Msg, "green_black", "Transmit Files", sarflags.Global.Txwilling)
+		screen.Fprintln(screen.Msg, "green_black", "Transmit Files", sarflags.Global["txwilling"])
 		return
 	}
 	if len(args) == 2 && args[1] == "?" {
@@ -979,13 +912,13 @@ func txwilling(args []string) {
 	}
 	if len(args) == 2 {
 		if args[1] == "on" {
-			sarflags.Global.Txwilling = "on"
+			sarflags.Global["txwilling"] = "on"
 		}
 		if args[1] == "off" {
-			sarflags.Global.Txwilling = "off"
+			sarflags.Global["txwilling"] = "off"
 		}
 		if args[1] == "capable" {
-			sarflags.Global.Txwilling = "capable"
+			sarflags.Global["txwilling"] = "capable"
 		}
 		return
 	}
@@ -1009,7 +942,6 @@ var cmdhandler = map[string]cmdfunc{
 	"checksum":   checksum,
 	"debug":      debug,
 	"descriptor": descriptor,
-	"eid":        eid,
 	"exit":       exit,
 	"files":      files,
 	"freespace":  freespace,
@@ -1063,10 +995,6 @@ var cmd = map[string][2]string{
 	"descriptor": [2]string{
 		"descriptor [auto|16|32|64|128",
 		"advertise & set default descriptor size",
-	},
-	"eid": [2]string{
-		"eid [off|<eid>]",
-		"manually set the eid #",
 	},
 	"exit": [2]string{
 		"exit [0|1]",

@@ -134,7 +134,7 @@ func (b *Beacon) Get(frame []byte) error {
 	}
 	// No freespace to be reported
 	b.freespace = 0
-	b.eid = string(frame[:4])
+	b.eid = string(frame[4:])
 	return nil
 }
 
@@ -142,9 +142,9 @@ func (b *Beacon) Get(frame []byte) error {
 func (b Beacon) Print() string {
 	sflag := fmt.Sprintf("Beacon: 0x%x\n", b.header)
 	bflags := sarflags.Values("beacon")
-	for f := range bflags {
-		n := sarflags.GetStr(b.header, bflags[f])
-		sflag += fmt.Sprintf("  %s:%s\n", bflags[f], n)
+	for _, f := range bflags {
+		n := sarflags.GetStr(b.header, f)
+		sflag += fmt.Sprintf("  %s:%s\n", f, n)
 	}
 	if sarflags.GetStr(b.header, "freespace") == "yes" {
 		sflag += fmt.Sprintf("  free:%dkB\n", b.freespace)

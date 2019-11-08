@@ -2,6 +2,9 @@
 	"folders": [
 		{
 			"path": "/Users/chas/gocode/src/github.com/charlesetsmith/saratoga"
+		},
+		{
+			"path": "/Users/chas/gocode/src/github.com/charlesetsmith/testchecksum"
 		}
 	],
 	"settings": {}

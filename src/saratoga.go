@@ -418,26 +418,24 @@ func layout(g *gocui.Gui) error {
 	return nil
 }
 
-// Global - map of fields and flags
-var Global map[string]string
-
 func main() {
 
 	// Global Flags set in cli
-	Global = make(map[string]string)
+	sarflags.Global = make(map[string]string)
 	// Give them some defaults
-	Global["descriptor"] = "d64"
-	Global["csumtype"] = "none"
-	Global["freespace"] = "no"
-	Global["txwilling"] = "yes"
-	Global["rxwilling"] = "yes"
-	Global["stream"] = "no"
-	Global["reqtstamp"] = "no"
-	Global["reqstatus"] = "no"
+	sarflags.Global["descriptor"] = "d64"
+	sarflags.Global["csumtype"] = "none"
+	sarflags.Global["freespace"] = "no"
+	sarflags.Global["txwilling"] = "yes"
+	sarflags.Global["rxwilling"] = "yes"
+	sarflags.Global["stream"] = "no"
+	sarflags.Global["reqtstamp"] = "no"
+	sarflags.Global["reqstatus"] = "no"
 
-	for f := range Global {
-		if !sarflags.Valid(f, Global[f]) {
-			panic("Invalid Flag:", f, "=", Global[f])
+	for f := range sarflags.Global {
+		if !sarflags.Valid(f, sarflags.Global[f]) {
+			ps := "Invalid Flag:" + f + "=" + sarflags.Global[f]
+			panic(ps)
 		}
 	}
 

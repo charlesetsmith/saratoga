@@ -330,6 +330,9 @@ var flagvals = map[string][]flaginfo{
 	},
 }
 
+// Global - map of fields and flags
+var Global map[string]string
+
 // Valid - Check for valid flag and value
 func Valid(field string, info string) bool {
 	for f := range flagvals {
@@ -344,19 +347,19 @@ func Valid(field string, info string) bool {
 	return false
 }
 
-// Values - Return slice of flag values
+// Values - Return slice of flags applicable to frame type (field)
 func Values(field string) []string {
-	var vals []string
-
-	for f := range flagvals {
-		if field == f {
-			for _, fi := range flagvals[field] {
-				vals = append(vals, fi.name)
+	var ret []string
+	for f := range flagframe {
+		// fmt.Println("Flagframe:", f)
+		for _, fi := range flagframe[f] {
+			if fi == field {
+				ret = append(ret, f)
 			}
-			break
 		}
 	}
-	return vals
+	// fmt.Println(ret)
+	return ret
 }
 
 // Value - Return the integer value of the flag or -1 if not valid

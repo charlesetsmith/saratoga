@@ -172,9 +172,9 @@ func (d *Data) Put() ([]byte, error) {
 func (d Data) Print() string {
 	sflag := fmt.Sprintf("Data: 0x%x\n", d.header)
 	dflags := sarflags.Values("data")
-	for f := range dflags {
-		n := sarflags.GetStr(d.header, dflags[f])
-		sflag += fmt.Sprintf("  %s:%s\n", dflags[f], n)
+	for _, f := range dflags {
+		n := sarflags.GetStr(d.header, f)
+		sflag += fmt.Sprintf("  %s:%s\n", f, n)
 	}
 	if sarflags.GetStr(d.header, "reqtstamp") == "yes" {
 		sflag += fmt.Sprintf("  timestamp:%s\n", d.tstamp.Print())
