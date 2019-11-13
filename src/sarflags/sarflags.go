@@ -7,10 +7,6 @@ import (
 	"log"
 )
 
-// MaxFrameSize -- Maximum Saratoga Frame Size
-// Move this to Network Section & Calculate it
-const MaxFrameSize = 1500 - 60 // After MTU & IPv6 Header
-
 // Saratoga Sflag Header Field Format - 32 bit unsigned integer (uint32)
 
 //             111111 11112222 22222233

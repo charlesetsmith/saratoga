@@ -1,4 +1,4 @@
-// Test Saratoga Flags
+// Saratoga Interactive Client
 
 package main
 

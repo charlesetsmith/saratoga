@@ -5,6 +5,15 @@
 		},
 		{
 			"path": "/Users/chas/gocode/src/github.com/charlesetsmith/testchecksum"
+		},
+		{
+			"path": "/Users/chas/gocode/src/github.com/charlesetsmith/saraserv"
+		},
+		{
+			"path": "/Users/chas/gocode/src/github.com/charlesetsmith/testudpclient"
+		},
+		{
+			"path": "/Users/chas/gocode/src/github.com/charlesetsmith/testudpserver"
 		}
 	],
 	"settings": {}

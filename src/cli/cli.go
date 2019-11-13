@@ -700,7 +700,6 @@ func stream(args []string) {
 }
 
 type cmdTimeout struct {
-	beacon   int
 	request  int
 	status   int
 	transfer int
@@ -711,11 +710,6 @@ var Ctimeout = cmdTimeout{}
 
 func timeout(args []string) {
 	if len(args) == 1 {
-		if Ctimeout.beacon == 0 {
-			screen.Fprintln(screen.Msg, "green_black", "beacon: No timeout")
-		} else {
-			screen.Fprintln(screen.Msg, "green_black", "beacon:", Ctimeout.beacon, "seconds")
-		}
 		if Ctimeout.request == 0 {
 			screen.Fprintln(screen.Msg, "green_black", "request: No timeout")
 		} else {
@@ -738,12 +732,6 @@ func timeout(args []string) {
 		case "?":
 			screen.Fprintln(screen.Msg, "green_black", cmd["stream"][0])
 			screen.Fprintln(screen.Msg, "green_black", cmd["stream"][1])
-		case "beacon":
-			if Ctimeout.beacon == 0 {
-				screen.Fprintln(screen.Msg, "green_black", "beacon: No timeout")
-			} else {
-				screen.Fprintln(screen.Msg, "green_black", "beacon:", Ctimeout.beacon, "seconds")
-			}
 		case "request":
 			if Ctimeout.request == 0 {
 				screen.Fprintln(screen.Msg, "green_black", "request: No timeout")
@@ -770,8 +758,6 @@ func timeout(args []string) {
 	if len(args) == 3 {
 		if n, err := strconv.Atoi(args[2]); err == nil && n >= 0 {
 			switch args[1] {
-			case "beacon":
-				Ctimeout.beacon = n
 			case "request":
 				Ctimeout.request = n
 			case "status":
@@ -783,8 +769,6 @@ func timeout(args []string) {
 		}
 		if args[2] == "off" {
 			switch args[1] {
-			case "beacon":
-				Ctimeout.beacon = 0
 			case "request":
 				Ctimeout.request = 0
 			case "status":
@@ -1068,9 +1052,12 @@ var cmd = map[string][2]string{
 		"stream [yes|no]",
 		"current stream status or can/cannot handle stream",
 	},
+	// Timeout for a request is how long I wait after I send a request before I cancel it
+	// Timout for transfer is how long I wait before I receive next frame in a transfer
+	// Timeeout for status is how long I wait between receiving a status frame
 	"timeout": [2]string{
-		"timeout [request|transfer|status|beacon] <secs|off>",
-		"timeout seconds for beacons, requests, transfers and status",
+		"timeout [request|transfer|status] <secs|off>",
+		"timeout in seconds for requests, transfers and status",
 	},
 	"timestamp": [2]string{
 		"timestamp [off|32|64|32_32|64_32|32_y2k",
@@ -1085,7 +1072,7 @@ var cmd = map[string][2]string{
 		"list current active transfers",
 	},
 	"txwilling": [2]string{
-		"txwilling [on|off|]",
+		"txwilling [on|off|capable]",
 		"show current transfer capability or set on/off/capable",
 	},
 	"usage": [2]string{

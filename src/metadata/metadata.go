@@ -10,14 +10,16 @@ import (
 	"dirent"
 	"frames"
 	"sarflags"
+
+	"github.com/charlesetsmith/saratoga/src/sarnet"
 )
 
 // MetaData -- Holds Data frame information
 type MetaData struct {
-	header   uint32
-	session  uint32
-	checksum []byte
-	dir      dirent.DirEnt
+	Header   uint32
+	Session  uint32
+	Checksum []byte
+	Dir      dirent.DirEnt
 }
 
 // New - Construct a Metadata structure
@@ -28,7 +30,10 @@ func (m *MetaData) New(flags string, session uint32, fname string) error {
 
 	flags = strings.Replace(flags, " ", "", -1) // Get rid of extra spaces in flags
 
-	if m.header, err = sarflags.Set(m.header, "frametype", "metadata"); err != nil {
+	if m.Header, err = sarflags.Set(m.Header, "version", "v1"); err != nil {
+		return err
+	}
+	if m.Header, err = sarflags.Set(m.Header, "frametype", "metadata"); err != nil {
 		return err
 	}
 
@@ -41,20 +46,20 @@ func (m *MetaData) New(flags string, session uint32, fname string) error {
 		f := strings.Split(flag[fl], "=") // f[0]=name f[1]=val
 		switch f[0] {
 		case "descriptor":
-			if m.header, err = sarflags.Set(m.header, f[0], f[1]); err != nil {
+			if m.Header, err = sarflags.Set(m.Header, f[0], f[1]); err != nil {
 				return err
 			}
 			direntflags += f[0] + "=" + f[1] + ","
 		case "progress", "udptype", "transfer":
-			if m.header, err = sarflags.Set(m.header, f[0], f[1]); err != nil {
+			if m.Header, err = sarflags.Set(m.Header, f[0], f[1]); err != nil {
 				return err
 			}
 		case "csumtype":
-			if m.header, err = sarflags.Set(m.header, f[0], f[1]); err != nil {
+			if m.Header, err = sarflags.Set(m.Header, f[0], f[1]); err != nil {
 				return err
 			}
 			// Set the correct csum length
-			if m.header, err = sarflags.Set(m.header, "csumlen", f[1]); err != nil {
+			if m.Header, err = sarflags.Set(m.Header, "csumlen", f[1]); err != nil {
 				return err
 			}
 			csumtype = f[1]
@@ -88,14 +93,14 @@ func (m *MetaData) New(flags string, session uint32, fname string) error {
 	}
 	direntflags = strings.TrimSuffix(direntflags, ",") // Get rid of trailing comma
 
-	switch sarflags.GetStr(m.header, "transfer") {
+	switch sarflags.GetStr(m.Header, "transfer") {
 	case "stream":
 		if !stream {
 			e := "Stream specified but " + fname + " is not a named pipe"
 			return errors.New(e)
 		}
 		// You can't get a checksum from a stream
-		if sarflags.GetStr(m.header, "csumtype") != "none" {
+		if sarflags.GetStr(m.Header, "csumtype") != "none" {
 			return errors.New("Cannot have checksum with stream transfers")
 		}
 	case "bundle":
@@ -114,7 +119,7 @@ func (m *MetaData) New(flags string, session uint32, fname string) error {
 		return errors.New("Invalid Transfer type")
 	}
 
-	m.session = session
+	m.Session = session
 	// Checksum calculation
 	if !stream { // Make sure we dont try and calc a checksum of a named pipe (it will wait forever)
 		var checksum []byte
@@ -124,15 +129,15 @@ func (m *MetaData) New(flags string, session uint32, fname string) error {
 		}
 		csumlen := len(checksum)
 		if csumlen > 0 {
-			m.checksum = make([]byte, len(checksum))
-			copy(m.checksum, checksum)
+			m.Checksum = make([]byte, len(checksum))
+			copy(m.Checksum, checksum)
 		}
 	} else {
-		m.checksum = nil
+		m.Checksum = nil
 	}
 
 	// Directory Entry
-	if err = m.dir.New(direntflags, fname); err != nil {
+	if err = m.Dir.New(direntflags, fname); err != nil {
 		return err
 	}
 	return nil
@@ -143,24 +148,24 @@ func (m MetaData) Put() ([]byte, error) {
 
 	// Create the frame slice
 	framelen := 4 + 4 // Header + Session
-	framelen += len(m.checksum)
-	de, _ := m.dir.Put()
+	framelen += len(m.Checksum)
+	de, _ := m.Dir.Put()
 	framelen += len(de)
 
-	if framelen > sarflags.MaxFrameSize {
+	if framelen > sarnet.MaxFrameSize {
 		return nil, errors.New("MetaData - Maximum Frame Size Exceeded")
 	}
 	frame := make([]byte, framelen)
 
 	// Populate it
-	binary.BigEndian.PutUint32(frame[:4], m.header)
-	binary.BigEndian.PutUint32(frame[4:8], m.session)
+	binary.BigEndian.PutUint32(frame[:4], m.Header)
+	binary.BigEndian.PutUint32(frame[4:8], m.Session)
 	pos := 8
 
 	// Checksum
-	csumlen := len(m.checksum)
+	csumlen := len(m.Checksum)
 	if csumlen > 0 {
-		copy(frame[pos:pos+csumlen], m.checksum)
+		copy(frame[pos:pos+csumlen], m.Checksum)
 		pos += csumlen
 	}
 
@@ -174,17 +179,17 @@ func (m *MetaData) Get(frame []byte) (err error) {
 	if len(frame) < 8 {
 		return errors.New("MetaDataGet - Frame too short")
 	}
-	m.header = binary.BigEndian.Uint32(frame[:4])
-	m.session = binary.BigEndian.Uint32(frame[4:8])
+	m.Header = binary.BigEndian.Uint32(frame[:4])
+	m.Session = binary.BigEndian.Uint32(frame[4:8])
 	pos := 8
 
 	// Checksum
-	csuml := int(sarflags.Get(m.header, "csumlen")) * 4
-	m.checksum = make([]byte, csuml)
-	copy(m.checksum, frame[pos:pos+csuml])
+	csuml := int(sarflags.Get(m.Header, "csumlen")) * 4
+	m.Checksum = make([]byte, csuml)
+	copy(m.Checksum, frame[pos:pos+csuml])
 	pos += csuml
 	// Directory Entry
-	if err = m.dir.Get(frame[pos:]); err != nil {
+	if err = m.Dir.Get(frame[pos:]); err != nil {
 		return err
 	}
 	return nil
@@ -192,17 +197,17 @@ func (m *MetaData) Get(frame []byte) (err error) {
 
 // Print - Print out details of MetaData struct
 func (m MetaData) Print() string {
-	sflag := fmt.Sprintf("Metadata: 0x%x\n", m.header)
+	sflag := fmt.Sprintf("Metadata: 0x%x\n", m.Header)
 	dflags := sarflags.Values("metadata")
 	// fmt.Println("dflags=", dflags)
 	for f := range dflags {
-		n := sarflags.GetStr(m.header, dflags[f])
+		n := sarflags.GetStr(m.Header, dflags[f])
 		sflag += fmt.Sprintf("  %s:%s\n", dflags[f], n)
 	}
-	sflag += fmt.Sprintf("  session:%d\n", m.session)
-	if cs := sarflags.GetStr(m.header, "csumtype"); cs != "none" {
-		sflag += fmt.Sprintf("  Checksum [%s]:%x\n", cs, m.checksum)
+	sflag += fmt.Sprintf("  session:%d\n", m.Session)
+	if cs := sarflags.GetStr(m.Header, "csumtype"); cs != "none" {
+		sflag += fmt.Sprintf("  Checksum [%s]:%x\n", cs, m.Checksum)
 	}
-	sflag += fmt.Sprintf("%s", m.dir.Print())
+	sflag += fmt.Sprintf("%s", m.Dir.Print())
 	return sflag
 }
