@@ -1,7 +1,9 @@
 package sarnet
 
 import (
+	"log"
 	"net"
+	"os"
 	"strconv"
 )
 
@@ -39,4 +41,22 @@ func UDPinfo(addr *net.UDPAddr) string {
 	// IPv4 Address
 	a := addr.IP.String() + ":" + strconv.Itoa(addr.Port)
 	return a
+}
+
+// OutboundIP - Get preferred outbound ip of this host
+// typ is "IPv4" or "IPv6"
+func OutboundIP(typ string) net.IP {
+
+	host, _ := os.Hostname()
+	addrs, _ := net.LookupIP(host)
+	for _, addr := range addrs {
+		if ipv4 := addr.To4(); typ == "IPv4" && ipv4 != nil {
+			return ipv4
+		}
+		if ipv6 := addr.To16(); typ == "IPv6" && ipv6 != nil {
+			return ipv6
+		}
+	}
+	log.Fatal("getoutboundIP: type must be IPv4 or IPv6")
+	return nil
 }

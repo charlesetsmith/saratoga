@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/charlesetsmith/saratoga/src/client"
 	"github.com/charlesetsmith/saratoga/src/sarflags"
 )
 
@@ -123,7 +122,10 @@ func beacon(args []string) {
 				clibeacon.v4mcast = true
 				screen.Fprintln(screen.Msg, "green_black", "Sending beacons to IPv4 Multicast")
 				// Start up the beacon client sending IPv4 beacons every timer secs
-				go client.V4McastBeacon(clibeacon.timer, clibeacon.flags, errflag)
+
+				var txb beacon.Beacon
+				txb.New(clibeacon.flags)
+				go beacon.V4McastBeacon(&txb, errflag)
 				f := <-errflag
 				if sarflags.GetStr(f, "errcode") != "success" {
 					screen.Fprintln(screen.Msg, "red_black", "Bad Beacon")
@@ -137,7 +139,9 @@ func beacon(args []string) {
 				clibeacon.v6mcast = true
 				screen.Fprintln(screen.Msg, "green_black", "Sending beacons to IPv6 Multicast")
 				// Start up the beacon client sending IPv6 beacons every timer secs
-				go client.V6McastBeacon(clibeacon.timer, clibeacon.flags, errflag)
+				var txb beacon.Beacon
+				txb.New(clibeacon.flags)
+				go beacon.V6McastBeacon(&txb, errflag)
 				f := <-errflag
 				if sarflags.GetStr(f, "errcode") != "success" {
 					screen.Fprintln(screen.Msg, "red_black", "Bad Beacon")
@@ -162,7 +166,10 @@ func beacon(args []string) {
 			}
 			// Loop thru the address(s) for the host and send a beacon to them
 			for _, addr := range addrs {
-				go client.Beacon(addr, clibeacon.timer, clibeacon.flags, errflag)
+
+				var txb beacon.Beacon
+				txb.New(clibeacon.flags)
+				go txb.Send(addr, errflag)
 				f := <-errflag
 				if sarflags.GetStr(f, "errcode") != "success" {
 					screen.Fprintln(screen.Msg, "red_black", "Bad Beacon to ", args[1])

@@ -390,19 +390,10 @@ func Get(curflag uint32, field string) uint32 {
 
 // GetStr - Given a current flag and bitfield name return the string name of the bitfield set in curflag
 func GetStr(curflag uint32, field string) string {
-	if _, ok := flagbits[field]; !ok {
-		log.Fatalln("Get lookup fail Invalid Flag", field)
-	}
 
-	var len, msb, shiftbits, maskbits, setbits, val uint32
-
-	len = flagbits[field][fieldlen]
-	msb = flagbits[field][fieldmsb]
-	shiftbits = flagsize - len - msb
-	maskbits = (1 << len) - 1
-	setbits = maskbits << shiftbits
-	val = (curflag & setbits) >> shiftbits
+	val := Get(curflag, field)
 	for _, fi := range flagvals[field] {
+		// fmt.Printf("GetStr Curflag %0x Looking for %x val in %x=%s\n", curflag, val, fi.val, fi.name)
 		if fi.val == val {
 			return fi.name
 		}

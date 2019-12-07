@@ -420,6 +420,10 @@ func layout(g *gocui.Gui) error {
 
 func main() {
 
+	// Grab my process ID, use this as base for EID (endpoint identifier)
+
+	Pid = Getpid()
+
 	// Global Flags set in cli
 	sarflags.Global = make(map[string]string)
 	// Give them some defaults
@@ -438,6 +442,25 @@ func main() {
 			panic(ps)
 		}
 	}
+	var sardir string
+
+	// Get the default directory for sarotaga transfers from environment
+	if sardir = os.Getenv("SARDIR"); sardir == "" {
+		panic(errors.New("No Saratoga transfer directory SARDIR environment variabe set"))
+	}
+	// Move to it
+	if err := os.Chdir(sardir); err != nil {
+		e := fmt.Sprintf("No such directory SARDIR=%s", sardir)
+		panic(errors.New(e))
+	}
+
+	var fs syscall.Statfs_t
+	if err := syscall.Statfs(sardir, &fs); err != nil {
+		panic(errors.New("Cannot stat sardir"))
+	}
+	fmt.Printf("Saratoga Directory is %s\n", sardir)
+	fmt.Printf("Available space is %d MB\n", (uint64(fs.Bsize)*fs.Bavail)/1024/1024)
+	time.Sleep(3 x time.Second)
 
 	g, err := gocui.NewGui(gocui.OutputNormal)
 	if err != nil {

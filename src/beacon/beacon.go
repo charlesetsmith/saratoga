@@ -4,22 +4,28 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"log"
+	"net"
+	"os"
+	"strconv"
 	"strings"
+	"syscall"
 
 	"sarflags"
 
 	"github.com/charlesetsmith/saratoga/src/sarnet"
+	"github.com/charlesetsmith/saratoga/src/screen"
 )
 
 // Beacon -- Holds Beacon frame information
 type Beacon struct {
 	Header    uint32
-	Freespace uint64
-	Eid       string
+	Freespace uint64 // Set in b.New
+	Eid       string // This changes depending upon Host IP Address. Set in "b.Send"
 }
 
-// New - Construct a beacon - return byte slice of frame
-func (b *Beacon) New(flags string, eid string, freespace uint64) error {
+// New - Construct a beacon - Fill in the Beacon struct - Not EID we do that in Send
+func (b *Beacon) New(flags string) error {
 	var err error
 
 	// Always present in a Beacon
@@ -62,8 +68,43 @@ func (b *Beacon) New(flags string, eid string, freespace uint64) error {
 			return errors.New(e)
 		}
 	}
-	b.Freespace = freespace
-	b.Eid = eid
+	b.Eid = ""
+
+	if sarflags.GetStr(b.Header, "freespace") == "yes" {
+		// Ignore if freespaced is set, just set it to the correct size
+		var fs syscall.Statfs_t
+		var sardir string
+
+		// Where we put/get files from/to
+		if sardir, err = os.Getwd(); err != nil {
+			b.Header, _ = sarflags.Set(b.Header, "freespace", "no")
+			b.Freespace = 0
+			return err
+		}
+
+		if err := syscall.Statfs(sardir, &fs); err != nil {
+			b.Header, _ = sarflags.Set(b.Header, "freespace", "no")
+			b.Freespace = 0
+			return nil
+		}
+		// Freespace is number of Kilobytes (1024 bytes) left on disk
+		b.Freespace = (uint64(fs.Bsize) * fs.Bavail) / 1024
+		if b.Freespace*1024 < sarflags.MaxUint16 {
+			b.Header, _ = sarflags.Set(b.Header, "freespaced", "d16")
+			return nil
+		}
+		if b.Freespace*1024 < sarflags.MaxUint32 {
+			b.Header, _ = sarflags.Set(b.Header, "freespaced", "d32")
+			return nil
+		}
+		if b.Freespace*1024 < sarflags.MaxUint64 {
+			b.Header, _ = sarflags.Set(b.Header, "freespaced", "d64")
+			return nil
+		}
+		e := "beacon.New: More than uint64 can hold freespace left - We dont do d128 yet!"
+		return errors.New(e)
+	}
+
 	return nil
 }
 
@@ -86,7 +127,7 @@ func (b *Beacon) Make(header uint32, eid string, freespace uint64) error {
 	return nil
 }
 
-// Put -- Encode the Saratoga Data Frame buffer
+// Put -- Encode the Saratoga Beacon into a Frame buffer
 func (b Beacon) Put() ([]byte, error) {
 
 	var frame []byte
@@ -172,4 +213,108 @@ func (b Beacon) Print() string {
 	}
 	sflag += fmt.Sprintf("  EID:%s\n", b.Eid)
 	return sflag
+}
+
+// SendV4Mcast - Send a IPv4 Multicast beacon
+func SendV4Mcast(b *Beacon, errflag chan uint32) {
+
+	addr := sarnet.IPv4Multicast
+
+	screen.Fprintln(screen.Msg, "blue_black", "Sending Multicast beacons to ",
+		sarnet.IPv4Multicast, sarnet.Port())
+	var frame []byte
+	var err error
+
+	if frame, err = b.Put(); err != nil {
+		ret, _ := sarflags.Set(0, "errcode", "badpacket")
+		errflag <- ret
+	}
+	screen.Fprintln(screen.Msg, "yellow_black", "Sending Beacon to ", addr, ":", b.Print())
+
+	udpad := addr + ":" + strconv.Itoa(sarnet.Port())
+	conn, err := net.Dial("udp", udpad)
+	defer conn.Close()
+	if err != nil {
+		log.Fatalf("Cannot open UDP Socket to %s %v", udpad, err)
+		return
+	}
+
+	_, err = conn.Write(frame)
+	errflag <- uint32(sarflags.Value("errcode", "success"))
+}
+
+// SendV6Mcast - Send a IPv6 Multicast beacon
+func SendV6Mcast(b *Beacon, errflag chan uint32) {
+
+	addr := sarnet.IPv6Multicast
+
+	screen.Fprintln(screen.Msg, "blue_black", "Sending Multicast beacons to ",
+		sarnet.IPv6Multicast, sarnet.Port())
+	var frame []byte
+	var err error
+
+	if frame, err = b.Put(); err != nil {
+		ret, _ := sarflags.Set(0, "errcode", "badpacket")
+		errflag <- ret
+	}
+	screen.Fprintln(screen.Msg, "yellow_black", "Sending Beacon to ", addr, ":", b.Print())
+
+	udpad := addr + ":" + strconv.Itoa(sarnet.Port())
+	conn, err := net.Dial("udp", udpad)
+	defer conn.Close()
+	if err != nil {
+		log.Fatalf("Cannot open UDP Socket to %s %v", udpad, err)
+		return
+	}
+
+	_, err = conn.Write(frame)
+	errflag <- uint32(sarflags.Value("errcode", "success"))
+}
+
+// Send - Send a IPv4 or IPv6 beacon to a server
+func Send(b *Beacon, addr string, errflag chan uint32) {
+
+	var eid string
+
+	// If our destination is IPv4 host then set this host's IPv4 Address in the EID
+	// If our destination is IPv6 host then set this host's IPv6 address in the EID
+	if net.ParseIP(addr) != nil {
+		pstr := strconv.Itoa(sarnet.Port())
+		if strings.Contains(addr, ".") { // IPv4
+			eid = fmt.Sprintf("%s:%s %d", sarnet.OutboundIP("IPv4").String(), pstr, os.Getpid())
+		} else if strings.Contains(addr, ":") { // IPv6
+			eid = fmt.Sprintf("[%s]:%s %d", sarnet.OutboundIP("IPv6").String(), pstr, os.Getpid())
+		} else {
+			ret, _ := sarflags.Set(0, "errcode", "badpacket")
+			errflag <- ret
+			return
+		}
+	}
+
+	// Copy this back into the beacons Eid
+	// It is the outbound "IP:Socket PID"
+	b.Eid = eid
+
+	// Assemble the beacon frame from the beacon struct
+	var frame []byte
+	var err error
+
+	if frame, err = b.Put(); err != nil {
+		ret, _ := sarflags.Set(0, "errcode", "badpacket")
+		errflag <- ret
+	}
+	screen.Fprintln(screen.Msg, "yellow_black", "Sending Beacon to ", addr, ":", b.Print())
+
+	// Set up the connection
+	udpad := addr + ":" + strconv.Itoa(sarnet.Port())
+	conn, err := net.Dial("udp", udpad)
+	defer conn.Close()
+	if err != nil {
+		log.Fatalf("Cannot open UDP Socket to %s %v", udpad, err)
+		return
+	}
+
+	// Send it off
+	_, err = conn.Write(frame)
+	errflag <- uint32(sarflags.Value("errcode", "success"))
 }
