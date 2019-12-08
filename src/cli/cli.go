@@ -3,11 +3,13 @@ package cli
 import (
 	"errors"
 	"net"
-	"screen"
 	"strconv"
 	"strings"
 
+	"github.com/charlesetsmith/saratoga/src/beacon"
 	"github.com/charlesetsmith/saratoga/src/sarflags"
+	"github.com/charlesetsmith/saratoga/src/screen"
+	"github.com/jroimartin/gocui"
 )
 
 // Remove an entry in a slice of strings by index #
@@ -42,9 +44,7 @@ func appendunique(slice []string, i string) []string {
 func setglobal(frametype string) string {
 	fs := ""
 	for _, f := range sarflags.Fields(frametype) {
-		// fmt.Println("f=", f)
 		for g := range sarflags.Global {
-			// fmt.Println("g=", g)
 			if g == f {
 				fs += f + "=" + sarflags.Global[f] + ","
 			}
@@ -70,7 +70,9 @@ type cmdBeacon struct {
 // clibeacon - Beacon commands
 var clibeacon cmdBeacon
 
-func beacon(args []string) {
+func handlebeacon(g *gocui.Gui, args []string) {
+
+	var txb beacon.Beacon // The assembled beacon to transmit
 
 	errflag := make(chan uint32, 1) // The return channel holding the saratoga errflag
 
@@ -79,25 +81,25 @@ func beacon(args []string) {
 	// Show current Cbeacon flags and lists - beacon
 	if len(args) == 1 {
 		if clibeacon.timer != 0 {
-			screen.Fprintln(screen.Msg, "green_black", "Beacons to be sent every", clibeacon.timer, "seconds")
+			screen.Fprintln(g, "msg", "green_black", "Beacons to be sent every", clibeacon.timer, "seconds")
 		} else {
-			screen.Fprintln(screen.Msg, "green_black", "Single Beacon to be sent")
+			screen.Fprintln(g, "msg", "green_black", "Single Beacon to be sent")
 		}
 		if clibeacon.v4mcast == true {
-			screen.Fprintln(screen.Msg, "green_black", "Sending IPv4 multicast beacons")
+			screen.Fprintln(g, "msg", "green_black", "Sending IPv4 multicast beacons")
 		}
 		if clibeacon.v6mcast == true {
-			screen.Fprintln(screen.Msg, "green_black", "Sending IPv6 multicast beacons")
+			screen.Fprintln(g, "msg", "green_black", "Sending IPv6 multicast beacons")
 		}
 		if len(clibeacon.host) > 0 {
-			screen.Fprintln(screen.Msg, "green_black", "Sending beacons to:")
+			screen.Fprintln(g, "msg", "green_black", "Sending beacons to:")
 			for _, i := range clibeacon.host {
-				screen.Fprintln(screen.Msg, "green_black", "\t", i)
+				screen.Fprintln(g, "msg", "green_black", "\t", i)
 			}
 		}
 		if clibeacon.v4mcast == false && clibeacon.v6mcast == false &&
 			len(clibeacon.host) == 0 {
-			screen.Fprintln(screen.Msg, "green_black", "No beacons currently being sent")
+			screen.Fprintln(g, "msg", "green_black", "No beacons currently being sent")
 		}
 		return
 	}
@@ -105,8 +107,8 @@ func beacon(args []string) {
 	if len(args) == 2 {
 		switch args[1] {
 		case "?": // usage
-			screen.Fprintln(screen.Msg, "green_black", cmd["beacon"][0])
-			screen.Fprintln(screen.Msg, "green_black", cmd["beacon"][1])
+			screen.Fprintln(g, "msg", "green_black", cmd["beacon"][0])
+			screen.Fprintln(g, "msg", "green_black", cmd["beacon"][1])
 			return
 		case "off": // remove and disable all beacons
 			clibeacon.flags = setglobal("beacon")
@@ -114,118 +116,117 @@ func beacon(args []string) {
 			clibeacon.v4mcast = false
 			clibeacon.v6mcast = false
 			clibeacon.host = nil
-			screen.Fprintln(screen.Msg, "green_black", "Beacons Disabled")
+			screen.Fprintln(g, "msg", "green_black", "Beacons Disabled")
 			return
 		case "v4": // V4 Multicast
 			errflag := make(chan uint32)
 			if !clibeacon.v4mcast {
 				clibeacon.v4mcast = true
-				screen.Fprintln(screen.Msg, "green_black", "Sending beacons to IPv4 Multicast")
-				// Start up the beacon client sending IPv4 beacons every timer secs
+				screen.Fprintln(g, "msg", "green_black", "Sending beacons to IPv4 Multicast")
 
-				var txb beacon.Beacon
-				txb.New(clibeacon.flags)
-				go beacon.V4McastBeacon(&txb, errflag)
-				f := <-errflag
-				if sarflags.GetStr(f, "errcode") != "success" {
-					screen.Fprintln(screen.Msg, "red_black", "Bad Beacon")
+				// Start up the beacon client sending IPv4 beacons every timer secs
+				if err := txb.New(clibeacon.flags); err == nil {
+					go txb.SendV4Mcast(errflag)
+					f := <-errflag
+					if sarflags.GetStr(f, "errcode") != "success" {
+						screen.Fprintln(g, "msg", "red_black", "Bad Beacon")
+					}
 				}
 				return
 			}
-			screen.Fprintln(screen.Msg, "green_red", "Beacon IPv4 Multicast already being sent")
+			screen.Fprintln(g, "msg", "green_red", "Beacon IPv4 Multicast already being sent")
 			return
 		case "v6": // V6 Multicast
 			if !clibeacon.v6mcast {
 				clibeacon.v6mcast = true
-				screen.Fprintln(screen.Msg, "green_black", "Sending beacons to IPv6 Multicast")
+				screen.Fprintln(g, "msg", "green_black", "Sending beacons to IPv6 Multicast")
 				// Start up the beacon client sending IPv6 beacons every timer secs
-				var txb beacon.Beacon
-				txb.New(clibeacon.flags)
-				go beacon.V6McastBeacon(&txb, errflag)
-				f := <-errflag
-				if sarflags.GetStr(f, "errcode") != "success" {
-					screen.Fprintln(screen.Msg, "red_black", "Bad Beacon")
+				if err := txb.New(clibeacon.flags); err == nil {
+					go txb.SendV6Mcast(errflag)
+					f := <-errflag
+					if sarflags.GetStr(f, "errcode") != "success" {
+						screen.Fprintln(g, "msg", "red_black", "Bad Beacon")
+					}
 				}
 				return
 			}
-			screen.Fprintln(screen.Msg, "green_red", "Beacon IPv6 Multicast already being sent")
+			screen.Fprintln(g, "msg", "green_red", "Beacon IPv6 Multicast already being sent")
 			return
 
 		default: // beacon <timer> or beacon <ipaddr>
 			u32, err := strconv.ParseUint(args[1], 10, 32)
 			if err == nil { // We have a number so it is a timer
 				clibeacon.timer = uint(u32)
-				screen.Fprintln(screen.Msg, "green_black", "Beacon timer", clibeacon.timer, "secs")
+				screen.Fprintln(g, "msg", "green_black", "Beacon timer", clibeacon.timer, "secs")
 				return
 			}
 			// We have a hostname maybe with multiple addresses
 			var addrs []string
 			if addrs, err = net.LookupHost(args[1]); err != nil {
-				screen.Fprintln(screen.Msg, "red_black", "Cannot resolve hostname: ", err)
+				screen.Fprintln(g, "msg", "red_black", "Cannot resolve hostname: ", err)
 				return
 			}
 			// Loop thru the address(s) for the host and send a beacon to them
 			for _, addr := range addrs {
-
-				var txb beacon.Beacon
-				txb.New(clibeacon.flags)
-				go txb.Send(addr, errflag)
-				f := <-errflag
-				if sarflags.GetStr(f, "errcode") != "success" {
-					screen.Fprintln(screen.Msg, "red_black", "Bad Beacon to ", args[1])
+				if err := txb.New(clibeacon.flags); err == nil {
+					go txb.Send(addr, errflag)
+					f := <-errflag
+					if sarflags.GetStr(f, "errcode") != "success" {
+						screen.Fprintln(g, "msg", "red_black", "Bad Beacon to ", args[1])
+					}
 				}
 			}
 			clibeacon.host = appendunique(clibeacon.host, args[1])
-			screen.Fprintln(screen.Msg, "green_black", "Sending beacons to ", args[1])
+			screen.Fprintln(g, "msg", "green_black", "Sending beacons to ", args[1])
 			return
 		}
-		// screen.Fprintln(screen.Cmd, "red_black", cmd["beacon"][0])
+		// screen.Fprintln(g, "cmd", "red_black", cmd["beacon"][0])
 	}
 
 	// beacon off <ipaddr> ...
 	if args[1] == "off" && len(args) > 2 { // turn off following addresses
-		screen.Fprintf(screen.Msg, "green_black", "%s ", "Beacons turned off to")
+		screen.Fprintf(g, "msg", "green_black", "%s ", "Beacons turned off to")
 		for i := 2; i < len(args); i++ { // Remove Address'es from lists
 			if net.ParseIP(args[i]) != nil { // Do We have a valid IP Address
 				clibeacon.host = removeValue(clibeacon.host, args[i])
-				screen.Fprintf(screen.Msg, "green_black", "%s ", args[i])
+				screen.Fprintf(g, "msg", "green_black", "%s ", args[i])
 				if i == len(args)-1 {
-					screen.Fprintln(screen.Msg, "green_black", "")
+					screen.Fprintln(g, "msg", "green_black", "")
 				}
 			} else {
-				screen.Fprintln(screen.Msg, "red_black", "Invalid IP Address:", args[i])
-				screen.Fprintln(screen.Cmd, "red_black", cmd["beacon"][0])
+				screen.Fprintln(g, "msg", "red_black", "Invalid IP Address:", args[i])
+				screen.Fprintln(g, "cmd", "red_black", cmd["beacon"][0])
 			}
 		}
 		return
 	}
 	// beacon <ipaddr> ...
-	screen.Fprintf(screen.Msg, "green_black", "Sending beacons to:")
+	screen.Fprintf(g, "msg", "green_black", "Sending beacons to:")
 	for i := 1; i < len(args); i++ { // Add Address'es to lists
 		if net.ParseIP(args[i]) != nil { // We have a valid IP Address
 			clibeacon.host = appendunique(clibeacon.host, args[i])
-			screen.Fprintf(screen.Msg, "green_black", " %s", args[i])
+			screen.Fprintf(g, "msg", "green_black", " %s", args[i])
 			if i == len(args)-1 {
-				screen.Fprintln(screen.Msg, "green_black", "")
+				screen.Fprintln(g, "msg", "green_black", "")
 			}
 		} else {
-			screen.Fprintln(screen.Cmd, "red_black", cmd["beacon"][0])
+			screen.Fprintln(g, "cmd", "red_black", cmd["beacon"][0])
 		}
 	}
 }
 
-func cancel(args []string) {
-	screen.Fprintln(screen.Msg, "green_black", args)
+func cancel(g *gocui.Gui, args []string) {
+	screen.Fprintln(g, "msg", "green_black", args)
 }
 
-func checksum(args []string) {
+func checksum(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
-		screen.Fprintln(screen.Msg, "green_black", "Checksum", sarflags.Global["csumtype"])
+		screen.Fprintln(g, "msg", "green_black", "Checksum", sarflags.Global["csumtype"])
 		return
 	}
 	if len(args) == 2 && args[1] == "?" { // usage
-		screen.Fprintln(screen.Msg, "green_black", cmd["checksum"][0])
-		screen.Fprintln(screen.Msg, "green_black", cmd["checksum"][1])
+		screen.Fprintln(g, "msg", "green_black", cmd["checksum"][0])
+		screen.Fprintln(g, "msg", "green_black", cmd["checksum"][1])
 		return
 	}
 	if len(args) == 2 {
@@ -239,24 +240,24 @@ func checksum(args []string) {
 		case "sha1":
 			sarflags.Global["csumtype"] = "sha1"
 		default:
-			screen.Fprintln(screen.Cmd, "green_red", cmd["checksum"][0])
+			screen.Fprintln(g, "cmd", "green_red", cmd["checksum"][0])
 		}
 		return
 	}
-	screen.Fprintln(screen.Cmd, "green_red", cmd["checksum"][0])
+	screen.Fprintln(g, "cmd", "green_red", cmd["checksum"][0])
 }
 
 // Cdebug - Debug level 0 is off
 var Cdebug = 0
 
-func debug(args []string) {
+func debug(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
-		screen.Fprintln(screen.Msg, "green_black", "Debug level", Cdebug)
+		screen.Fprintln(g, "msg", "green_black", "Debug level", Cdebug)
 		return
 	}
 	if len(args) == 2 && args[1] == "?" { // usage
-		screen.Fprintln(screen.Msg, "green_black", cmd["debug"][0])
-		screen.Fprintln(screen.Msg, "green_black", cmd["debug"][1])
+		screen.Fprintln(g, "msg", "green_black", cmd["debug"][0])
+		screen.Fprintln(g, "msg", "green_black", cmd["debug"][1])
 		return
 	}
 	if len(args) == 2 {
@@ -266,21 +267,21 @@ func debug(args []string) {
 		case "0", "1", "2", "3", "4", "5", "6", "7", "8", "9":
 			Cdebug, _ = strconv.Atoi(args[1])
 		default:
-			screen.Fprintln(screen.Msg, "green_red", cmd["debug"][0])
+			screen.Fprintln(g, "msg", "green_red", cmd["debug"][0])
 		}
 		return
 	}
-	screen.Fprintln(screen.Msg, "green_red", cmd["debug"][0])
+	screen.Fprintln(g, "msg", "green_red", cmd["debug"][0])
 }
 
-func descriptor(args []string) {
+func descriptor(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
-		screen.Fprintln(screen.Msg, "green_black", "Descriptor", sarflags.Global["descriptor"])
+		screen.Fprintln(g, "msg", "green_black", "Descriptor", sarflags.Global["descriptor"])
 		return
 	}
 	if len(args) == 2 && args[1] == "?" { // usage
-		screen.Fprintln(screen.Msg, "green_black", cmd["descriptor"][0])
-		screen.Fprintln(screen.Msg, "green_black", cmd["descriptor"][1])
+		screen.Fprintln(g, "msg", "green_black", cmd["descriptor"][0])
+		screen.Fprintln(g, "msg", "green_black", cmd["descriptor"][1])
 		return
 	}
 	if len(args) == 2 {
@@ -299,98 +300,98 @@ func descriptor(args []string) {
 			if sarflags.MaxUint <= sarflags.MaxUint64 {
 				sarflags.Global["descriptor"] = "d64"
 			} else {
-				screen.Fprintln(screen.Msg, "red_black", "64 bit descriptors not supported on this platform")
+				screen.Fprintln(g, "msg", "red_black", "64 bit descriptors not supported on this platform")
 			}
 		case "16":
 			if sarflags.MaxUint <= sarflags.MaxUint16 {
 				sarflags.Global["descriptor"] = "d16"
 			} else {
-				screen.Fprintln(screen.Msg, "red_black", "16 bit descriptors not supported on this platform")
+				screen.Fprintln(g, "msg", "red_black", "16 bit descriptors not supported on this platform")
 			}
 		case "32":
 			if sarflags.MaxUint <= sarflags.MaxUint32 {
 				sarflags.Global["descriptor"] = "d32"
 			} else {
-				screen.Fprintln(screen.Msg, "red_black", "16 bit descriptors not supported on this platform")
+				screen.Fprintln(g, "msg", "red_black", "16 bit descriptors not supported on this platform")
 			}
 		case "128":
-			screen.Fprintln(screen.Msg, "red_black", "128 bit descriptors not supported on this platform")
+			screen.Fprintln(g, "msg", "red_black", "128 bit descriptors not supported on this platform")
 		default:
-			screen.Fprintln(screen.Msg, "green_red", cmd["descriptor"][0])
+			screen.Fprintln(g, "msg", "green_red", cmd["descriptor"][0])
 		}
-		screen.Fprintln(screen.Msg, "green_red", "Descriptor size set to", sarflags.Global["descriptor"])
+		screen.Fprintln(g, "msg", "green_red", "Descriptor size set to", sarflags.Global["descriptor"])
 		return
 	}
-	screen.Fprintln(screen.Msg, "green_red", cmd["descriptor"][0])
+	screen.Fprintln(g, "msg", "green_red", cmd["descriptor"][0])
 }
 
 // Cexit = Exit level to quit from saratoga
 var Cexit = -1
 
 // Quit saratoga
-func exit(args []string) {
+func exit(g *gocui.Gui, args []string) {
 	if len(args) > 2 { // usage
-		screen.Fprintln(screen.Msg, "red_black", cmd["exit"][0])
+		screen.Fprintln(g, "msg", "red_black", cmd["exit"][0])
 		return
 	}
 	if len(args) == 1 { // exit 0
 		Cexit = 0
-		screen.Fprintln(screen.Msg, "green_black", "Good Bye!")
+		screen.Fprintln(g, "msg", "green_black", "Good Bye!")
 		return
 	}
 	if len(args) == 2 {
 		switch args[1] {
 		case "?": // Usage
-			screen.Fprintln(screen.Msg, "green_black", cmd["exit"][0])
-			screen.Fprintln(screen.Msg, "green_black", cmd["exit"][1])
+			screen.Fprintln(g, "msg", "green_black", cmd["exit"][0])
+			screen.Fprintln(g, "msg", "green_black", cmd["exit"][1])
 		case "0": // exit 0
 			Cexit = 0
-			screen.Fprintln(screen.Msg, "green_black", "Good Bye!")
+			screen.Fprintln(g, "msg", "green_black", "Good Bye!")
 		case "1": // exit 1
 			Cexit = 1
-			screen.Fprintln(screen.Msg, "green_black", "Good Bye!")
+			screen.Fprintln(g, "msg", "green_black", "Good Bye!")
 		default: // Help
-			screen.Fprintln(screen.Msg, "red_black", cmd["exit"][0])
+			screen.Fprintln(g, "msg", "red_black", cmd["exit"][0])
 		}
 		return
 	}
-	screen.Fprintln(screen.Msg, "red_black", cmd["exit"][0])
+	screen.Fprintln(g, "msg", "red_black", cmd["exit"][0])
 }
 
 // Cfiles - Currently open file list
 var Cfiles []string
 
-func files(args []string) {
+func files(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
 		if len(Cfiles) == 0 {
-			screen.Fprintln(screen.Msg, "green_black", "No currently open files")
+			screen.Fprintln(g, "msg", "green_black", "No currently open files")
 			return
 		}
 		for _, i := range Cfiles {
-			screen.Fprintln(screen.Msg, "green_black", i)
+			screen.Fprintln(g, "msg", "green_black", i)
 		}
 		return
 	}
 	if len(args) == 2 && args[1] == "?" { // usage
-		screen.Fprintln(screen.Msg, "green_black", cmd["files"][0])
-		screen.Fprintln(screen.Msg, "green_black", cmd["files"][1])
+		screen.Fprintln(g, "msg", "green_black", cmd["files"][0])
+		screen.Fprintln(g, "msg", "green_black", cmd["files"][1])
 		return
 	}
-	screen.Fprintln(screen.Msg, "red_black", cmd["files"][0])
+	screen.Fprintln(g, "msg", "red_black", cmd["files"][0])
 }
 
-func freespace(args []string) {
+func freespace(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
 		if sarflags.Global["freespace"] == "yes" {
-			screen.Fprintln(screen.Msg, "green_black", "Free space advertised")
+			screen.Fprintln(g, "msg", "green_black", "Free space advertised")
 		} else {
-			screen.Fprintln(screen.Msg, "green_black", "Free space not advertised")
+			screen.Fprintln(g, "msg", "green_black", "Free space not advertised")
 		}
 		return
 	}
 	if len(args) == 2 && args[1] == "?" { // usage
-		screen.Fprintln(screen.Msg, "green_black", cmd["freespace"][0])
-		screen.Fprintln(screen.Msg, "green_black", cmd["freespace"][1])
+		screen.Fprintln(g, "msg", "green_black", cmd["freespace"][0])
+		screen.Fprintln(g, "msg", "green_black", cmd["freespace"][1])
 		return
 	}
 	if len(args) == 2 {
@@ -403,7 +404,7 @@ func freespace(args []string) {
 			return
 		}
 	}
-	screen.Fprintln(screen.Msg, "red_black", cmd["freespace"][0])
+	screen.Fprintln(g, "msg", "red_black", cmd["freespace"][0])
 }
 
 type cmdGet struct {
@@ -415,19 +416,19 @@ type cmdGet struct {
 // Cget - Get file list used in get and getrm
 var Cget = []cmdGet{}
 
-func get(args []string) {
+func get(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
 		if len(Cget) == 0 {
-			screen.Fprintln(screen.Msg, "green_black", "No current get transactions")
+			screen.Fprintln(g, "msg", "green_black", "No current get transactions")
 		} else {
 			for _, i := range Cget {
-				screen.Fprintln(screen.Msg, "green_black", i.peer, i.filename, i.rmflag)
+				screen.Fprintln(g, "msg", "green_black", i.peer, i.filename, i.rmflag)
 			}
 		}
 	}
 	if len(args) == 2 && args[1] == "?" {
-		screen.Fprintln(screen.Msg, "green_black", cmd["get"][0])
-		screen.Fprintln(screen.Msg, "green_black", cmd["get"][1])
+		screen.Fprintln(g, "msg", "green_black", cmd["get"][0])
+		screen.Fprintln(g, "msg", "green_black", cmd["get"][1])
 		return
 	}
 	if len(args) == 3 {
@@ -441,22 +442,22 @@ func get(args []string) {
 			return
 		}
 	}
-	screen.Fprintln(screen.Msg, "red_black", cmd["get"][0])
+	screen.Fprintln(g, "msg", "red_black", cmd["get"][0])
 }
 
-func getrm(args []string) {
+func getrm(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
 		if len(Cget) == 0 {
-			screen.Fprintln(screen.Msg, "green_black", "No current get transactions")
+			screen.Fprintln(g, "msg", "green_black", "No current get transactions")
 		} else {
 			for _, i := range Cget {
-				screen.Fprintln(screen.Msg, "green_black", i.peer, i.filename, i.rmflag)
+				screen.Fprintln(g, "msg", "green_black", i.peer, i.filename, i.rmflag)
 			}
 		}
 	}
 	if len(args) == 2 && args[1] == "?" {
-		screen.Fprintln(screen.Msg, "green_black", cmd["getrm"][0])
-		screen.Fprintln(screen.Msg, "green_black", cmd["getrm"][1])
+		screen.Fprintln(g, "msg", "green_black", cmd["getrm"][0])
+		screen.Fprintln(g, "msg", "green_black", cmd["getrm"][1])
 		return
 	}
 	if len(args) == 3 {
@@ -470,38 +471,38 @@ func getrm(args []string) {
 			return
 		}
 	}
-	screen.Fprintln(screen.Msg, "red_black", cmd["get"][0])
+	screen.Fprintln(g, "msg", "red_black", cmd["get"][0])
 }
 
-func help(args []string) {
+func help(g *gocui.Gui, args []string) {
 	for key, val := range cmd {
-		screen.Fprintln(screen.Msg, "magenta_black", key, "-", val[1])
+		screen.Fprintln(g, "msg", "magenta_black", key, "-", val[1])
 	}
 }
 
-func history(args []string) {
-	screen.Fprintln(screen.Msg, "green_black", args)
+func history(g *gocui.Gui, args []string) {
+	screen.Fprintln(g, "msg", "green_black", args)
 }
 
-func home(args []string) {
-	screen.Fprintln(screen.Msg, "green_black", args)
+func home(g *gocui.Gui, args []string) {
+	screen.Fprintln(g, "msg", "green_black", args)
 }
 
-func ls(args []string) {
-	screen.Fprintln(screen.Msg, "green_black", args)
+func ls(g *gocui.Gui, args []string) {
+	screen.Fprintln(g, "msg", "green_black", args)
 }
 
 // Cprompt - Command line prompt
 var Cprompt = "saratoga"
 
-func prompt(args []string) {
+func prompt(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
-		screen.Fprintln(screen.Msg, "green_black", "Current prompt is", Cprompt)
+		screen.Fprintln(g, "msg", "green_black", "Current prompt is", Cprompt)
 		return
 	}
 	if len(args) == 2 && args[1] == "?" { // usage
-		screen.Fprintln(screen.Msg, "green_black", cmd["prompt"][0])
-		screen.Fprintln(screen.Msg, "green_black", cmd["prompt"][1])
+		screen.Fprintln(g, "msg", "green_black", cmd["prompt"][0])
+		screen.Fprintln(g, "msg", "green_black", cmd["prompt"][1])
 		return
 	}
 	if len(args) == 2 {
@@ -510,8 +511,8 @@ func prompt(args []string) {
 	}
 }
 
-func peers(args []string) {
-	screen.Fprintln(screen.Msg, "green_black", args)
+func peers(g *gocui.Gui, args []string) {
+	screen.Fprintln(g, "msg", "green_black", args)
 }
 
 type cmdPut struct {
@@ -523,19 +524,19 @@ type cmdPut struct {
 // Cput - Put file command
 var Cput = []cmdPut{}
 
-func put(args []string) {
+func put(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
 		if len(Cput) == 0 {
-			screen.Fprintln(screen.Msg, "green_black", "No current put transactions")
+			screen.Fprintln(g, "msg", "green_black", "No current put transactions")
 		} else {
 			for _, i := range Cput {
-				screen.Fprintln(screen.Msg, "green_black", i.peer, i.filename, i.rmflag)
+				screen.Fprintln(g, "msg", "green_black", i.peer, i.filename, i.rmflag)
 			}
 		}
 	}
 	if len(args) == 2 && args[1] == "?" {
-		screen.Fprintln(screen.Msg, "green_black", cmd["put"][0])
-		screen.Fprintln(screen.Msg, "green_black", cmd["put"][1])
+		screen.Fprintln(g, "msg", "green_black", cmd["put"][0])
+		screen.Fprintln(g, "msg", "green_black", cmd["put"][1])
 		return
 	}
 	if len(args) == 3 {
@@ -549,22 +550,22 @@ func put(args []string) {
 			return
 		}
 	}
-	screen.Fprintln(screen.Msg, "red_black", cmd["put"][0])
+	screen.Fprintln(g, "msg", "red_black", cmd["put"][0])
 }
 
-func putrm(args []string) {
+func putrm(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
 		if len(Cput) == 0 {
-			screen.Fprintln(screen.Msg, "green_black", "No current put transactions")
+			screen.Fprintln(g, "msg", "green_black", "No current put transactions")
 		} else {
 			for _, i := range Cput {
-				screen.Fprintln(screen.Msg, "green_black", i.peer, i.filename, i.rmflag)
+				screen.Fprintln(g, "msg", "green_black", i.peer, i.filename, i.rmflag)
 			}
 		}
 	}
 	if len(args) == 2 && args[1] == "?" {
-		screen.Fprintln(screen.Msg, "green_black", cmd["putrm"][0])
-		screen.Fprintln(screen.Msg, "green_black", cmd["putrm"][1])
+		screen.Fprintln(g, "msg", "green_black", cmd["putrm"][0])
+		screen.Fprintln(g, "msg", "green_black", cmd["putrm"][1])
 		return
 	}
 	if len(args) == 3 {
@@ -578,11 +579,7 @@ func putrm(args []string) {
 			return
 		}
 	}
-	screen.Fprintln(screen.Msg, "red_black", cmd["putrm"][0])
-}
-
-func quit(args []string) {
-	exit(args)
+	screen.Fprintln(g, "msg", "red_black", cmd["putrm"][0])
 }
 
 type cmdRm struct {
@@ -594,19 +591,19 @@ type cmdRm struct {
 // Crm - Remove a file or directory command
 var Crm = []cmdRm{}
 
-func rm(args []string) {
+func rm(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
 		if len(Crm) == 0 {
-			screen.Fprintln(screen.Msg, "green_black", "No current rm transactions")
+			screen.Fprintln(g, "msg", "green_black", "No current rm transactions")
 		} else {
 			for _, i := range Crm {
-				screen.Fprintln(screen.Msg, "green_black", i.peer, i.filename, i.dirflag)
+				screen.Fprintln(g, "msg", "green_black", i.peer, i.filename, i.dirflag)
 			}
 		}
 	}
 	if len(args) == 2 && args[1] == "?" {
-		screen.Fprintln(screen.Msg, "green_black", cmd["rm"][0])
-		screen.Fprintln(screen.Msg, "green_black", cmd["rm"][1])
+		screen.Fprintln(g, "msg", "green_black", cmd["rm"][0])
+		screen.Fprintln(g, "msg", "green_black", cmd["rm"][1])
 		return
 	}
 	if len(args) == 3 {
@@ -620,22 +617,22 @@ func rm(args []string) {
 			return
 		}
 	}
-	screen.Fprintln(screen.Msg, "red_black", cmd["rm"][0])
+	screen.Fprintln(g, "msg", "red_black", cmd["rm"][0])
 }
 
-func rmdir(args []string) {
+func rmdir(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
 		if len(Crm) == 0 {
-			screen.Fprintln(screen.Msg, "green_black", "No current rm transactions")
+			screen.Fprintln(g, "msg", "green_black", "No current rm transactions")
 		} else {
 			for _, i := range Crm {
-				screen.Fprintln(screen.Msg, "green_black", i.peer, i.filename, i.dirflag)
+				screen.Fprintln(g, "msg", "green_black", i.peer, i.filename, i.dirflag)
 			}
 		}
 	}
 	if len(args) == 2 && args[1] == "?" {
-		screen.Fprintln(screen.Msg, "green_black", cmd["rmdir"][0])
-		screen.Fprintln(screen.Msg, "green_black", cmd["rmdir"][1])
+		screen.Fprintln(g, "msg", "green_black", cmd["rmdir"][0])
+		screen.Fprintln(g, "msg", "green_black", cmd["rmdir"][1])
 		return
 	}
 	if len(args) == 3 {
@@ -649,17 +646,17 @@ func rmdir(args []string) {
 			return
 		}
 	}
-	screen.Fprintln(screen.Msg, "red_black", cmd["rmdir"][0])
+	screen.Fprintln(g, "msg", "red_black", cmd["rmdir"][0])
 }
 
-func rxwilling(args []string) {
+func rxwilling(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
-		screen.Fprintln(screen.Msg, "green_black", "Receive Files", sarflags.Global["rxwilling"])
+		screen.Fprintln(g, "msg", "green_black", "Receive Files", sarflags.Global["rxwilling"])
 		return
 	}
 	if len(args) == 2 && args[1] == "?" {
-		screen.Fprintln(screen.Msg, "green_black", cmd["rxwilling"][0])
-		screen.Fprintln(screen.Msg, "green_black", cmd["rxwilling"][1])
+		screen.Fprintln(g, "msg", "green_black", cmd["rxwilling"][0])
+		screen.Fprintln(g, "msg", "green_black", cmd["rxwilling"][1])
 		return
 	}
 	if len(args) == 2 {
@@ -674,24 +671,24 @@ func rxwilling(args []string) {
 		}
 		return
 	}
-	screen.Fprintln(screen.Msg, "red_black", cmd["rxwilling"][0])
+	screen.Fprintln(g, "msg", "red_black", cmd["rxwilling"][0])
 }
 
 // Cstream - Can the transfer be a stream (ie not a file)
 var Cstream = "off"
 
-func stream(args []string) {
+func stream(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
 		if sarflags.Global["stream"] == "yes" {
-			screen.Fprintln(screen.Msg, "green_black", "Can stream")
+			screen.Fprintln(g, "msg", "green_black", "Can stream")
 		} else {
-			screen.Fprintln(screen.Msg, "green_black", "Cannot stream")
+			screen.Fprintln(g, "msg", "green_black", "Cannot stream")
 		}
 		return
 	}
 	if len(args) == 2 && args[1] == "?" {
-		screen.Fprintln(screen.Msg, "green_black", cmd["stream"][0])
-		screen.Fprintln(screen.Msg, "green_black", cmd["stream"][1])
+		screen.Fprintln(g, "msg", "green_black", cmd["stream"][0])
+		screen.Fprintln(g, "msg", "green_black", cmd["stream"][1])
 		return
 	}
 	if len(args) == 2 {
@@ -703,7 +700,7 @@ func stream(args []string) {
 		}
 		return
 	}
-	screen.Fprintln(screen.Msg, "red_black", cmd["stream"][0])
+	screen.Fprintln(g, "msg", "red_black", cmd["stream"][0])
 }
 
 type cmdTimeout struct {
@@ -715,50 +712,50 @@ type cmdTimeout struct {
 // Ctimeout - timeouts for responses 0 means no timeout
 var Ctimeout = cmdTimeout{}
 
-func timeout(args []string) {
+func timeout(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
 		if Ctimeout.request == 0 {
-			screen.Fprintln(screen.Msg, "green_black", "request: No timeout")
+			screen.Fprintln(g, "msg", "green_black", "request: No timeout")
 		} else {
-			screen.Fprintln(screen.Msg, "green_black", "request:", Ctimeout.request, "seconds")
+			screen.Fprintln(g, "msg", "green_black", "request:", Ctimeout.request, "seconds")
 		}
 		if Ctimeout.status == 0 {
-			screen.Fprintln(screen.Msg, "green_black", "status: No timeout")
+			screen.Fprintln(g, "msg", "green_black", "status: No timeout")
 		} else {
-			screen.Fprintln(screen.Msg, "green_black", "status:", Ctimeout.status, "seconds")
+			screen.Fprintln(g, "msg", "green_black", "status:", Ctimeout.status, "seconds")
 		}
 		if Ctimeout.transfer == 0 {
-			screen.Fprintln(screen.Msg, "green_black", "transfer: No timeout")
+			screen.Fprintln(g, "msg", "green_black", "transfer: No timeout")
 		} else {
-			screen.Fprintln(screen.Msg, "green_black", "transfer:", Ctimeout.transfer, "seconds")
+			screen.Fprintln(g, "msg", "green_black", "transfer:", Ctimeout.transfer, "seconds")
 		}
 		return
 	}
 	if len(args) == 2 {
 		switch args[1] {
 		case "?":
-			screen.Fprintln(screen.Msg, "green_black", cmd["stream"][0])
-			screen.Fprintln(screen.Msg, "green_black", cmd["stream"][1])
+			screen.Fprintln(g, "msg", "green_black", cmd["stream"][0])
+			screen.Fprintln(g, "msg", "green_black", cmd["stream"][1])
 		case "request":
 			if Ctimeout.request == 0 {
-				screen.Fprintln(screen.Msg, "green_black", "request: No timeout")
+				screen.Fprintln(g, "msg", "green_black", "request: No timeout")
 			} else {
-				screen.Fprintln(screen.Msg, "green_black", "request:", Ctimeout.request, "seconds")
+				screen.Fprintln(g, "msg", "green_black", "request:", Ctimeout.request, "seconds")
 			}
 		case "status":
 			if Ctimeout.status == 0 {
-				screen.Fprintln(screen.Msg, "green_black", "status: No timeout")
+				screen.Fprintln(g, "msg", "green_black", "status: No timeout")
 			} else {
-				screen.Fprintln(screen.Msg, "green_black", "status:", Ctimeout.status, "seconds")
+				screen.Fprintln(g, "msg", "green_black", "status:", Ctimeout.status, "seconds")
 			}
 		case "transfer":
 			if Ctimeout.transfer == 0 {
-				screen.Fprintln(screen.Msg, "green_black", "transfer: No timeout")
+				screen.Fprintln(g, "msg", "green_black", "transfer: No timeout")
 			} else {
-				screen.Fprintln(screen.Msg, "green_black", "transfer:", Ctimeout.transfer, "seconds")
+				screen.Fprintln(g, "msg", "green_black", "transfer:", Ctimeout.transfer, "seconds")
 			}
 		default:
-			screen.Fprintln(screen.Msg, "red_black", cmd["stream"][0])
+			screen.Fprintln(g, "msg", "red_black", cmd["stream"][0])
 		}
 		return
 	}
@@ -786,22 +783,22 @@ func timeout(args []string) {
 			return
 		}
 	}
-	screen.Fprintln(screen.Msg, "red_black", cmd["timeout"][0])
+	screen.Fprintln(g, "msg", "red_black", cmd["timeout"][0])
 }
 
 // Ctimestamp - What timestamp type are we using
 var Ctimestamp = "off"
 
-func timestamp(args []string) {
+func timestamp(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
-		screen.Fprintln(screen.Msg, "green_black", "Timestamps type is", Ctimestamp)
+		screen.Fprintln(g, "msg", "green_black", "Timestamps type is", Ctimestamp)
 		return
 	}
 	if len(args) == 2 {
 		switch args[1] {
 		case "?":
-			screen.Fprintln(screen.Msg, "green_black", cmd["timestamp"][0])
-			screen.Fprintln(screen.Msg, "green_black", cmd["timestamp"][1])
+			screen.Fprintln(g, "msg", "green_black", cmd["timestamp"][0])
+			screen.Fprintln(g, "msg", "green_black", cmd["timestamp"][1])
 		case "off":
 			Ctimestamp = "off"
 		case "32":
@@ -813,92 +810,92 @@ func timestamp(args []string) {
 		case "32_y2k":
 			Ctimestamp = "32_y2k"
 		default:
-			screen.Fprintln(screen.Msg, "red_black", cmd["timestamp"][0])
+			screen.Fprintln(g, "msg", "red_black", cmd["timestamp"][0])
 		}
 		return
 	}
-	screen.Fprintln(screen.Msg, "red_black", cmd["timestamp"][0])
+	screen.Fprintln(g, "msg", "red_black", cmd["timestamp"][0])
 }
 
 // Ctimezone - What timezone to use for log - local or utc
 var Ctimezone = "local"
 
-func timezone(args []string) {
+func timezone(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
-		screen.Fprintln(screen.Msg, "green_black", "Timezone is", Ctimezone)
+		screen.Fprintln(g, "msg", "green_black", "Timezone is", Ctimezone)
 		return
 	}
 	if len(args) == 2 {
 		switch args[1] {
 		case "?":
-			screen.Fprintln(screen.Msg, "green_black", cmd["timezone"][0])
-			screen.Fprintln(screen.Msg, "green_black", cmd["timezone"][1])
+			screen.Fprintln(g, "msg", "green_black", cmd["timezone"][0])
+			screen.Fprintln(g, "msg", "green_black", cmd["timezone"][1])
 		case "local":
 			Ctimezone = "local"
 		case "utc":
 			Ctimezone = "utc"
 		default:
-			screen.Fprintln(screen.Msg, "red_black", cmd["timezone"][0])
+			screen.Fprintln(g, "msg", "red_black", cmd["timezone"][0])
 		}
 		return
 	}
-	screen.Fprintln(screen.Msg, "red_black", cmd["timezone"][0])
+	screen.Fprintln(g, "msg", "red_black", cmd["timezone"][0])
 }
 
-func transfers(args []string) {
+func transfers(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
 		if len(Cget) > 0 {
-			screen.Fprintln(screen.Msg, "green_black", "Get Transfers in progress:")
+			screen.Fprintln(g, "msg", "green_black", "Get Transfers in progress:")
 			for _, i := range Cget {
-				screen.Fprintln(screen.Msg, "green_black", "\t", i.peer, i.filename, i.rmflag)
+				screen.Fprintln(g, "msg", "green_black", "\t", i.peer, i.filename, i.rmflag)
 			}
 		}
 		if len(Cput) > 0 {
-			screen.Fprintln(screen.Msg, "green_black", "Put Transfers in progress:")
+			screen.Fprintln(g, "msg", "green_black", "Put Transfers in progress:")
 			for _, i := range Cput {
-				screen.Fprintln(screen.Msg, "green_black", i.peer, i.filename, i.rmflag)
+				screen.Fprintln(g, "msg", "green_black", i.peer, i.filename, i.rmflag)
 			}
 		}
 	}
 	if len(args) == 2 {
 		switch args[1] {
 		case "?":
-			screen.Fprintln(screen.Msg, "green_black", cmd["transfers"][0])
-			screen.Fprintln(screen.Msg, "green_black", cmd["transfers"][1])
+			screen.Fprintln(g, "msg", "green_black", cmd["transfers"][0])
+			screen.Fprintln(g, "msg", "green_black", cmd["transfers"][1])
 		case "get":
 			if len(Cget) > 0 {
-				screen.Fprintln(screen.Msg, "green_black", "Get Transfers in progress:")
+				screen.Fprintln(g, "msg", "green_black", "Get Transfers in progress:")
 				for _, i := range Cget {
-					screen.Fprintln(screen.Msg, "green_black", "\t", i.peer, i.filename, i.rmflag)
+					screen.Fprintln(g, "msg", "green_black", "\t", i.peer, i.filename, i.rmflag)
 				}
 			} else {
-				screen.Fprintln(screen.Msg, "green_black", "No current get transfers in progress")
+				screen.Fprintln(g, "msg", "green_black", "No current get transfers in progress")
 			}
 		case "put":
 			if len(Cput) > 0 {
-				screen.Fprintln(screen.Msg, "green_black", "Put Transfers in progress:")
+				screen.Fprintln(g, "msg", "green_black", "Put Transfers in progress:")
 				for _, i := range Cput {
-					screen.Fprintln(screen.Msg, "green_black", "\t", i.peer, i.filename, i.rmflag)
+					screen.Fprintln(g, "msg", "green_black", "\t", i.peer, i.filename, i.rmflag)
 				}
 			} else {
-				screen.Fprintln(screen.Msg, "green_black", "No current put transfers in progress")
+				screen.Fprintln(g, "msg", "green_black", "No current put transfers in progress")
 			}
 		default:
-			screen.Fprintln(screen.Msg, "green_black", cmd["transfers"][0])
+			screen.Fprintln(g, "msg", "green_black", cmd["transfers"][0])
 		}
 		return
 	}
-	screen.Fprintln(screen.Msg, "green_black", cmd["transfers"][0])
+	screen.Fprintln(g, "msg", "green_black", cmd["transfers"][0])
 }
 
-func txwilling(args []string) {
+func txwilling(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
-		screen.Fprintln(screen.Msg, "green_black", "Transmit Files", sarflags.Global["txwilling"])
+		screen.Fprintln(g, "msg", "green_black", "Transmit Files", sarflags.Global["txwilling"])
 		return
 	}
 	if len(args) == 2 && args[1] == "?" {
-		screen.Fprintln(screen.Msg, "green_black", cmd["txwilling"][0])
-		screen.Fprintln(screen.Msg, "green_black", cmd["txwilling"][1])
+		screen.Fprintln(g, "msg", "green_black", cmd["txwilling"][0])
+		screen.Fprintln(g, "msg", "green_black", cmd["txwilling"][1])
 		return
 	}
 	if len(args) == 2 {
@@ -913,22 +910,22 @@ func txwilling(args []string) {
 		}
 		return
 	}
-	screen.Fprintln(screen.Msg, "red_black", cmd["txwilling"][0])
+	screen.Fprintln(g, "msg", "red_black", cmd["txwilling"][0])
 }
 
 // Show all commands usage
-func usage(args []string) {
+func usage(g *gocui.Gui, args []string) {
 	for _, val := range cmd {
-		screen.Fprintln(screen.Msg, "cyan_black", val[0])
+		screen.Fprintln(g, "msg", "cyan_black", val[0])
 	}
 }
 
-type cmdfunc func([]string)
+type cmdfunc func(*gocui.Gui, []string)
 
 // Commands and function pointers to handle them
 var cmdhandler = map[string]cmdfunc{
 	"?":          help,
-	"beacon":     beacon,
+	"beacon":     handlebeacon,
 	"cancel":     cancel,
 	"checksum":   checksum,
 	"debug":      debug,
@@ -1089,7 +1086,7 @@ var cmd = map[string][2]string{
 }
 
 // Docmd -- Execute the command entered
-func Docmd(s string) error {
+func Docmd(g *gocui.Gui, s string) error {
 	if s == "" { // Handle just return
 		return nil
 	}
@@ -1100,11 +1097,11 @@ func Docmd(s string) error {
 		if c == vals[0] {
 			fn, ok := cmdhandler[c]
 			if ok {
-				fn(vals)
+				fn(g, vals)
 				return nil
 			}
 		}
 	}
-	screen.Fprintln(screen.Msg, "bright_red_black", "Invalid command:", vals[0])
+	screen.Fprintln(g, "msg", "red_black", "Invalid command:", vals[0])
 	return errors.New("Invalid command")
 }

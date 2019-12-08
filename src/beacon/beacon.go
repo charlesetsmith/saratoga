@@ -11,10 +11,8 @@ import (
 	"strings"
 	"syscall"
 
-	"sarflags"
-
+	"github.com/charlesetsmith/saratoga/src/sarflags"
 	"github.com/charlesetsmith/saratoga/src/sarnet"
-	"github.com/charlesetsmith/saratoga/src/screen"
 )
 
 // Beacon -- Holds Beacon frame information
@@ -216,12 +214,10 @@ func (b Beacon) Print() string {
 }
 
 // SendV4Mcast - Send a IPv4 Multicast beacon
-func SendV4Mcast(b *Beacon, errflag chan uint32) {
+func (b *Beacon) SendV4Mcast(errflag chan uint32) {
 
 	addr := sarnet.IPv4Multicast
 
-	screen.Fprintln(screen.Msg, "blue_black", "Sending Multicast beacons to ",
-		sarnet.IPv4Multicast, sarnet.Port())
 	var frame []byte
 	var err error
 
@@ -229,7 +225,6 @@ func SendV4Mcast(b *Beacon, errflag chan uint32) {
 		ret, _ := sarflags.Set(0, "errcode", "badpacket")
 		errflag <- ret
 	}
-	screen.Fprintln(screen.Msg, "yellow_black", "Sending Beacon to ", addr, ":", b.Print())
 
 	udpad := addr + ":" + strconv.Itoa(sarnet.Port())
 	conn, err := net.Dial("udp", udpad)
@@ -244,12 +239,10 @@ func SendV4Mcast(b *Beacon, errflag chan uint32) {
 }
 
 // SendV6Mcast - Send a IPv6 Multicast beacon
-func SendV6Mcast(b *Beacon, errflag chan uint32) {
+func (b *Beacon) SendV6Mcast(errflag chan uint32) {
 
 	addr := sarnet.IPv6Multicast
 
-	screen.Fprintln(screen.Msg, "blue_black", "Sending Multicast beacons to ",
-		sarnet.IPv6Multicast, sarnet.Port())
 	var frame []byte
 	var err error
 
@@ -257,7 +250,6 @@ func SendV6Mcast(b *Beacon, errflag chan uint32) {
 		ret, _ := sarflags.Set(0, "errcode", "badpacket")
 		errflag <- ret
 	}
-	screen.Fprintln(screen.Msg, "yellow_black", "Sending Beacon to ", addr, ":", b.Print())
 
 	udpad := addr + ":" + strconv.Itoa(sarnet.Port())
 	conn, err := net.Dial("udp", udpad)
@@ -272,18 +264,21 @@ func SendV6Mcast(b *Beacon, errflag chan uint32) {
 }
 
 // Send - Send a IPv4 or IPv6 beacon to a server
-func Send(b *Beacon, addr string, errflag chan uint32) {
+func (b *Beacon) Send(addr string, errflag chan uint32) {
 
 	var eid string
+	var newaddr string // Wrap IPv6 address in [ ]
 
 	// If our destination is IPv4 host then set this host's IPv4 Address in the EID
 	// If our destination is IPv6 host then set this host's IPv6 address in the EID
 	if net.ParseIP(addr) != nil {
 		pstr := strconv.Itoa(sarnet.Port())
 		if strings.Contains(addr, ".") { // IPv4
-			eid = fmt.Sprintf("%s:%s %d", sarnet.OutboundIP("IPv4").String(), pstr, os.Getpid())
+			eid = fmt.Sprintf("%s:%s.%d", sarnet.OutboundIP("IPv4").String(), pstr, os.Getpid())
+			newaddr = addr
 		} else if strings.Contains(addr, ":") { // IPv6
-			eid = fmt.Sprintf("[%s]:%s %d", sarnet.OutboundIP("IPv6").String(), pstr, os.Getpid())
+			eid = fmt.Sprintf("[%s]:%s.%d", sarnet.OutboundIP("IPv6").String(), pstr, os.Getpid())
+			newaddr = "[" + addr + "]"
 		} else {
 			ret, _ := sarflags.Set(0, "errcode", "badpacket")
 			errflag <- ret
@@ -292,7 +287,7 @@ func Send(b *Beacon, addr string, errflag chan uint32) {
 	}
 
 	// Copy this back into the beacons Eid
-	// It is the outbound "IP:Socket PID"
+	// It is the outbound "IP:Socket.PID"
 	b.Eid = eid
 
 	// Assemble the beacon frame from the beacon struct
@@ -303,12 +298,11 @@ func Send(b *Beacon, addr string, errflag chan uint32) {
 		ret, _ := sarflags.Set(0, "errcode", "badpacket")
 		errflag <- ret
 	}
-	screen.Fprintln(screen.Msg, "yellow_black", "Sending Beacon to ", addr, ":", b.Print())
 
 	// Set up the connection
-	udpad := addr + ":" + strconv.Itoa(sarnet.Port())
+	udpad := newaddr + ":" + strconv.Itoa(sarnet.Port())
 	conn, err := net.Dial("udp", udpad)
-	defer conn.Close()
+	// defer conn.Close()
 	if err != nil {
 		log.Fatalf("Cannot open UDP Socket to %s %v", udpad, err)
 		return
@@ -316,5 +310,6 @@ func Send(b *Beacon, addr string, errflag chan uint32) {
 
 	// Send it off
 	_, err = conn.Write(frame)
+	conn.Close()
 	errflag <- uint32(sarflags.Value("errcode", "success"))
 }

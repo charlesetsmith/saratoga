@@ -4,15 +4,10 @@ package screen
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/jroimartin/gocui"
 )
-
-// Cmd - Command Entry Window on screen
-var Cmd *gocui.View
-
-// Msg - Messages Window on screen
-var Msg *gocui.View
 
 // Ansi Colour Map Escape Codes
 var colours = map[string]string{
@@ -42,7 +37,13 @@ var colours = map[string]string{
 
 // Fprintf out in ANSII escape sequenace colour
 // If colour is undefined then still print it out but in bright red to show there is an issue
-func Fprintf(v *gocui.View, colour string, format string, args ...interface{}) {
+func Fprintf(g *gocui.Gui, vname string, colour string, format string, args ...interface{}) {
+
+	v, err := g.View(vname)
+	if err != nil {
+		e := fmt.Sprintf("\nView Fprintf invalid view: %s", vname)
+		log.Fatal(e)
+	}
 	for col := range colours {
 		if col == colour {
 			colfmt := colours[colour] + format + colours["off"]
@@ -56,7 +57,13 @@ func Fprintf(v *gocui.View, colour string, format string, args ...interface{}) {
 
 // Fprintln out in ANSII escape sequenace colour
 // If colour is undefined then still print it out but in bright red to show there is an issue
-func Fprintln(v *gocui.View, colour string, args ...interface{}) {
+func Fprintln(g *gocui.Gui, vname string, colour string, args ...interface{}) {
+
+	v, err := g.View(vname)
+	if err != nil {
+		e := fmt.Sprintf("\nView Fprintln invalid view: %s", vname)
+		log.Fatal(e)
+	}
 	for col := range colours {
 		if col == colour {
 			fmt.Fprintf(v, "%s", colours[col])
