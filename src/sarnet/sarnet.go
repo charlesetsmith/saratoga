@@ -14,7 +14,8 @@ const saratogaport = 7542
 const IPv4Multicast = "224.0.0.108"
 
 // IPv6Multicast -- IANA allocated Saratoga IPV6 link-local Multicast Address
-const IPv6Multicast = "FF02:0:0:0:0:0:0:6c"
+// const IPv6Multicast = "FF02:0:0:0:0:0:0:6c"
+const IPv6Multicast = "FF02::6c"
 
 // MaxFrameSize -- Maximum Saratoga Frame Size
 // Move this to Network Section & Calculate it

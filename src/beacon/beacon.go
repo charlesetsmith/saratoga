@@ -9,10 +9,15 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
+	"time"
 
 	"github.com/charlesetsmith/saratoga/src/sarflags"
 	"github.com/charlesetsmith/saratoga/src/sarnet"
+	"github.com/charlesetsmith/saratoga/src/screen"
+	"github.com/charlesetsmith/saratoga/src/timestamp"
+	"github.com/jroimartin/gocui"
 )
 
 // Beacon -- Holds Beacon frame information
@@ -87,15 +92,15 @@ func (b *Beacon) New(flags string) error {
 		}
 		// Freespace is number of Kilobytes (1024 bytes) left on disk
 		b.Freespace = (uint64(fs.Bsize) * fs.Bavail) / 1024
-		if b.Freespace*1024 < sarflags.MaxUint16 {
+		if b.Freespace < sarflags.MaxUint16 {
 			b.Header, _ = sarflags.Set(b.Header, "freespaced", "d16")
 			return nil
 		}
-		if b.Freespace*1024 < sarflags.MaxUint32 {
+		if b.Freespace < sarflags.MaxUint32 {
 			b.Header, _ = sarflags.Set(b.Header, "freespaced", "d32")
 			return nil
 		}
-		if b.Freespace*1024 < sarflags.MaxUint64 {
+		if b.Freespace < sarflags.MaxUint64 {
 			b.Header, _ = sarflags.Set(b.Header, "freespaced", "d64")
 			return nil
 		}
@@ -213,61 +218,13 @@ func (b Beacon) Print() string {
 	return sflag
 }
 
-// SendV4Mcast - Send a IPv4 Multicast beacon
-func (b *Beacon) SendV4Mcast(errflag chan uint32) {
-
-	addr := sarnet.IPv4Multicast
-
-	var frame []byte
-	var err error
-
-	if frame, err = b.Put(); err != nil {
-		ret, _ := sarflags.Set(0, "errcode", "badpacket")
-		errflag <- ret
-	}
-
-	udpad := addr + ":" + strconv.Itoa(sarnet.Port())
-	conn, err := net.Dial("udp", udpad)
-	defer conn.Close()
-	if err != nil {
-		log.Fatalf("Cannot open UDP Socket to %s %v", udpad, err)
-		return
-	}
-
-	_, err = conn.Write(frame)
-	errflag <- uint32(sarflags.Value("errcode", "success"))
-}
-
-// SendV6Mcast - Send a IPv6 Multicast beacon
-func (b *Beacon) SendV6Mcast(errflag chan uint32) {
-
-	addr := sarnet.IPv6Multicast
-
-	var frame []byte
-	var err error
-
-	if frame, err = b.Put(); err != nil {
-		ret, _ := sarflags.Set(0, "errcode", "badpacket")
-		errflag <- ret
-	}
-
-	udpad := addr + ":" + strconv.Itoa(sarnet.Port())
-	conn, err := net.Dial("udp", udpad)
-	defer conn.Close()
-	if err != nil {
-		log.Fatalf("Cannot open UDP Socket to %s %v", udpad, err)
-		return
-	}
-
-	_, err = conn.Write(frame)
-	errflag <- uint32(sarflags.Value("errcode", "success"))
-}
-
 // Send - Send a IPv4 or IPv6 beacon to a server
-func (b *Beacon) Send(addr string, errflag chan uint32) {
+func (b *Beacon) Send(g *gocui.Gui, addr string, count uint, interval uint, errflag chan string) {
 
-	var eid string
+	var eid string     // Is IPv4:Socket.PID or [IPv6]:Socket.PID
 	var newaddr string // Wrap IPv6 address in [ ]
+
+	txb := b // As this is called as a go routine and we need to alter the eid so make a copy
 
 	// If our destination is IPv4 host then set this host's IPv4 Address in the EID
 	// If our destination is IPv6 host then set this host's IPv6 address in the EID
@@ -280,36 +237,99 @@ func (b *Beacon) Send(addr string, errflag chan uint32) {
 			eid = fmt.Sprintf("[%s]:%s.%d", sarnet.OutboundIP("IPv6").String(), pstr, os.Getpid())
 			newaddr = "[" + addr + "]"
 		} else {
-			ret, _ := sarflags.Set(0, "errcode", "badpacket")
-			errflag <- ret
+			errflag <- "badpacket"
 			return
 		}
 	}
-
-	// Copy this back into the beacons Eid
-	// It is the outbound "IP:Socket.PID"
-	b.Eid = eid
+	txb.Eid = eid
 
 	// Assemble the beacon frame from the beacon struct
 	var frame []byte
 	var err error
 
-	if frame, err = b.Put(); err != nil {
-		ret, _ := sarflags.Set(0, "errcode", "badpacket")
-		errflag <- ret
+	if frame, err = txb.Put(); err != nil {
+		errflag <- "badpacket"
+		return
 	}
 
 	// Set up the connection
 	udpad := newaddr + ":" + strconv.Itoa(sarnet.Port())
 	conn, err := net.Dial("udp", udpad)
-	// defer conn.Close()
+	defer conn.Close()
 	if err != nil {
 		log.Fatalf("Cannot open UDP Socket to %s %v", udpad, err)
 		return
 	}
 
-	// Send it off
+	if count == 0 {
+		count = 1
+	}
+	if interval == 0 {
+		interval = 1
+	}
+
+	var i uint
+
 	_, err = conn.Write(frame)
-	conn.Close()
-	errflag <- uint32(sarflags.Value("errcode", "success"))
+	for i = 0; i < count; i++ {
+		_, err = conn.Write(frame)
+		// screen.Fprintln(g, "msg", "green_black", "Sent:", txb.Print())
+		screen.Fprintf(g, "msg", "green_black", "Tick %d\n", i)
+		select {
+		default:
+			screen.Fprintf(g, "msg", "green_black", "Sleeping for %d secs\n", interval)
+			time.Sleep(time.Duration(interval) * time.Second)
+			screen.Fprintf(g, "msg", "green_black", "Slept for %d secs\n", interval)
+			// time.Sleep(time.Duration(interval) * time.Second)
+		}
+	}
+	// We Copy the eid back into the calling beacons Eid from the channel
+	// It is the outbound "IPv4:Socket.PID" or "[IPv6]:Socket.PID"
+	errflag <- eid
+	return
+}
+
+// Peer - beacon peer
+type Peer struct {
+	Addr      string              // The Peer IP Address. is format net.UDPAddr.IP.String()
+	Freespace uint64              // 0 if freespace not advertised
+	Eid       string              // Exactly who sent this and from what PID
+	Created   timestamp.Timestamp // When was this Peer created
+	Updated   timestamp.Timestamp // When was this Peer last updated
+}
+
+var pmu sync.Mutex // Protect Peers
+// Peers - Slices of unique Peer information learned from beacons
+var Peers []Peer
+
+// NewPeer - Add/Change peer info from received beacon
+func (b *Beacon) NewPeer(from *net.UDPAddr) bool {
+
+	// Scan through existing Peers and change if the peer exists
+	for p := range Peers {
+		if Peers[p].Addr == from.IP.String() { // Source IP address matches
+			pmu.Lock()
+			defer pmu.Unlock()
+			if Peers[p].Freespace != b.Freespace { // Update freespace
+				Peers[p].Freespace = b.Freespace
+			}
+			if Peers[p].Eid != b.Eid { // Update Eid
+				Peers[p].Eid = b.Eid
+			}
+			Peers[p].Updated.Now("posix32_32") // Last updated now
+			return true
+		}
+	}
+	// We have a new Peer - add it
+	var newp Peer
+	newp.Addr = from.IP.String()
+	newp.Freespace = b.Freespace
+	newp.Eid = b.Eid
+	newp.Created.Now("posix32_32")
+	newp.Updated = newp.Created
+
+	pmu.Lock()
+	defer pmu.Unlock()
+	Peers = append(Peers, newp)
+	return true
 }

@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/charlesetsmith/saratoga/src/sarnet"
+
 	"github.com/charlesetsmith/saratoga/src/beacon"
 	"github.com/charlesetsmith/saratoga/src/sarflags"
 	"github.com/charlesetsmith/saratoga/src/screen"
@@ -56,15 +58,40 @@ func setglobal(frametype string) string {
 // CurLine -- Current line number in buffer
 var CurLine int
 
+// Send count beacons to host
+func sendbeacons(g *gocui.Gui, flags string, count uint, interval uint, host string) {
+	// We have a hostname maybe with multiple addresses
+	var addrs []string
+	var err error
+	var txb beacon.Beacon // The assembled beacon to transmit
+
+	errflag := make(chan string, 1) // The return channel holding the saratoga errflag
+
+	if addrs, err = net.LookupHost(host); err != nil {
+		screen.Fprintln(g, "msg", "red_black", "Cannot resolve hostname: ", err)
+		return
+	}
+	// Loop thru the address(s) for the host and send beacons to them
+	for _, addr := range addrs {
+		if err := txb.New(flags); err == nil {
+			go txb.Send(g, addr, count, interval, errflag)
+			txb.Eid = <-errflag
+			// screen.Fprintln(g, "msg", "green_black", "Sent: ", txb.Print())
+		}
+	}
+	return
+}
+
 // All of the different command line input handlers
 
 // Beacon CLI Info
 type cmdBeacon struct {
-	flags   string   // Header Flags set for beacons
-	timer   uint     // How often to send beacon (secs) 0 = send a single beacon
-	v4mcast bool     // Send to v4 multicast address
-	v6mcast bool     // Send to v6 multicast address
-	host    []string // Send unicast beacon to List of hosts
+	flags    string   // Header Flags set for beacons
+	count    uint     // How many beacons to send 0|1 == 1
+	interval uint     // interval between beacons 0|1 == 1
+	v4mcast  bool     // Sending to V4 Multicast
+	v6mcast  bool     // Sending the V6 Multicast
+	host     []string // Send unicast beacon to List of hosts
 }
 
 // clibeacon - Beacon commands
@@ -72,16 +99,16 @@ var clibeacon cmdBeacon
 
 func handlebeacon(g *gocui.Gui, args []string) {
 
-	var txb beacon.Beacon // The assembled beacon to transmit
-
-	errflag := make(chan uint32, 1) // The return channel holding the saratoga errflag
+	// var bmu sync.Mutex // Protects beacon.Beacon structure (EID)
 
 	clibeacon.flags = setglobal("beacon") // Initialise Global Beacon flags
+	clibeacon.interval = Cinterval        // Set up the correct interval
 
 	// Show current Cbeacon flags and lists - beacon
 	if len(args) == 1 {
-		if clibeacon.timer != 0 {
-			screen.Fprintln(g, "msg", "green_black", "Beacons to be sent every", clibeacon.timer, "seconds")
+		if clibeacon.count != 0 {
+			screen.Fprintln(g, "msg", "green_black", clibeacon.count, "Beacons to be sent every %d secs",
+				clibeacon.interval)
 		} else {
 			screen.Fprintln(g, "msg", "green_black", "Single Beacon to be sent")
 		}
@@ -112,75 +139,37 @@ func handlebeacon(g *gocui.Gui, args []string) {
 			return
 		case "off": // remove and disable all beacons
 			clibeacon.flags = setglobal("beacon")
-			clibeacon.timer = 0
-			clibeacon.v4mcast = false
-			clibeacon.v6mcast = false
+			clibeacon.count = 0
+			clibeacon.interval = Cinterval
 			clibeacon.host = nil
 			screen.Fprintln(g, "msg", "green_black", "Beacons Disabled")
 			return
 		case "v4": // V4 Multicast
-			errflag := make(chan uint32)
-			if !clibeacon.v4mcast {
-				clibeacon.v4mcast = true
-				screen.Fprintln(g, "msg", "green_black", "Sending beacons to IPv4 Multicast")
-
-				// Start up the beacon client sending IPv4 beacons every timer secs
-				if err := txb.New(clibeacon.flags); err == nil {
-					go txb.SendV4Mcast(errflag)
-					f := <-errflag
-					if sarflags.GetStr(f, "errcode") != "success" {
-						screen.Fprintln(g, "msg", "red_black", "Bad Beacon")
-					}
-				}
-				return
-			}
-			screen.Fprintln(g, "msg", "green_red", "Beacon IPv4 Multicast already being sent")
+			screen.Fprintln(g, "msg", "green_black", "Sending beacons to IPv4 Multicast")
+			clibeacon.flags = setglobal("beacon")
+			clibeacon.v4mcast = true
+			clibeacon.count = 1
+			// Start up the beacon client sending count IPv4 beacons
+			go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, sarnet.IPv4Multicast)
 			return
 		case "v6": // V6 Multicast
-			if !clibeacon.v6mcast {
-				clibeacon.v6mcast = true
-				screen.Fprintln(g, "msg", "green_black", "Sending beacons to IPv6 Multicast")
-				// Start up the beacon client sending IPv6 beacons every timer secs
-				if err := txb.New(clibeacon.flags); err == nil {
-					go txb.SendV6Mcast(errflag)
-					f := <-errflag
-					if sarflags.GetStr(f, "errcode") != "success" {
-						screen.Fprintln(g, "msg", "red_black", "Bad Beacon")
-					}
-				}
-				return
-			}
-			screen.Fprintln(g, "msg", "green_red", "Beacon IPv6 Multicast already being sent")
+			screen.Fprintln(g, "msg", "green_black", "Sending beacons to IPv6 Multicast")
+			clibeacon.flags = setglobal("beacon")
+			clibeacon.v6mcast = true
+			clibeacon.count = 1
+			// Start up the beacon client sending count IPv6 beacons
+			go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, sarnet.IPv6Multicast)
 			return
-
-		default: // beacon <timer> or beacon <ipaddr>
+		default: // beacon <count> or beacon <ipaddr>
 			u32, err := strconv.ParseUint(args[1], 10, 32)
 			if err == nil { // We have a number so it is a timer
-				clibeacon.timer = uint(u32)
-				screen.Fprintln(g, "msg", "green_black", "Beacon timer", clibeacon.timer, "secs")
+				clibeacon.count = uint(u32)
+				screen.Fprintln(g, "msg", "green_black", "Beacon count", clibeacon.count)
 				return
 			}
-			// We have a hostname maybe with multiple addresses
-			var addrs []string
-			if addrs, err = net.LookupHost(args[1]); err != nil {
-				screen.Fprintln(g, "msg", "red_black", "Cannot resolve hostname: ", err)
-				return
-			}
-			// Loop thru the address(s) for the host and send a beacon to them
-			for _, addr := range addrs {
-				if err := txb.New(clibeacon.flags); err == nil {
-					go txb.Send(addr, errflag)
-					f := <-errflag
-					if sarflags.GetStr(f, "errcode") != "success" {
-						screen.Fprintln(g, "msg", "red_black", "Bad Beacon to ", args[1])
-					}
-				}
-			}
-			clibeacon.host = appendunique(clibeacon.host, args[1])
-			screen.Fprintln(g, "msg", "green_black", "Sending beacons to ", args[1])
+			go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, args[1])
 			return
 		}
-		// screen.Fprintln(g, "cmd", "red_black", cmd["beacon"][0])
 	}
 
 	// beacon off <ipaddr> ...
@@ -200,18 +189,23 @@ func handlebeacon(g *gocui.Gui, args []string) {
 		}
 		return
 	}
+
+	// beacon <count> <ipaddr> ...
+	var addrstart = 1
+	u32, err := strconv.ParseUint(args[1], 10, 32)
+	if err == nil { // We have a number so it is a timer
+		clibeacon.count = uint(u32)
+		screen.Fprintln(g, "msg", "green_black", "Beacon count", clibeacon.count)
+		addrstart = 2
+	}
 	// beacon <ipaddr> ...
-	screen.Fprintf(g, "msg", "green_black", "Sending beacons to:")
-	for i := 1; i < len(args); i++ { // Add Address'es to lists
-		if net.ParseIP(args[i]) != nil { // We have a valid IP Address
-			clibeacon.host = appendunique(clibeacon.host, args[i])
-			screen.Fprintf(g, "msg", "green_black", " %s", args[i])
-			if i == len(args)-1 {
-				screen.Fprintln(g, "msg", "green_black", "")
-			}
-		} else {
-			screen.Fprintln(g, "cmd", "red_black", cmd["beacon"][0])
+	screen.Fprintf(g, "msg", "green_black", "Sending %d beacons to: ", clibeacon.count)
+	for i := addrstart; i < len(args); i++ { // Add Address'es to lists
+		screen.Fprintf(g, "msg", "green_black", "%s ", args[i])
+		if i == len(args)-1 {
+			screen.Fprintln(g, "msg", "green_black", "")
 		}
+		go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, args[i])
 	}
 }
 
@@ -289,40 +283,45 @@ func descriptor(g *gocui.Gui, args []string) {
 		case "auto":
 			if sarflags.MaxUint <= sarflags.MaxUint16 {
 				sarflags.Global["descriptor"] = "d16"
+				break
 			}
 			if sarflags.MaxUint <= sarflags.MaxUint32 {
 				sarflags.Global["descriptor"] = "d32"
+				break
 			}
 			if sarflags.MaxUint <= sarflags.MaxUint64 {
 				sarflags.Global["descriptor"] = "d64"
+				break
 			}
-		case "64":
+			screen.Fprintln(g, "msg", "red_black", "128 bit descriptors not supported on this platform")
+			break
+		case "d16":
+			if sarflags.MaxUint > sarflags.MaxUint16 {
+				sarflags.Global["descriptor"] = "d16"
+			} else {
+				screen.Fprintln(g, "msg", "red_black", "16 bit descriptors not supported on this platform")
+			}
+		case "d32":
+			if sarflags.MaxUint > sarflags.MaxUint32 {
+				sarflags.Global["descriptor"] = "d32"
+			} else {
+				screen.Fprintln(g, "msg", "red_black", "32 bit descriptors not supported on this platform")
+			}
+		case "d64":
 			if sarflags.MaxUint <= sarflags.MaxUint64 {
 				sarflags.Global["descriptor"] = "d64"
 			} else {
 				screen.Fprintln(g, "msg", "red_black", "64 bit descriptors not supported on this platform")
 			}
-		case "16":
-			if sarflags.MaxUint <= sarflags.MaxUint16 {
-				sarflags.Global["descriptor"] = "d16"
-			} else {
-				screen.Fprintln(g, "msg", "red_black", "16 bit descriptors not supported on this platform")
-			}
-		case "32":
-			if sarflags.MaxUint <= sarflags.MaxUint32 {
-				sarflags.Global["descriptor"] = "d32"
-			} else {
-				screen.Fprintln(g, "msg", "red_black", "16 bit descriptors not supported on this platform")
-			}
-		case "128":
+		case "d128":
 			screen.Fprintln(g, "msg", "red_black", "128 bit descriptors not supported on this platform")
 		default:
-			screen.Fprintln(g, "msg", "green_red", cmd["descriptor"][0])
+			screen.Fprintln(g, "msg", "red_black", "usage: ", cmd["descriptor"][0])
 		}
-		screen.Fprintln(g, "msg", "green_red", "Descriptor size set to", sarflags.Global["descriptor"])
+		screen.Fprintln(g, "msg", "green_black", "Descriptor size is", sarflags.Global["descriptor"])
 		return
 	}
-	screen.Fprintln(g, "msg", "green_red", cmd["descriptor"][0])
+	screen.Fprintln(g, "msg", "red_black", "usage: ", cmd["descriptor"][0])
 }
 
 // Cexit = Exit level to quit from saratoga
@@ -395,16 +394,17 @@ func freespace(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 2 {
-		if args[1] == "on" {
+		if args[1] == "yes" {
 			sarflags.Global["freespace"] = "yes"
 			return
 		}
-		if args[1] == "off" {
+		if args[1] == "no" {
 			sarflags.Global["freespace"] = "no"
 			return
 		}
+		// screen.Fprintln(g, "msg", "red_black", "usage: ", cmd["freespace][0]"])
 	}
-	screen.Fprintln(g, "msg", "red_black", cmd["freespace"][0])
+	screen.Fprintln(g, "msg", "red_black", "usage: ", cmd["freespace"][0])
 }
 
 type cmdGet struct {
@@ -478,6 +478,37 @@ func help(g *gocui.Gui, args []string) {
 	for key, val := range cmd {
 		screen.Fprintln(g, "msg", "magenta_black", key, "-", val[1])
 	}
+}
+
+// Cinterval - seconds between beacon sends
+var Cinterval uint
+
+func interval(g *gocui.Gui, args []string) {
+	if len(args) == 1 {
+		if Cinterval == 0 {
+			screen.Fprintln(g, "msg", "green_black", "Single Beacon Interation")
+		} else {
+			screen.Fprintln(g, "msg", "green_black", "Beacons sent every", Cinterval, "seconds")
+		}
+		return
+	}
+	if len(args) == 2 {
+		switch args[1] {
+		case "?":
+			screen.Fprintln(g, "msg", "green_black", cmd["interval"][0])
+			screen.Fprintln(g, "msg", "green_black", cmd["interval"][1])
+		case "off":
+			Cinterval = 0
+
+		default:
+			if n, err := strconv.Atoi(args[1]); err == nil && n >= 0 {
+				Cinterval = uint(n)
+				return
+			}
+		}
+		screen.Fprintln(g, "msg", "red_black", cmd["interval"][0])
+	}
+
 }
 
 func history(g *gocui.Gui, args []string) {
@@ -938,6 +969,7 @@ var cmdhandler = map[string]cmdfunc{
 	"help":       help,
 	"history":    history,
 	"home":       home,
+	"interval":   interval,
 	"ls":         ls,
 	"peers":      peers,
 	"prompt":     prompt,
@@ -981,7 +1013,7 @@ var cmd = map[string][2]string{
 		"set debug level 0..9",
 	},
 	"descriptor": [2]string{
-		"descriptor [auto|16|32|64|128",
+		"descriptor [auto|d16|d32|d64|d128",
 		"advertise & set default descriptor size",
 	},
 	"exit": [2]string{
@@ -1015,6 +1047,10 @@ var cmd = map[string][2]string{
 	"home": [2]string{
 		"home <dirname>",
 		"set home directory for transfers",
+	},
+	"interval": [2]string{
+		"interval [seconds]",
+		"set interval between beacons",
 	},
 	"ls": [2]string{
 		"ls [<peer> [<dirname>>]]",

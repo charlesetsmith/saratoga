@@ -38,41 +38,46 @@ var colours = map[string]string{
 // Fprintf out in ANSII escape sequenace colour
 // If colour is undefined then still print it out but in bright red to show there is an issue
 func Fprintf(g *gocui.Gui, vname string, colour string, format string, args ...interface{}) {
-
-	v, err := g.View(vname)
-	if err != nil {
-		e := fmt.Sprintf("\nView Fprintf invalid view: %s", vname)
-		log.Fatal(e)
-	}
-	for col := range colours {
-		if col == colour {
-			colfmt := colours[colour] + format + colours["off"]
-			fmt.Fprintf(v, colfmt, args...)
-			return
+	g.Update(func(g *gocui.Gui) error {
+		v, err := g.View(vname)
+		if err != nil {
+			e := fmt.Sprintf("\nView Fprintf invalid view: %s", vname)
+			log.Fatal(e)
 		}
-	}
-	colfmt := colours["bright_red_black"] + format + colours["off"]
-	fmt.Fprintf(v, colfmt, args...)
+		for col := range colours {
+			if col == colour {
+				colfmt := colours[colour] + format + colours["off"]
+				fmt.Fprintf(v, colfmt, args...)
+				return nil
+			}
+		}
+		colfmt := colours["bright_red_black"] + format + colours["off"]
+		fmt.Fprintf(v, colfmt, args...)
+		return nil
+	})
 }
 
 // Fprintln out in ANSII escape sequenace colour
 // If colour is undefined then still print it out but in bright red to show there is an issue
 func Fprintln(g *gocui.Gui, vname string, colour string, args ...interface{}) {
 
-	v, err := g.View(vname)
-	if err != nil {
-		e := fmt.Sprintf("\nView Fprintln invalid view: %s", vname)
-		log.Fatal(e)
-	}
-	for col := range colours {
-		if col == colour {
-			fmt.Fprintf(v, "%s", colours[col])
-			fmt.Fprintln(v, args...)
-			fmt.Fprintf(v, "%s", colours["off"])
-			return
+	g.Update(func(g *gocui.Gui) error {
+		v, err := g.View(vname)
+		if err != nil {
+			e := fmt.Sprintf("\nView Fprintln invalid view: %s", vname)
+			log.Fatal(e)
 		}
-	}
-	fmt.Fprintf(v, "%s", colours["bright_red_black"])
-	fmt.Fprintln(v, args...)
-	fmt.Fprintf(v, "%s", colours["off"])
+		for col := range colours {
+			if col == colour {
+				fmt.Fprintf(v, "%s", colours[col])
+				fmt.Fprintln(v, args...)
+				fmt.Fprintf(v, "%s", colours["off"])
+				return nil
+			}
+		}
+		fmt.Fprintf(v, "%s", colours["bright_red_black"])
+		fmt.Fprintln(v, args...)
+		fmt.Fprintf(v, "%s", colours["off"])
+		return nil
+	})
 }
