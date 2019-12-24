@@ -548,7 +548,19 @@ func prompt(g *gocui.Gui, args []string) {
 }
 
 func peers(g *gocui.Gui, args []string) {
-	screen.Fprintln(g, "msg", "green_black", args)
+	if len(beacon.Peers) == 0 {
+		screen.Fprintln(g, "msg", "purple_black", "No Peers")
+		return
+	}
+	screen.Fprintf(g, "msg", "green_black", "Address | Freespace | EID | Created | Modified\n")
+	for p := range beacon.Peers {
+		screen.Fprintf(g, "msg", "green_black", "%s | %dMB | %s | %s | %s\n",
+			beacon.Peers[p].Addr,
+			beacon.Peers[p].Freespace/1024,
+			beacon.Peers[p].Eid,
+			beacon.Peers[p].Created.Print(),
+			beacon.Peers[p].Updated.Print())
+	}
 }
 
 type cmdPut struct {

@@ -288,17 +288,19 @@ func (b *Beacon) Handler(g *gocui.Gui, from *net.UDPAddr) string {
 	// fmt.Println(b.Print())
 	// We add / alter the peer information
 	if b.NewPeer(from) == true {
-		screen.Fprintf(g, "msg", "yellow_black", "PEERS ARE:\n")
-		for p := range Peers {
-			screen.Fprintf(g, "msg", "yellow_black", "%s %dMb %s %s %s\n",
-				Peers[p].Addr,
-				Peers[p].Freespace/1024,
-				Peers[p].Eid,
-				Peers[p].Created.Print(),
-				Peers[p].Updated.Print())
-		}
+		screen.Fprintln(g, "msg", "yellow_black", "Added/Changed Peer", from.String())
+		/*
+			for p := range Peers {
+				screen.Fprintf(g, "msg", "yellow_black", "%s %dMB %s %s %s\n",
+					Peers[p].Addr,
+					Peers[p].Freespace/1024,
+					Peers[p].Eid,
+					Peers[p].Created.Print(),
+					Peers[p].Updated.Print())
+			}
+		*/
 	} else {
-		screen.Fprintln(g, "msg", "yellow_black", "NO CHANGES TO PEERS")
+		screen.Fprintln(g, "msg", "yellow_black", "No new peer")
 	}
 	return "success"
 }
