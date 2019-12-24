@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	"screen"
 
 	"github.com/charlesetsmith/saratoga/src/sarflags"
+	"github.com/charlesetsmith/saratoga/src/sarnet"
 	"github.com/jroimartin/gocui"
 )
 
@@ -128,7 +130,10 @@ func getLine(g *gocui.Gui, v *gocui.View) error {
 
 	cli.CurLine++
 	screen.Fprintf(g, "msg", "magenta_black", "CurLine=%d <%s>\n", cli.CurLine, command[1])
-	screen.Fprintf(g, "msg", "green_black", "cx=%d, cy=%d\n", cx, cy)
+	if cx > MaxX-2 { // We are about to move beyond X
+		screen.Fprintln(g, "msg", "red_black", "cx too big", cx)
+	}
+	// screen.Fprintf(g, "msg", "green_black", "cx=%d, cy=%d\n", cx, cy)
 
 	// Have we scrolled past the length of v, if so reset the origin
 	if err := v.SetCursor(len(cli.Cprompt)+len(strconv.Itoa(cli.CurLine))+3, cy+1); err != nil {
@@ -140,6 +145,7 @@ func getLine(g *gocui.Gui, v *gocui.View) error {
 		// Reset the cursor to last line in v
 		_ = v.SetCursor(len(cli.Cprompt)+len(strconv.Itoa(cli.CurLine))+3, cy)
 	}
+	screen.Fprintln(g, "msg", "yellow_black", "MaxY=", MaxY, "Number Cmd View Lines=", CmdLines)
 	screen.Fprintf(g, "cmd", "yellow_black", "\n%s[%d]:", cli.Cprompt, cli.CurLine)
 
 	return nil
@@ -184,6 +190,15 @@ func keybindings(g *gocui.Gui) error {
 // FirstPass -- First time around layout we don;t put \n at end of prompt
 var FirstPass = true
 
+// CmdLines - Number of lines in Cmd View
+var CmdLines int
+
+// MaxX - Maximum screen X Value
+var MaxX int
+
+// MaxY - Maximum screen Y Value
+var MaxY int
+
 func layout(g *gocui.Gui) error {
 
 	var err error
@@ -192,8 +207,11 @@ func layout(g *gocui.Gui) error {
 
 	ratio := 4 // Ratio of cmd to err views
 	maxX, maxY := g.Size()
+	MaxX = maxX
+	MaxY = maxY
 	// This is the command line input view -- cli inputs and return messages go here
 	if cmd, err = g.SetView("cmd", 0, maxY-(maxY/ratio)+1, maxX-1, maxY-1); err != nil {
+		CmdLines = (maxY / ratio) - 3 // Number of input lines in cmd view
 		if err != gocui.ErrUnknownView {
 			return err
 		}
@@ -278,6 +296,49 @@ func main() {
 	}
 	fmt.Printf("Saratoga Directory is %s\n", sardir)
 	fmt.Printf("Available space is %d MB\n", (uint64(fs.Bsize)*fs.Bavail)/1024/1024)
+
+	// Open up V4 & V6 scokets for listening on the Saratoga Port
+	v4mcastaddr := net.UDPAddr{
+		Port: sarnet.Port(),
+		IP:   net.ParseIP(sarnet.IPv4Multicast),
+	}
+
+	v6mcastaddr := net.UDPAddr{
+		Port: sarnet.Port(),
+		IP:   net.ParseIP(sarnet.IPv6Multicast),
+	}
+	// What Interface are we receiving Multicasts on
+	var en0 *net.Interface
+	var err error
+
+	en0, err = net.InterfaceByName("en0")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Listen to Unicast & Multicast
+	v6mcastcon, err := net.ListenMulticastUDP("udp6", en0, &v6mcastaddr)
+	if err != nil {
+		fmt.Println("Saratoga Unable to Listen on IPv6 Multicast")
+		panic(err)
+	} else {
+		setMulticastLoop(v6mcastcon, "IPv6")
+		go listen(v6mcastcon, quit)
+		fmt.Println("Saratoga IPv6 Multicast Listener started on", sarnet.UDPinfo(&v6mcastaddr))
+	}
+
+	v4mcastcon, err := net.ListenMulticastUDP("udp4", en0, &v4mcastaddr)
+	if err != nil {
+		fmt.Println("Saratoga Unable to Listen on IPv4 Multicast")
+		panic(err)
+	} else {
+		setMulticastLoop(v4mcastcon, "IPv4")
+		go listen(v4mcastcon, quit)
+		fmt.Println("Saratoga IPv4 Multicast Listener started on", sarnet.UDPinfo(&v4mcastaddr))
+	}
+
+	quit := make(chan struct{})
+
 	time.Sleep(2 * time.Second)
 
 	g, err := gocui.NewGui(gocui.OutputNormal)

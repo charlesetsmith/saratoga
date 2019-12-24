@@ -261,26 +261,23 @@ func (b *Beacon) Send(g *gocui.Gui, addr string, count uint, interval uint, errf
 		return
 	}
 
+	// Make sure we have at least 1 beacon going out
 	if count == 0 {
 		count = 1
 	}
+	// Beacons default at 1 second intervals
 	if interval == 0 {
 		interval = 1
 	}
 
 	var i uint
-
-	_, err = conn.Write(frame)
 	for i = 0; i < count; i++ {
 		_, err = conn.Write(frame)
 		// screen.Fprintln(g, "msg", "green_black", "Sent:", txb.Print())
-		screen.Fprintf(g, "msg", "green_black", "Tick %d\n", i)
-		select {
+		screen.Fprintf(g, "msg", "green_black", "Beacon %d to %s\n", i+1, addr)
+		select { // We may need to add some more channel i/o here so use select
 		default:
-			screen.Fprintf(g, "msg", "green_black", "Sleeping for %d secs\n", interval)
 			time.Sleep(time.Duration(interval) * time.Second)
-			screen.Fprintf(g, "msg", "green_black", "Slept for %d secs\n", interval)
-			// time.Sleep(time.Duration(interval) * time.Second)
 		}
 	}
 	// We Copy the eid back into the calling beacons Eid from the channel

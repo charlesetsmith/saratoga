@@ -195,18 +195,24 @@ func handlebeacon(g *gocui.Gui, args []string) {
 	u32, err := strconv.ParseUint(args[1], 10, 32)
 	if err == nil { // We have a number so it is a timer
 		clibeacon.count = uint(u32)
-		screen.Fprintln(g, "msg", "green_black", "Beacon count", clibeacon.count)
+		screen.Fprintln(g, "msg", "green_black", "Beacon counter set to", clibeacon.count)
 		addrstart = 2
 	}
-	// beacon <ipaddr> ...
-	screen.Fprintf(g, "msg", "green_black", "Sending %d beacons to: ", clibeacon.count)
+	// beacon [count] <ipaddr> ...
+	screen.Fprintf(g, "msg", "green_black", "Sending %d beacons to: ",
+		clibeacon.count)
 	for i := addrstart; i < len(args); i++ { // Add Address'es to lists
 		screen.Fprintf(g, "msg", "green_black", "%s ", args[i])
-		if i == len(args)-1 {
-			screen.Fprintln(g, "msg", "green_black", "")
+		switch args[i] {
+		case "v4":
+			go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, sarnet.IPv4Multicast)
+		case "v6":
+			go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, sarnet.IPv6Multicast)
+		default:
+			go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, args[i])
 		}
-		go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, args[i])
 	}
+	screen.Fprintln(g, "msg", "green_black", "")
 }
 
 func cancel(g *gocui.Gui, args []string) {
@@ -1127,6 +1133,8 @@ func Docmd(g *gocui.Gui, s string) error {
 		return nil
 	}
 
+	// Get rid of leading and trainling whitespace
+	s = strings.TrimSpace(s)
 	vals := strings.Fields(s)
 	// Look for the command and do it
 	for c := range cmd {
