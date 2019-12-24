@@ -149,9 +149,6 @@ func (b Beacon) Put() ([]byte, error) {
 		}
 	}
 
-	if framelen > sarnet.MaxFrameSize {
-		return nil, errors.New("Data - Maximum Frame Size Exceeded")
-	}
 	frame = make([]byte, framelen)
 
 	pos := 4
@@ -284,6 +281,26 @@ func (b *Beacon) Send(g *gocui.Gui, addr string, count uint, interval uint, errf
 	// It is the outbound "IPv4:Socket.PID" or "[IPv6]:Socket.PID"
 	errflag <- eid
 	return
+}
+
+// Handler We have an inbound beacon frame
+func (b *Beacon) Handler(g *gocui.Gui, from *net.UDPAddr) string {
+	// fmt.Println(b.Print())
+	// We add / alter the peer information
+	if b.NewPeer(from) == true {
+		screen.Fprintf(g, "msg", "yellow_black", "PEERS ARE:\n")
+		for p := range Peers {
+			screen.Fprintf(g, "msg", "yellow_black", "%s %dMb %s %s %s\n",
+				Peers[p].Addr,
+				Peers[p].Freespace/1024,
+				Peers[p].Eid,
+				Peers[p].Created.Print(),
+				Peers[p].Updated.Print())
+		}
+	} else {
+		screen.Fprintln(g, "msg", "yellow_black", "NO CHANGES TO PEERS")
+	}
+	return "success"
 }
 
 // Peer - beacon peer

@@ -3,6 +3,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"log"
@@ -16,8 +17,13 @@ import (
 	"cli"
 	"screen"
 
+	"github.com/charlesetsmith/saratoga/src/beacon"
+	"github.com/charlesetsmith/saratoga/src/data"
+	"github.com/charlesetsmith/saratoga/src/metadata"
+	"github.com/charlesetsmith/saratoga/src/request"
 	"github.com/charlesetsmith/saratoga/src/sarflags"
 	"github.com/charlesetsmith/saratoga/src/sarnet"
+	"github.com/charlesetsmith/saratoga/src/status"
 	"github.com/jroimartin/gocui"
 )
 
@@ -255,6 +261,149 @@ func layout(g *gocui.Gui) error {
 	return nil
 }
 
+// Listen -- IPv4 & IPv6 for an incoming frames and shunt them off to the
+// correct frame handlers
+func listen(g *gocui.Gui, conn *net.UDPConn, quit chan struct{}) {
+
+	buf := make([]byte, sarnet.MaxFrameSize+100) // Just in case...
+	framelen := 0
+	err := error(nil)
+	remoteAddr := new(net.UDPAddr)
+next:
+	for err == nil { // Loop forever grabbing frames
+		// Read into buf
+		framelen, remoteAddr, err = conn.ReadFromUDP(buf)
+		if err != nil {
+			break
+		}
+
+		// Very basic frame checks before we get into what it is
+		if framelen < 8 {
+			// Saratoga packet too small
+			var se status.Status
+			// We don't know the session # so use 0
+			_ = se.New("errcode=badpacket", 0, 0, 0, nil)
+			screen.Fprintln(g, "msg", "red_black", "Rx Saratoga Frame too short from ",
+				sarnet.UDPinfo(remoteAddr))
+			goto next
+		}
+		if framelen > sarnet.MaxFrameSize {
+			// Saratoga packet too long
+			var se status.Status
+			// We can't even know the session # so use 0
+			_ = se.New("errcode=badpacket", 0, 0, 0, nil)
+			screen.Fprintln(g, "msg", "red_black", "Rx Saratoga Frame too long from ",
+				sarnet.UDPinfo(remoteAddr))
+			goto next
+		}
+
+		// OK so we might have a valid frame so copy it to to the frame byte slice
+		frame := make([]byte, framelen)
+		copy(frame, buf[:framelen])
+		// fmt.Println("We have a frame of length:", framelen)
+		// Grab the Saratoga Header
+		header := binary.BigEndian.Uint32(frame[:4])
+		if sarflags.GetStr(header, "version") != "v1" { // Make sure we are Version 1
+			if header, err = sarflags.Set(0, "errno", "badpacket"); err != nil {
+				// Bad Packet send back a Status to the client
+				var se status.Status
+				_ = se.New("errcode=badpacket", 0, 0, 0, nil)
+				screen.Fprintln(g, "msg", "red_black", "Not Saratoga Version 1 Frame from ",
+					sarnet.UDPinfo(remoteAddr))
+			}
+			goto next
+		}
+
+		// Process the frame
+		switch sarflags.GetStr(header, "frametype") {
+		case "beacon":
+			var rxb beacon.Beacon
+			if rxerr := rxb.Get(frame); rxerr != nil {
+				// We just drop bad beacons
+				screen.Fprintln(g, "msg", "red_black", "Bad Beacon:", rxerr, " from ",
+					sarnet.UDPinfo(remoteAddr))
+				goto next
+			}
+			// Handle the beacon
+			if errcode := rxb.Handler(g, remoteAddr); errcode != "success" {
+				screen.Fprintln(g, "msg", "red_black", "Bad Beacon:", errcode, " from ",
+					sarnet.UDPinfo(remoteAddr))
+				goto next
+			}
+
+		case "request":
+			var r request.Request
+			if rxerr := r.Get(frame); rxerr != nil {
+				session := binary.BigEndian.Uint32(frame[4:8])
+				var se status.Status
+				// Send back a Status to the client
+				_ = se.New("errcode=badpacket", session, 0, 0, nil)
+				screen.Fprintln(g, "msg", "red_black", "Bad Request:", rxerr, " from ",
+					sarnet.UDPinfo(remoteAddr), " session ", session)
+				goto next
+			} // Handle the request
+			session := binary.BigEndian.Uint32(frame[4:8])
+			if errcode := r.Handler(g, remoteAddr, session); errcode != "success" {
+
+			}
+		case "data":
+			var d data.Data
+			if rxerr := d.Get(frame); rxerr != nil {
+				session := binary.BigEndian.Uint32(frame[4:8])
+				var se status.Status
+				// Bad Packet send back a Status to the client
+				_ = se.New("errcode=badpacket", session, 0, 0, nil)
+				screen.Fprintln(g, "msg", "red_black", "Bad Data:", rxerr, " from ",
+					sarnet.UDPinfo(remoteAddr), " session ", session)
+				goto next
+			} // Handle the data
+			session := binary.BigEndian.Uint32(frame[4:8])
+			if errcode := d.Handler(g, remoteAddr, session); errcode != "success" {
+
+			}
+		case "metadata":
+			var m metadata.MetaData
+			if rxerr := m.Get(frame); rxerr != nil {
+				session := binary.BigEndian.Uint32(frame[4:8])
+				var se status.Status
+				// Bad Packet send back a Status to the client
+				_ = se.New("errcode=badpacket", session, 0, 0, nil)
+				screen.Fprintln(g, "msg", "red_black", "Bad MetaData:", rxerr, " from ",
+					sarnet.UDPinfo(remoteAddr), " session ", session)
+				goto next
+			} // Handle the data
+			session := binary.BigEndian.Uint32(frame[4:8])
+			if errcode := m.Handler(g, remoteAddr, session); errcode != "success" {
+
+			}
+		case "status":
+			var s status.Status
+			if rxerr := s.Get(frame); rxerr != nil {
+				session := binary.BigEndian.Uint32(frame[4:8])
+				var se status.Status
+				// Bad Packet send back a Status to the client
+				_ = se.New("errcode=badpacket", session, 0, 0, nil)
+				screen.Fprintln(g, "msg", "red_black", "Bad Status:", rxerr, " from ",
+					sarnet.UDPinfo(remoteAddr), " session ", session)
+				goto next
+			} // Handle the status
+			session := binary.BigEndian.Uint32(frame[4:8])
+			if errcode := s.Handler(g, remoteAddr, session); errcode != "success" {
+
+			}
+		default:
+			// Bad Packet send back a Status to the client
+			// We can't even know the session # so use 0
+			var se status.Status
+			_ = se.New("errcode=badpacket", 0, 0, 0, nil)
+			screen.Fprintln(g, "msg", "red_black", "Bad Header in Saratoga Frame from ",
+				sarnet.UDPinfo(remoteAddr))
+		}
+	}
+	screen.Fprintln(g, "msg", "red_black", "Sarataga listener failed - ", err)
+	quit <- struct{}{}
+}
+
 func main() {
 
 	// Grab my process ID
@@ -297,6 +446,16 @@ func main() {
 	fmt.Printf("Saratoga Directory is %s\n", sardir)
 	fmt.Printf("Available space is %d MB\n", (uint64(fs.Bsize)*fs.Bavail)/1024/1024)
 
+	quit := make(chan struct{})
+
+	time.Sleep(2 * time.Second)
+
+	g, err := gocui.NewGui(gocui.OutputNormal)
+	if err != nil {
+		log.Panicln(err)
+	}
+	defer g.Close()
+
 	// Open up V4 & V6 scokets for listening on the Saratoga Port
 	v4mcastaddr := net.UDPAddr{
 		Port: sarnet.Port(),
@@ -309,7 +468,6 @@ func main() {
 	}
 	// What Interface are we receiving Multicasts on
 	var en0 *net.Interface
-	var err error
 
 	en0, err = net.InterfaceByName("en0")
 	if err != nil {
@@ -322,8 +480,8 @@ func main() {
 		fmt.Println("Saratoga Unable to Listen on IPv6 Multicast")
 		panic(err)
 	} else {
-		setMulticastLoop(v6mcastcon, "IPv6")
-		go listen(v6mcastcon, quit)
+		sarnet.SetMulticastLoop(v6mcastcon, "IPv6")
+		go listen(g, v6mcastcon, quit)
 		fmt.Println("Saratoga IPv6 Multicast Listener started on", sarnet.UDPinfo(&v6mcastaddr))
 	}
 
@@ -332,20 +490,10 @@ func main() {
 		fmt.Println("Saratoga Unable to Listen on IPv4 Multicast")
 		panic(err)
 	} else {
-		setMulticastLoop(v4mcastcon, "IPv4")
-		go listen(v4mcastcon, quit)
+		sarnet.SetMulticastLoop(v4mcastcon, "IPv4")
+		go listen(g, v4mcastcon, quit)
 		fmt.Println("Saratoga IPv4 Multicast Listener started on", sarnet.UDPinfo(&v4mcastaddr))
 	}
-
-	quit := make(chan struct{})
-
-	time.Sleep(2 * time.Second)
-
-	g, err := gocui.NewGui(gocui.OutputNormal)
-	if err != nil {
-		log.Panicln(err)
-	}
-	defer g.Close()
 
 	g.Cursor = true
 

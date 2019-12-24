@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"strings"
 
@@ -11,7 +12,8 @@ import (
 	"frames"
 	"sarflags"
 
-	"github.com/charlesetsmith/saratoga/src/sarnet"
+	"github.com/charlesetsmith/saratoga/src/screen"
+	"github.com/jroimartin/gocui"
 )
 
 // MetaData -- Holds Data frame information
@@ -152,9 +154,6 @@ func (m MetaData) Put() ([]byte, error) {
 	de, _ := m.Dir.Put()
 	framelen += len(de)
 
-	if framelen > sarnet.MaxFrameSize {
-		return nil, errors.New("MetaData - Maximum Frame Size Exceeded")
-	}
 	frame := make([]byte, framelen)
 
 	// Populate it
@@ -210,4 +209,11 @@ func (m MetaData) Print() string {
 	}
 	sflag += fmt.Sprintf("%s", m.Dir.Print())
 	return sflag
+}
+
+// Handler - We have some incoming metadata for a session. Add the metadata to the session
+func (m *MetaData) Handler(g *gocui.Gui, from *net.UDPAddr, session uint32) string {
+	screen.Fprintln(g, "msg", "yellow_black", m.Print())
+	// Return an errcode string
+	return "success"
 }

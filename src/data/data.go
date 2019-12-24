@@ -4,12 +4,14 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"net"
 	"strings"
 
 	"sarflags"
 	"timestamp"
 
-	"github.com/charlesetsmith/saratoga/src/sarnet"
+	"github.com/charlesetsmith/saratoga/src/screen"
+	"github.com/jroimartin/gocui"
 )
 
 // Data -- Holds Data frame information
@@ -160,10 +162,6 @@ func (d *Data) Put() ([]byte, error) {
 	}
 	framelen += len(d.Payload)
 
-	if framelen > sarnet.MaxFrameSize {
-		return nil, errors.New("Data - Maximum Frame Size Exceeded")
-	}
-
 	frame := make([]byte, framelen)
 
 	binary.BigEndian.PutUint32(frame[:4], d.Header)
@@ -205,4 +203,12 @@ func (d Data) Print() string {
 	sflag += fmt.Sprintf("  offset:%d", d.Offset)
 	sflag += fmt.Sprintf("  Payload :<%d>\n", len(d.Payload))
 	return sflag
+}
+
+// Handler - We have some incoming data for a session. Add the data to the session
+// For this implementation of saratoga if no session exists then just dump the data
+func (d *Data) Handler(g *gocui.Gui, from *net.UDPAddr, session uint32) string {
+	screen.Fprintln(g, "msg", "yellow_black", d.Print())
+	// Return an errcode string
+	return "success"
 }

@@ -4,10 +4,13 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"net"
 
 	"sarflags"
+	"screen"
 
 	"github.com/charlesetsmith/saratoga/src/sarnet"
+	"github.com/jroimartin/gocui"
 )
 
 // Request -- Holds Request frame information
@@ -49,9 +52,6 @@ func (r Request) Put() ([]byte, error) {
 
 	// Create the frame slice
 	framelen := 4 + 4 + len(r.Fname) + 1 + len(r.Auth) // Header + Session
-	if framelen > sarnet.MaxFrameSize {
-		return nil, errors.New("Request - Maximum Frame Size Exceeded")
-	}
 	frame := make([]byte, framelen)
 
 	binary.BigEndian.PutUint32(frame[:4], r.Header)
@@ -103,4 +103,33 @@ func (r Request) Print() string {
 	sflag += fmt.Sprintf("  filename:<%s>", r.Fname)
 	sflag += fmt.Sprintf("  auth:<%s>\n", r.Auth)
 	return sflag
+}
+
+// Handler - We have a request starting up a new session or updating the session info
+// Create a new, or change an existing sessions information
+func (r *Request) Handler(g *gocui.Gui, from *net.UDPAddr, session uint32) string {
+
+	// screen.Fprintln(g, "msg", "green_black", r.Print())
+
+	switch sarflags.GetStr(r.Header, "reqtype") {
+	case "noaction":
+		screen.Fprintln(g, "msg", "green_black", "Request Noaction from", sarnet.UDPinfo(from), " session ", session)
+	case "get":
+		screen.Fprintln(g, "msg", "green_black", "Request Get from", sarnet.UDPinfo(from), " session ", session)
+	case "put":
+		screen.Fprintln(g, "msg", "green_black", "Request Put from", sarnet.UDPinfo(from), " session ", session)
+	case "getdelete":
+		screen.Fprintln(g, "msg", "green_black", "Request GetDelete from", sarnet.UDPinfo(from), " session ", session)
+	case "putdelete":
+		screen.Fprintln(g, "msg", "green_black", "Request PutDelete from", sarnet.UDPinfo(from), " session ", session)
+	case "delete":
+		screen.Fprintln(g, "msg", "green_black", "Request Delete from", sarnet.UDPinfo(from), " session ", session)
+	case "getdir":
+		screen.Fprintln(g, "msg", "green_black", "Request GetDir from", sarnet.UDPinfo(from), " session ", session)
+	default:
+		screen.Fprintln(g, "msg", "red_black", "Invalid Request from", sarnet.UDPinfo(from), " session ", session)
+		return "badrequest"
+	}
+	return "success"
+	// Return an errcode string
 }

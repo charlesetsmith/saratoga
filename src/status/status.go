@@ -4,12 +4,14 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"net"
 	"strings"
 
 	"sarflags"
 	"timestamp"
 
-	"github.com/charlesetsmith/saratoga/src/sarnet"
+	"github.com/charlesetsmith/saratoga/src/screen"
+	"github.com/jroimartin/gocui"
 )
 
 // Hole -- Beggining and End of a hole
@@ -100,9 +102,6 @@ func (s Status) Put() ([]byte, error) {
 		return nil, errors.New("Invalid descriptor in Status frame")
 	}
 	framelen += (dsize*2 + (dsize * len(s.Holes) * 2)) // progress + inrespto + holes
-	if framelen > sarnet.MaxFrameSize {
-		return nil, errors.New("Status - Maximum Frame Size Exceeded")
-	}
 	frame := make([]byte, framelen)
 
 	binary.BigEndian.PutUint32(frame[:4], s.Header)
@@ -243,4 +242,11 @@ func (s Status) Print() string {
 		sflag += fmt.Sprintf("  Hole[%d]: Start:%d End:%d\n", i, s.Holes[i].Start, s.Holes[i].End)
 	}
 	return sflag
+}
+
+// Handler - We have a status update for a session. Process the holes or close the session
+func (s *Status) Handler(g *gocui.Gui, from *net.UDPAddr, session uint32) string {
+	screen.Fprintln(g, "msg", "yellow_black", s.Print())
+	// Return an errcode string
+	return "success"
 }
