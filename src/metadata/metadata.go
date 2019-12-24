@@ -8,10 +8,9 @@ import (
 	"os"
 	"strings"
 
-	"dirent"
-	"frames"
-	"sarflags"
-
+	"github.com/charlesetsmith/saratoga/src/dirent"
+	"github.com/charlesetsmith/saratoga/src/frames"
+	"github.com/charlesetsmith/saratoga/src/sarflags"
 	"github.com/charlesetsmith/saratoga/src/screen"
 	"github.com/jroimartin/gocui"
 )

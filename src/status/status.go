@@ -7,10 +7,9 @@ import (
 	"net"
 	"strings"
 
-	"sarflags"
-	"timestamp"
-
+	"github.com/charlesetsmith/saratoga/src/sarflags"
 	"github.com/charlesetsmith/saratoga/src/screen"
+	"github.com/charlesetsmith/saratoga/src/timestamp"
 	"github.com/jroimartin/gocui"
 )
 

@@ -6,10 +6,9 @@ import (
 	"fmt"
 	"net"
 
-	"sarflags"
-	"screen"
-
+	"github.com/charlesetsmith/saratoga/src/sarflags"
 	"github.com/charlesetsmith/saratoga/src/sarnet"
+	"github.com/charlesetsmith/saratoga/src/screen"
 	"github.com/jroimartin/gocui"
 )
 
