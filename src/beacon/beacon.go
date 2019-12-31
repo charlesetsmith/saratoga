@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"strconv"
@@ -67,7 +66,7 @@ func (b *Beacon) New(flags string) error {
 				return errors.New(es)
 			}
 		default:
-			e := "Beacon.New: Invalid Flag " + f[0] + "=" + f[1] + " for Data Frame"
+			e := "Beacon.New: Invalid Flag " + f[0] + "=" + f[1]
 			return errors.New(e)
 		}
 	}
@@ -223,20 +222,12 @@ func (b *Beacon) Send(g *gocui.Gui, addr string, count uint, interval uint, errf
 
 	txb := b // As this is called as a go routine and we need to alter the eid so make a copy
 
-	// If our destination is IPv4 host then set this host's IPv4 Address in the EID
-	// If our destination is IPv6 host then set this host's IPv6 address in the EID
-	if net.ParseIP(addr) != nil {
-		pstr := strconv.Itoa(sarnet.Port())
-		if strings.Contains(addr, ".") { // IPv4
-			eid = fmt.Sprintf("%s:%s.%d", sarnet.OutboundIP("IPv4").String(), pstr, os.Getpid())
-			newaddr = addr
-		} else if strings.Contains(addr, ":") { // IPv6
-			eid = fmt.Sprintf("[%s]:%s.%d", sarnet.OutboundIP("IPv6").String(), pstr, os.Getpid())
-			newaddr = "[" + addr + "]"
-		} else {
-			errflag <- "badpacket"
-			return
-		}
+	// EID is <thishostIP>-<PID>
+	if ad := net.ParseIP(addr); ad != nil {
+		eid = fmt.Sprintf("%s-%d", ad.String(), os.Getpid())
+	} else {
+		errflag <- "badpacket"
+		return
 	}
 	txb.Eid = eid
 
@@ -254,7 +245,7 @@ func (b *Beacon) Send(g *gocui.Gui, addr string, count uint, interval uint, errf
 	conn, err := net.Dial("udp", udpad)
 	defer conn.Close()
 	if err != nil {
-		log.Fatalf("Cannot open UDP Socket to %s %v", udpad, err)
+		errflag <- "cantsend"
 		return
 	}
 
@@ -277,9 +268,7 @@ func (b *Beacon) Send(g *gocui.Gui, addr string, count uint, interval uint, errf
 			time.Sleep(time.Duration(interval) * time.Second)
 		}
 	}
-	// We Copy the eid back into the calling beacons Eid from the channel
-	// It is the outbound "IPv4:Socket.PID" or "[IPv6]:Socket.PID"
-	errflag <- eid
+	errflag <- "success"
 	return
 }
 
@@ -289,16 +278,6 @@ func (b *Beacon) Handler(g *gocui.Gui, from *net.UDPAddr) string {
 	// We add / alter the peer information
 	if b.NewPeer(from) == true {
 		screen.Fprintln(g, "msg", "yellow_black", "Added/Changed Peer", from.String())
-		/*
-			for p := range Peers {
-				screen.Fprintf(g, "msg", "yellow_black", "%s %dMB %s %s %s\n",
-					Peers[p].Addr,
-					Peers[p].Freespace/1024,
-					Peers[p].Eid,
-					Peers[p].Created.Print(),
-					Peers[p].Updated.Print())
-			}
-		*/
 	} else {
 		screen.Fprintln(g, "msg", "yellow_black", "No new peer")
 	}

@@ -24,7 +24,6 @@ const MaxFrameSize = 1500 - 60 // After MTU & IPv6 Header
 
 // Port -- Lookup saratoga official port number in /etc/services
 func Port() int {
-
 	var port int
 	var err error
 

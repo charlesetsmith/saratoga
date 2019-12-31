@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/charlesetsmith/saratoga/src/sarflags"
 	"github.com/charlesetsmith/saratoga/src/sarnet"
@@ -18,6 +19,41 @@ type Request struct {
 	Session uint32
 	Fname   string
 	Auth    []byte
+}
+
+// New - Construct a request - Fill in the request struct
+func (r *Request) New(flags string, session uint32, fname string, auth []byte) error {
+	var err error
+
+	// Always present in a Request
+	if r.Header, err = sarflags.Set(r.Header, "version", "v1"); err != nil {
+		return err
+	}
+	// And yes we are a Request Frame
+	if r.Header, err = sarflags.Set(r.Header, "frametype", "request"); err != nil {
+		return err
+	}
+
+	flags = strings.Replace(flags, " ", "", -1) // Get rid of extra spaces in flags
+
+	// Grab the flags and set the frame header
+	flag := strings.Split(flags, ",") // The name=val of the flag
+	for fl := range flag {
+		f := strings.Split(flag[fl], "=") // f[0]=name f[1]=val
+		switch f[0] {
+		case "descriptor", "stream", "fileordir", "reqtype", "udplite":
+			if r.Header, err = sarflags.Set(r.Header, f[0], f[1]); err != nil {
+				return err
+			}
+		default:
+			e := "Request.New: Invalid Flag " + f[0] + "=" + f[1]
+			return errors.New(e)
+		}
+	}
+	r.Session = session
+	r.Fname = fname
+	r.Auth = auth
+	return nil
 }
 
 // Make - Construct a request frame with a given header - return byte slice of frame
@@ -47,10 +83,10 @@ func (r *Request) Make(header uint32, session uint32, fname string, auth []byte)
 }
 
 // Put -- Encode the Saratoga Request buffer
-func (r Request) Put() ([]byte, error) {
+func (r *Request) Put() ([]byte, error) {
 
 	// Create the frame slice
-	framelen := 4 + 4 + len(r.Fname) + 1 + len(r.Auth) // Header + Session
+	framelen := 4 + 4 + len(r.Fname) + 1 + len(r.Auth) // Header + Session + Fname + NULL + Auth
 	frame := make([]byte, framelen)
 
 	binary.BigEndian.PutUint32(frame[:4], r.Header)
@@ -91,7 +127,7 @@ func (r *Request) Get(frame []byte) error {
 }
 
 // Print - Print out details of Beacon struct
-func (r Request) Print() string {
+func (r *Request) Print() string {
 	sflag := fmt.Sprintf("Request: 0x%x\n", r.Header)
 	rflags := sarflags.Values("request")
 	for f := range rflags {
@@ -104,7 +140,7 @@ func (r Request) Print() string {
 	return sflag
 }
 
-// Handler - We have a request starting up a new session or updating the session info
+// Handler - We have an inbound request starting up a new session or updating the session info
 // Create a new, or change an existing sessions information
 func (r *Request) Handler(g *gocui.Gui, from *net.UDPAddr, session uint32) string {
 

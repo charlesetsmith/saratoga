@@ -3,10 +3,13 @@ package cli
 import (
 	"errors"
 	"net"
+	"os"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/charlesetsmith/saratoga/src/beacon"
+	"github.com/charlesetsmith/saratoga/src/request"
 	"github.com/charlesetsmith/saratoga/src/sarflags"
 	"github.com/charlesetsmith/saratoga/src/sarnet"
 	"github.com/charlesetsmith/saratoga/src/screen"
@@ -54,8 +57,112 @@ func setglobal(frametype string) string {
 	return strings.TrimRight(fs, ",")
 }
 
+// current protected session number
+var smu sync.Mutex
+var sessionid uint32
+
+// Create new Session number
+func newsession() uint32 {
+
+	smu.Lock()
+	defer smu.Unlock()
+
+	if sessionid == 0 {
+		sessionid = uint32(os.Getpid()) + 1
+	} else {
+		sessionid++
+	}
+	return sessionid
+}
+
 // CurLine -- Current line number in buffer
 var CurLine int
+
+// Current Transfer Information
+type cmdTran struct {
+	session  uint32 // Session ID - This is the unique key
+	peer     net.IP // Host we are getting file from
+	filename string // File name to get from remote host
+	flags    string // Flag Header to be used
+}
+
+var trmu sync.Mutex
+
+// Ctran - Get list used in get,getrm,getdir,put,putrm & delete
+var Ctran = []cmdTran{}
+
+// Add a new transfer to the Ctran list and return pointer to it
+func addtran(g *gocui.Gui, ip string, fname string, flags string) *cmdTran {
+	var t cmdTran
+
+	screen.Fprintln(g, "msg", "red_black", "Addtran for", ip, fname, flags)
+	if addr := net.ParseIP(ip); addr != nil { // We have a valid IP Address
+		for _, i := range Ctran { // Don't add duplicates
+			if addr.Equal(i.peer) && fname == i.filename {
+				screen.Fprintln(g, "msg", "red_black", "Transaction for", fname, "already in progress")
+				return nil
+			}
+		}
+
+		// Lock it as we are going to add a new transfer slice
+		trmu.Lock()
+		defer trmu.Unlock()
+		t.session = newsession()
+		t.peer = addr
+		t.filename = fname
+		t.flags = flags + "," + setglobal("request")
+		Ctran = append(Ctran, t)
+		screen.Fprintln(g, "msg", "green_black", "Added Transaction to ",
+			t.peer.String(), t.filename, t.flags)
+		return &t
+	}
+	screen.Fprintln(g, "msg", "red_black", "Transaction not added, invalid IP address", ip)
+	return nil
+}
+
+// Send - Go routine to setup a client connection to a peer to get/put/delete/getdir files
+func (t *cmdTran) send(g *gocui.Gui, errflag chan string) {
+
+	var err error
+
+	// Set up the connection
+	var udpad string
+	if t.peer.To4() == nil { // IPv6
+		udpad = "[" + t.peer.String() + "]" + ":" + strconv.Itoa(sarnet.Port())
+	} else { // IPv4
+		udpad = t.peer.String() + ":" + strconv.Itoa(sarnet.Port())
+	}
+	conn, err := net.Dial("udp", udpad)
+	defer conn.Close()
+	if err != nil {
+		errflag <- "cantsend"
+		return
+	}
+
+	// Create the request & make a frame
+	var req request.Request
+	r := &req
+	if err = r.New(t.flags, t.session, t.filename, nil); err != nil {
+		screen.Fprintln(g, "msg", "red_black", "Cannot create request", err.Error())
+		errflag <- "badrequest"
+		return
+	}
+	var frame []byte
+	if frame, err = r.Put(); err != nil {
+		errflag <- "badrequest"
+		return
+	}
+	// Send the frame
+	_, err = conn.Write(frame)
+	if err != nil {
+		errflag <- "cantsend"
+		return
+	}
+	// screen.Fprintln(g, "msg", "green_black", "Sent:", txb.Print())
+	screen.Fprintf(g, "msg", "green_black", "Request Sent to %s\n", t.peer.String())
+
+	errflag <- "success"
+}
 
 // Send count beacons to host
 func sendbeacons(g *gocui.Gui, flags string, count uint, interval uint, host string) {
@@ -74,12 +181,18 @@ func sendbeacons(g *gocui.Gui, flags string, count uint, interval uint, host str
 	for _, addr := range addrs {
 		if err := txb.New(flags); err == nil {
 			go txb.Send(g, addr, count, interval, errflag)
-			txb.Eid = <-errflag
+			errcode := <-errflag
+			if errcode != "success" {
+				screen.Fprintln(g, "msg", "red_black", "Error:", errcode,
+					"Unable to send beacon to ", addr)
+			}
 			// screen.Fprintln(g, "msg", "green_black", "Sent: ", txb.Print())
 		}
 	}
 	return
 }
+
+/* ********************************************************************************* */
 
 // All of the different command line input handlers
 
@@ -204,11 +317,14 @@ func handlebeacon(g *gocui.Gui, args []string) {
 		screen.Fprintf(g, "msg", "green_black", "%s ", args[i])
 		switch args[i] {
 		case "v4":
-			go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, sarnet.IPv4Multicast)
+			go sendbeacons(g, clibeacon.flags, clibeacon.count,
+				clibeacon.interval, sarnet.IPv4Multicast)
 		case "v6":
-			go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, sarnet.IPv6Multicast)
+			go sendbeacons(g, clibeacon.flags, clibeacon.count,
+				clibeacon.interval, sarnet.IPv6Multicast)
 		default:
-			go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, args[i])
+			go sendbeacons(g, clibeacon.flags, clibeacon.count,
+				clibeacon.interval, args[i])
 		}
 	}
 	screen.Fprintln(g, "msg", "green_black", "")
@@ -412,22 +528,15 @@ func freespace(g *gocui.Gui, args []string) {
 	screen.Fprintln(g, "msg", "red_black", "usage: ", cmd["freespace"][0])
 }
 
-type cmdGet struct {
-	rmflag   bool   // Remove remote file after successful completion
-	peer     string // Host we are getting file from
-	filename string // File name to get from remote host
-}
-
-// Cget - Get file list used in get and getrm
-var Cget = []cmdGet{}
-
 func get(g *gocui.Gui, args []string) {
+	var t *cmdTran
+
 	if len(args) == 1 {
-		if len(Cget) == 0 {
-			screen.Fprintln(g, "msg", "green_black", "No current get transactions")
+		if len(Ctran) == 0 {
+			screen.Fprintln(g, "msg", "green_black", "No current transactions")
 		} else {
-			for _, i := range Cget {
-				screen.Fprintln(g, "msg", "green_black", i.peer, i.filename, i.rmflag)
+			for _, i := range Ctran {
+				screen.Fprintln(g, "msg", "green_black", i.peer.String(), i.filename)
 			}
 		}
 	}
@@ -437,26 +546,49 @@ func get(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 3 {
-		if addr := net.ParseIP(args[1]); addr != nil { // We have a valid IP Address
-			for _, i := range Cget { // Don't add duplicates
-				if args[1] == i.peer && args[2] == i.filename {
-					return
-				}
-			}
-			Cget = append(Cget, cmdGet{rmflag: false, peer: args[1], filename: args[2]})
-			return
+		if t = addtran(g, args[1], args[2], "reqtype=get,fileordir=file"); t != nil {
+
 		}
+		return
 	}
 	screen.Fprintln(g, "msg", "red_black", cmd["get"][0])
 }
 
-func getrm(g *gocui.Gui, args []string) {
+func getdir(g *gocui.Gui, args []string) {
+	var t *cmdTran
+
 	if len(args) == 1 {
-		if len(Cget) == 0 {
+		if len(Ctran) == 0 {
+			screen.Fprintln(g, "msg", "green_black", "No current transactions")
+		} else {
+			for _, i := range Ctran {
+				screen.Fprintln(g, "msg", "green_black", i.peer.String(), i.filename)
+			}
+		}
+	}
+	if len(args) == 2 && args[1] == "?" {
+		screen.Fprintln(g, "msg", "green_black", cmd["getdir"][0])
+		screen.Fprintln(g, "msg", "green_black", cmd["getdir"][1])
+		return
+	}
+	if len(args) == 3 {
+		if t = addtran(g, args[1], args[2], "reqtype=getdir,fileordir=directory"); t != nil {
+
+		}
+		return
+	}
+	screen.Fprintln(g, "msg", "red_black", cmd["getdir"][0])
+}
+
+func getrm(g *gocui.Gui, args []string) {
+	var t *cmdTran
+
+	if len(args) == 1 {
+		if len(Ctran) == 0 {
 			screen.Fprintln(g, "msg", "green_black", "No current get transactions")
 		} else {
-			for _, i := range Cget {
-				screen.Fprintln(g, "msg", "green_black", i.peer, i.filename, i.rmflag)
+			for _, i := range Ctran {
+				screen.Fprintln(g, "msg", "green_black", i.peer.String(), i.filename)
 			}
 		}
 	}
@@ -466,17 +598,12 @@ func getrm(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 3 {
-		if addr := net.ParseIP(args[1]); addr != nil { // We have a valid IP Address
-			for _, i := range Cget { // Don't add duplicates
-				if args[1] == i.peer && args[2] == i.filename {
-					return
-				}
-			}
-			Cget = append(Cget, cmdGet{rmflag: true, peer: args[1], filename: args[2]})
-			return
+		if t = addtran(g, args[1], args[2], "reqtype=getdelete,fileordir=file"); t != nil {
+
 		}
+		return
 	}
-	screen.Fprintln(g, "msg", "red_black", cmd["get"][0])
+	screen.Fprintln(g, "msg", "red_black", cmd["getrm"][0])
 }
 
 func help(g *gocui.Gui, args []string) {
@@ -547,6 +674,7 @@ func prompt(g *gocui.Gui, args []string) {
 	}
 }
 
+// Display all of the peer information learned frm beacons
 func peers(g *gocui.Gui, args []string) {
 	if len(beacon.Peers) == 0 {
 		screen.Fprintln(g, "msg", "purple_black", "No Peers")
@@ -563,22 +691,17 @@ func peers(g *gocui.Gui, args []string) {
 	}
 }
 
-type cmdPut struct {
-	rmflag   bool   // Remove local file after successful comletion
-	peer     string // Host we are putting file to
-	filename string // Local file name to  put to remote host
-}
-
-// Cput - Put file command
-var Cput = []cmdPut{}
-
+// put/send a file to a destination
 func put(g *gocui.Gui, args []string) {
+	var t *cmdTran
+	errflag := make(chan string, 1) // The return channel holding the saratoga errflag
+
 	if len(args) == 1 {
-		if len(Cput) == 0 {
+		if len(Ctran) == 0 {
 			screen.Fprintln(g, "msg", "green_black", "No current put transactions")
 		} else {
-			for _, i := range Cput {
-				screen.Fprintln(g, "msg", "green_black", i.peer, i.filename, i.rmflag)
+			for _, i := range Ctran {
+				screen.Fprintln(g, "msg", "green_black", i.peer, i.filename, i.flags)
 			}
 		}
 	}
@@ -588,26 +711,29 @@ func put(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 3 {
-		if addr := net.ParseIP(args[1]); addr != nil { // We have a valid IP Address
-			for _, i := range Cput { // Don't add duplicates
-				if args[1] == i.peer && args[2] == i.filename {
-					return
-				}
+		if t = addtran(g, args[1], args[2], "reqtype=put,fileordir=file"); t != nil {
+			go t.send(g, errflag)
+			errcode := <-errflag
+			if errcode != "success" {
+				screen.Fprintln(g, "msg", "red_black", "Error:", errcode,
+					"Unable to send file to ", t.peer.String())
 			}
-			Cput = append(Cput, cmdPut{rmflag: false, peer: args[1], filename: args[2]})
-			return
 		}
+		return
 	}
 	screen.Fprintln(g, "msg", "red_black", cmd["put"][0])
 }
 
+// put/send a file file to a remote destination then remove it from the origin
 func putrm(g *gocui.Gui, args []string) {
+	var t *cmdTran
+
 	if len(args) == 1 {
-		if len(Cput) == 0 {
-			screen.Fprintln(g, "msg", "green_black", "No current put transactions")
+		if len(Ctran) == 0 {
+			screen.Fprintln(g, "msg", "green_black", "No current transactions")
 		} else {
-			for _, i := range Cput {
-				screen.Fprintln(g, "msg", "green_black", i.peer, i.filename, i.rmflag)
+			for _, i := range Ctran {
+				screen.Fprintln(g, "msg", "green_black", i.peer, i.filename, i.flags)
 			}
 		}
 	}
@@ -617,35 +743,24 @@ func putrm(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 3 {
-		if addr := net.ParseIP(args[1]); addr != nil { // We have a valid IP Address
-			for _, i := range Cput { // Don't add duplicates
-				if args[1] == i.peer && args[2] == i.filename {
-					return
-				}
-			}
-			Cput = append(Cput, cmdPut{rmflag: true, peer: args[1], filename: args[2]})
-			return
+		if t = addtran(g, args[1], args[2], "reqtype=putdelete,fileordir=file"); t != nil {
+
 		}
+		return
 	}
 	screen.Fprintln(g, "msg", "red_black", cmd["putrm"][0])
 }
 
-type cmdRm struct {
-	dirflag  bool   // Is a directory or not
-	peer     string // Host we remove file from
-	filename string // File or directory name to remove
-}
-
-// Crm - Remove a file or directory command
-var Crm = []cmdRm{}
-
+// remove a file from a remote destination
 func rm(g *gocui.Gui, args []string) {
+	var t *cmdTran
+
 	if len(args) == 1 {
-		if len(Crm) == 0 {
-			screen.Fprintln(g, "msg", "green_black", "No current rm transactions")
+		if len(Ctran) == 0 {
+			screen.Fprintln(g, "msg", "green_black", "No current transactions")
 		} else {
-			for _, i := range Crm {
-				screen.Fprintln(g, "msg", "green_black", i.peer, i.filename, i.dirflag)
+			for _, i := range Ctran {
+				screen.Fprintln(g, "msg", "green_black", i.peer, i.filename, i.flags)
 			}
 		}
 	}
@@ -655,26 +770,24 @@ func rm(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 3 {
-		if addr := net.ParseIP(args[1]); addr != nil { // We have a valid IP Address
-			for _, i := range Crm { // Don't add duplicates
-				if args[1] == i.peer && args[2] == i.filename {
-					return
-				}
-			}
-			Crm = append(Crm, cmdRm{dirflag: false, peer: args[1], filename: args[2]})
-			return
+		if t = addtran(g, args[1], args[2], "reqtype=delete,fileordir=file"); t != nil {
+
 		}
+		return
 	}
 	screen.Fprintln(g, "msg", "red_black", cmd["rm"][0])
 }
 
+// remove a directory from a remote destination
 func rmdir(g *gocui.Gui, args []string) {
+	var t *cmdTran
+
 	if len(args) == 1 {
-		if len(Crm) == 0 {
-			screen.Fprintln(g, "msg", "green_black", "No current rm transactions")
+		if len(Ctran) == 0 {
+			screen.Fprintln(g, "msg", "green_black", "No current transactions")
 		} else {
-			for _, i := range Crm {
-				screen.Fprintln(g, "msg", "green_black", i.peer, i.filename, i.dirflag)
+			for _, i := range Ctran {
+				screen.Fprintln(g, "msg", "green_black", i.peer, i.filename, i.flags)
 			}
 		}
 	}
@@ -684,19 +797,15 @@ func rmdir(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 3 {
-		if addr := net.ParseIP(args[1]); addr != nil { // We have a valid IP Address
-			for _, i := range Crm { // Don't add duplicates
-				if args[1] == i.peer && args[2] == i.filename {
-					return
-				}
-			}
-			Crm = append(Crm, cmdRm{dirflag: true, peer: args[1], filename: args[2]})
-			return
+		if t = addtran(g, args[1], args[2], "reqtype=delete,fileordir=directory"); t != nil {
+
 		}
+		return
 	}
 	screen.Fprintln(g, "msg", "red_black", cmd["rmdir"][0])
 }
 
+// Are we willing to transmit files
 func rxwilling(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
 		screen.Fprintln(g, "msg", "green_black", "Receive Files", sarflags.Global["rxwilling"])
@@ -725,6 +834,7 @@ func rxwilling(g *gocui.Gui, args []string) {
 // Cstream - Can the transfer be a stream (ie not a file)
 var Cstream = "off"
 
+// source is a named pipe not a file
 func stream(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
 		if sarflags.Global["stream"] == "yes" {
@@ -760,6 +870,7 @@ type cmdTimeout struct {
 // Ctimeout - timeouts for responses 0 means no timeout
 var Ctimeout = cmdTimeout{}
 
+// set timeouts for responses to request/status/transfer in seconds
 func timeout(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
 		if Ctimeout.request == 0 {
@@ -837,6 +948,7 @@ func timeout(g *gocui.Gui, args []string) {
 // Ctimestamp - What timestamp type are we using
 var Ctimestamp = "off"
 
+// set the timestamp type we are using
 func timestamp(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
 		screen.Fprintln(g, "msg", "green_black", "Timestamps type is", Ctimestamp)
@@ -868,6 +980,7 @@ func timestamp(g *gocui.Gui, args []string) {
 // Ctimezone - What timezone to use for log - local or utc
 var Ctimezone = "local"
 
+// set the timezone we use for logs local or utc
 func timezone(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
 		screen.Fprintln(g, "msg", "green_black", "Timezone is", Ctimezone)
@@ -890,44 +1003,24 @@ func timezone(g *gocui.Gui, args []string) {
 	screen.Fprintln(g, "msg", "red_black", cmd["timezone"][0])
 }
 
+// show current transfers in progress & % completed
 func transfers(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
-		if len(Cget) > 0 {
-			screen.Fprintln(g, "msg", "green_black", "Get Transfers in progress:")
-			for _, i := range Cget {
-				screen.Fprintln(g, "msg", "green_black", "\t", i.peer, i.filename, i.rmflag)
+		if len(Ctran) > 0 {
+			screen.Fprintln(g, "msg", "green_black", "Transfers in progress:")
+			for _, i := range Ctran {
+				screen.Fprintln(g, "msg", "green_black", i.peer.String(), i.filename, i.flags)
 			}
+		} else {
+			screen.Fprintln(g, "msg", "green_black", "No transfers currently in progress")
 		}
-		if len(Cput) > 0 {
-			screen.Fprintln(g, "msg", "green_black", "Put Transfers in progress:")
-			for _, i := range Cput {
-				screen.Fprintln(g, "msg", "green_black", i.peer, i.filename, i.rmflag)
-			}
-		}
+		return
 	}
 	if len(args) == 2 {
 		switch args[1] {
 		case "?":
 			screen.Fprintln(g, "msg", "green_black", cmd["transfers"][0])
 			screen.Fprintln(g, "msg", "green_black", cmd["transfers"][1])
-		case "get":
-			if len(Cget) > 0 {
-				screen.Fprintln(g, "msg", "green_black", "Get Transfers in progress:")
-				for _, i := range Cget {
-					screen.Fprintln(g, "msg", "green_black", "\t", i.peer, i.filename, i.rmflag)
-				}
-			} else {
-				screen.Fprintln(g, "msg", "green_black", "No current get transfers in progress")
-			}
-		case "put":
-			if len(Cput) > 0 {
-				screen.Fprintln(g, "msg", "green_black", "Put Transfers in progress:")
-				for _, i := range Cput {
-					screen.Fprintln(g, "msg", "green_black", "\t", i.peer, i.filename, i.rmflag)
-				}
-			} else {
-				screen.Fprintln(g, "msg", "green_black", "No current put transfers in progress")
-			}
 		default:
 			screen.Fprintln(g, "msg", "green_black", cmd["transfers"][0])
 		}
@@ -936,6 +1029,7 @@ func transfers(g *gocui.Gui, args []string) {
 	screen.Fprintln(g, "msg", "green_black", cmd["transfers"][0])
 }
 
+// we are willing to transmit files
 func txwilling(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
 		screen.Fprintln(g, "msg", "green_black", "Transmit Files", sarflags.Global["txwilling"])
@@ -968,6 +1062,8 @@ func usage(g *gocui.Gui, args []string) {
 	}
 }
 
+/* ************************************************************************** */
+
 type cmdfunc func(*gocui.Gui, []string)
 
 // Commands and function pointers to handle them
@@ -982,6 +1078,7 @@ var cmdhandler = map[string]cmdfunc{
 	"files":      files,
 	"freespace":  freespace,
 	"get":        get,
+	"getdir":     getdir,
 	"getrm":      getrm,
 	"help":       help,
 	"history":    history,
@@ -1049,6 +1146,10 @@ var cmd = map[string][2]string{
 		"get [<peer> <filename>]",
 		"get a file from a peer",
 	},
+	"getdir": [2]string{
+		"getdir [<peer> <dirname>]",
+		"get a directlory listing from a peer",
+	},
 	"getrm": [2]string{
 		"getrm [<peer> <filename>",
 		"get a file from a peer and remove it from peer when successful",
@@ -1111,13 +1212,13 @@ var cmd = map[string][2]string{
 	},
 	// Timeout for a request is how long I wait after I send a request before I cancel it
 	// Timout for transfer is how long I wait before I receive next frame in a transfer
-	// Timeeout for status is how long I wait between receiving a status frame
+	// Timeout for status is how long I wait between receiving a status frame
 	"timeout": [2]string{
 		"timeout [request|transfer|status] <secs|off>",
 		"timeout in seconds for requests, transfers and status",
 	},
 	"timestamp": [2]string{
-		"timestamp [off|32|64|32_32|64_32|32_y2k",
+		"timestamp [off|32|64|32_32|64_32|32_y2k]",
 		"timestamp type to send",
 	},
 	"timezone": [2]string{
@@ -1125,7 +1226,7 @@ var cmd = map[string][2]string{
 		"show current or set to use local or universal time",
 	},
 	"transfers": [2]string{
-		"transfers [get|put]",
+		"transfers",
 		"list current active transfers",
 	},
 	"txwilling": [2]string{
@@ -1144,7 +1245,7 @@ func Docmd(g *gocui.Gui, s string) error {
 		return nil
 	}
 
-	// Get rid of leading and trainling whitespace
+	// Get rid of leading and trailing whitespace
 	s = strings.TrimSpace(s)
 	vals := strings.Fields(s)
 	// Look for the command and do it

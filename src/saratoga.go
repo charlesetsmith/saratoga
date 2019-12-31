@@ -134,7 +134,7 @@ func getLine(g *gocui.Gui, v *gocui.View) error {
 	Commands = append(Commands, command[1])
 
 	cli.CurLine++
-	screen.Fprintf(g, "msg", "magenta_black", "CurLine=%d <%s>\n", cli.CurLine, command[1])
+	// screen.Fprintf(g, "msg", "magenta_black", "CurLine=%d <%s>\n", cli.CurLine, command[1])
 	if cx > MaxX-2 { // We are about to move beyond X
 		screen.Fprintln(g, "msg", "red_black", "cx too big", cx)
 	}
@@ -150,7 +150,7 @@ func getLine(g *gocui.Gui, v *gocui.View) error {
 		// Reset the cursor to last line in v
 		_ = v.SetCursor(len(cli.Cprompt)+len(strconv.Itoa(cli.CurLine))+3, cy)
 	}
-	screen.Fprintln(g, "msg", "yellow_black", "MaxY=", MaxY, "Number Cmd View Lines=", CmdLines)
+	// screen.Fprintln(g, "msg", "yellow_black", "MaxY=", MaxY, "Number Cmd View Lines=", CmdLines)
 	screen.Fprintf(g, "cmd", "yellow_black", "\n%s[%d]:", cli.Cprompt, cli.CurLine)
 
 	return nil
@@ -194,6 +194,8 @@ func keybindings(g *gocui.Gui) error {
 
 // FirstPass -- First time around layout we don;t put \n at end of prompt
 var FirstPass = true
+
+// For working out screen positions in cli i/o
 
 // CmdLines - Number of lines in Cmd View
 var CmdLines int
@@ -419,6 +421,7 @@ func main() {
 	sarflags.Global["stream"] = "no"
 	sarflags.Global["reqtstamp"] = "no"
 	sarflags.Global["reqstatus"] = "no"
+	sarflags.Global["udplite"] = "no"
 
 	for f := range sarflags.Global {
 		if !sarflags.Valid(f, sarflags.Global[f]) {
