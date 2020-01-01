@@ -5,7 +5,9 @@ package sys
 // For Windows Systems
 
 import (
+	"os"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -57,4 +59,19 @@ func (du *DiskUsage) Used() uint64 {
 // Percentage of use on the file system
 func (du *DiskUsage) Usage() float32 {
 	return float32(du.Used()) / float32(du.Size())
+}
+
+// FIleTime - Holds Amend, Modification & Creation Times
+type FileTime struct {
+	Atime time.Time
+	Mtime time.Time
+	Ctime time.Time
+}
+
+// NewTime - Times of file in windows
+func (ft *FileTime) NewTime(fi os.FileInfo) {
+	stat := fi.Sys().(*syscall.Win32FileAttributeData)
+	ft.Atime = time.Since(time.Unix(0, stat.LastAccessTime.Nanoseconds()))
+	ft.Ctime = time.Since(time.Unix(0, stat.CreationTime.Nanoseconds()))
+	ft.Mtime = time.Since(time.Unix(0, stat.LastWriteTime.Nanoseconds()))
 }

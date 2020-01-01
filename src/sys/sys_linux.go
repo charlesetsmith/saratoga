@@ -1,10 +1,14 @@
-// +build !windows
-
-// For POSIX Systems
+// +build linux
 
 package sys
 
-import "syscall"
+// For Linux systems
+
+import (
+	"os"
+	"syscall"
+	"time"
+)
 
 // DiskUsage structure
 type DiskUsage struct {
@@ -43,4 +47,20 @@ func (du *DiskUsage) Used() uint64 {
 // Usage - Percentage of use on the file system
 func (du *DiskUsage) Usage() float32 {
 	return float32(du.Used()) / float32(du.Size())
+}
+
+// FIleTime - Holds Amend, Modification & Creation Times
+type FileTime struct {
+	Atime time.Time
+	Mtime time.Time
+	Ctime time.Time
+}
+
+// NewTime - times of file on linux
+func (ft *FileTime) NewTime(fi os.FileInfo) time.Time {
+	stat := fi.Sys().(*syscall.Stat_t)
+	ft.Atime = time.Unix(int64(stat_t.Atim.Sec), int64(stat_t.Atim.Nsec))
+	ft.Mtime = time.Unix(int64(stat_t.Mtim.Sec), int64(stat_t.Mtim.Nsec))
+	ft.Ctime = time.Unix(int64(stat_t.Ctim.Sec), int64(stat_t.Ctim.Nsec))
+	return
 }
