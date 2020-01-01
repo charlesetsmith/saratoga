@@ -33,22 +33,6 @@ func (d *DirEnt) StatFile(name string) (err error) {
 
 	d.size = uint64(fi.Size())
 
-	/*
-		// Mtime
-		if err := d.mtime.New("epoch2000_32", fi.ModTime()); err != nil {
-			return err
-		}
-		// Ctime
-		// Special handling to get a ctime
-		// THIS IS PLATFORM DEPENDENT!!!!!
-		stat := fi.Sys().(*syscall.Stat_t)
-		// atime = time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec))
-		ctime := time.Unix(int64(stat.Ctimespec.Sec), int64(stat.Ctimespec.Nsec))
-		if err := d.ctime.New("epoch2000_32", ctime); err != nil {
-			return err
-		}
-	*/
-
 	var ft sys.FileTime
 	ft.NewTime(fi)
 
@@ -61,18 +45,6 @@ func (d *DirEnt) StatFile(name string) (err error) {
 		return err
 	}
 	return nil
-
-	/*
-		// Ctime
-		// Special handling to get a ctime
-		// THIS IS PLATFORM DEPENDENT!!!!!
-		stat := fi.Sys().(*syscall.Stat_t)
-		// atime = time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec))
-		ctime := time.Unix(int64(stat.Ctimespec.Sec), int64(stat.Ctimespec.Nsec))
-		if err := d.ctime.New("epoch2000_32", ctime); err != nil {
-			return err
-		}
-	*/
 }
 
 // New - Construct a directory entry return byte slice of dirent

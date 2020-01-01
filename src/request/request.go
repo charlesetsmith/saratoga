@@ -148,19 +148,19 @@ func (r *Request) Handler(g *gocui.Gui, from *net.UDPAddr, session uint32) strin
 
 	switch sarflags.GetStr(r.Header, "reqtype") {
 	case "noaction":
-		screen.Fprintln(g, "msg", "green_black", "Request Noaction from", sarnet.UDPinfo(from), " session ", session)
+		screen.Fprintln(g, "msg", "yellow_black", "Request Noaction from", sarnet.UDPinfo(from), " session ", session)
 	case "get":
-		screen.Fprintln(g, "msg", "green_black", "Request Get from", sarnet.UDPinfo(from), " session ", session)
+		screen.Fprintln(g, "msg", "yellow_black", "Request Get from", sarnet.UDPinfo(from), " session ", session)
 	case "put":
-		screen.Fprintln(g, "msg", "green_black", "Request Put from", sarnet.UDPinfo(from), " session ", session)
+		screen.Fprintln(g, "msg", "yellow_black", "Request Put from", sarnet.UDPinfo(from), " session ", session)
 	case "getdelete":
-		screen.Fprintln(g, "msg", "green_black", "Request GetDelete from", sarnet.UDPinfo(from), " session ", session)
+		screen.Fprintln(g, "msg", "yellow_black", "Request GetDelete from", sarnet.UDPinfo(from), " session ", session)
 	case "putdelete":
-		screen.Fprintln(g, "msg", "green_black", "Request PutDelete from", sarnet.UDPinfo(from), " session ", session)
+		screen.Fprintln(g, "msg", "yellow_black", "Request PutDelete from", sarnet.UDPinfo(from), " session ", session)
 	case "delete":
-		screen.Fprintln(g, "msg", "green_black", "Request Delete from", sarnet.UDPinfo(from), " session ", session)
+		screen.Fprintln(g, "msg", "yellow_black", "Request Delete from", sarnet.UDPinfo(from), " session ", session)
 	case "getdir":
-		screen.Fprintln(g, "msg", "green_black", "Request GetDir from", sarnet.UDPinfo(from), " session ", session)
+		screen.Fprintln(g, "msg", "yellow_black", "Request GetDir from", sarnet.UDPinfo(from), " session ", session)
 	default:
 		screen.Fprintln(g, "msg", "red_black", "Invalid Request from", sarnet.UDPinfo(from), " session ", session)
 		return "badrequest"

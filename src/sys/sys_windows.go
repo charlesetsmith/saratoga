@@ -63,9 +63,9 @@ func (du *DiskUsage) Usage() float32 {
 
 // FIleTime - Holds Amend, Modification & Creation Times
 type FileTime struct {
-	Atime time.Time
-	Mtime time.Time
-	Ctime time.Time
+	Atime time.Time // Access
+	Mtime time.Time // Modification
+	Ctime time.Time // Creation
 }
 
 // NewTime - Times of file in windows
@@ -73,5 +73,6 @@ func (ft *FileTime) NewTime(fi os.FileInfo) {
 	stat := fi.Sys().(*syscall.Win32FileAttributeData)
 	ft.Atime = time.Since(time.Unix(0, stat.LastAccessTime.Nanoseconds()))
 	ft.Ctime = time.Since(time.Unix(0, stat.CreationTime.Nanoseconds()))
-	ft.Mtime = time.Since(time.Unix(0, stat.LastWriteTime.Nanoseconds()))
+	ft.Mtime = fi.ModTime()
+	// ft.Mtime = time.Since(time.Unix(0, stat.LastWriteTime.Nanoseconds()))
 }

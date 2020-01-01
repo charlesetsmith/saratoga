@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/charlesetsmith/saratoga/src/metadata"
+
 	"github.com/charlesetsmith/saratoga/src/beacon"
 	"github.com/charlesetsmith/saratoga/src/request"
 	"github.com/charlesetsmith/saratoga/src/sarflags"
@@ -84,6 +86,7 @@ type cmdTran struct {
 	peer     net.IP // Host we are getting file from
 	filename string // File name to get from remote host
 	flags    string // Flag Header to be used
+	blind    bool   // Is this a blind transfer (no initial request/status exchange)
 }
 
 var trmu sync.Mutex
@@ -92,14 +95,14 @@ var trmu sync.Mutex
 var Ctran = []cmdTran{}
 
 // Add a new transfer to the Ctran list and return pointer to it
-func addtran(g *gocui.Gui, ip string, fname string, flags string) *cmdTran {
+func addtran(g *gocui.Gui, ip string, fname string, blind bool, flags string) *cmdTran {
 	var t cmdTran
 
-	screen.Fprintln(g, "msg", "red_black", "Addtran for", ip, fname, flags)
+	// screen.Fprintln(g, "msg", "red_black", "Addtran for", ip, fname, flags)
 	if addr := net.ParseIP(ip); addr != nil { // We have a valid IP Address
 		for _, i := range Ctran { // Don't add duplicates
 			if addr.Equal(i.peer) && fname == i.filename {
-				screen.Fprintln(g, "msg", "red_black", "Transaction for", fname, "already in progress")
+				screen.Fprintln(g, "msg", "red_black", "Transaction for", fname, "currently in progress")
 				return nil
 			}
 		}
@@ -110,10 +113,20 @@ func addtran(g *gocui.Gui, ip string, fname string, flags string) *cmdTran {
 		t.session = newsession()
 		t.peer = addr
 		t.filename = fname
-		t.flags = flags + "," + setglobal("request")
+		t.blind = blind
+		if !blind { // request/status exchange
+			t.flags = flags + "," + setglobal("request")
+		} else { // no request/status required just metadata then data
+			t.flags = flags + "," + setglobal("metadata")
+		}
 		Ctran = append(Ctran, t)
-		screen.Fprintln(g, "msg", "green_black", "Added Transaction to ",
-			t.peer.String(), t.filename, t.flags)
+		if !blind {
+			screen.Fprintln(g, "msg", "green_black", "Added Transaction to ",
+				t.peer.String(), t.filename, t.flags)
+		} else {
+			screen.Fprintln(g, "msg", "green_black", "Added Blind Transaction to ",
+				t.peer.String(), t.filename, t.flags)
+		}
 		return &t
 	}
 	screen.Fprintln(g, "msg", "red_black", "Transaction not added, invalid IP address", ip)
@@ -139,19 +152,34 @@ func (t *cmdTran) send(g *gocui.Gui, errflag chan string) {
 		return
 	}
 
-	// Create the request & make a frame
-	var req request.Request
-	r := &req
-	if err = r.New(t.flags, t.session, t.filename, nil); err != nil {
-		screen.Fprintln(g, "msg", "red_black", "Cannot create request", err.Error())
-		errflag <- "badrequest"
-		return
-	}
+	// Create the request & make a frame for normal request/status exchange startup
 	var frame []byte
-	if frame, err = r.Put(); err != nil {
-		errflag <- "badrequest"
-		return
+	if !t.blind {
+		var req request.Request
+		r := &req
+		if err = r.New(t.flags, t.session, t.filename, nil); err != nil {
+			screen.Fprintln(g, "msg", "red_black", "Cannot create request", err.Error())
+			errflag <- "badrequest"
+			return
+		}
+		if frame, err = r.Put(); err != nil {
+			errflag <- "badrequest"
+			return
+		}
+	} else { // Create the metadata & make a frame for blind put startup
+		var met metadata.MetaData
+		m := &met
+		if err = m.New(t.flags, t.session, t.filename); err != nil {
+			screen.Fprintln(g, "msg", "red_black", "Cannot create metadata", err.Error())
+			errflag <- "badrequest"
+			return
+		}
+		if frame, err = m.Put(); err != nil {
+			errflag <- "badrequest"
+			return
+		}
 	}
+
 	// Send the frame
 	_, err = conn.Write(frame)
 	if err != nil {
@@ -159,8 +187,13 @@ func (t *cmdTran) send(g *gocui.Gui, errflag chan string) {
 		return
 	}
 	// screen.Fprintln(g, "msg", "green_black", "Sent:", txb.Print())
-	screen.Fprintf(g, "msg", "green_black", "Request Sent to %s\n", t.peer.String())
-
+	if !t.blind {
+		screen.Fprintf(g, "msg", "green_black", "Request Sent to %s\n",
+			t.peer.String())
+	} else {
+		screen.Fprintf(g, "msg", "green_black", "Metadata Sent for blind put to %s\n",
+			t.peer.String())
+	}
 	errflag <- "success"
 }
 
@@ -328,6 +361,40 @@ func handlebeacon(g *gocui.Gui, args []string) {
 		}
 	}
 	screen.Fprintln(g, "msg", "green_black", "")
+}
+
+// blind put/send a file to a destination
+func blindput(g *gocui.Gui, args []string) {
+	var t *cmdTran
+	errflag := make(chan string, 1) // The return channel holding the saratoga errflag
+
+	if len(args) == 1 {
+		if len(Ctran) == 0 {
+			screen.Fprintln(g, "msg", "green_black", "No current put transactions")
+		} else {
+			for _, i := range Ctran {
+				screen.Fprintln(g, "msg", "green_black", i.peer, i.filename, i.flags)
+			}
+		}
+	}
+	if len(args) == 2 && args[1] == "?" {
+		screen.Fprintln(g, "msg", "green_black", cmd["blindput"][0])
+		screen.Fprintln(g, "msg", "green_black", cmd["blindput"][1])
+		return
+	}
+	if len(args) == 3 {
+		// We send the Metadata and do not bother with request/status exchange
+		if t = addtran(g, args[1], args[2], true, "transfer=file"); t != nil {
+			go t.send(g, errflag)
+			errcode := <-errflag
+			if errcode != "success" {
+				screen.Fprintln(g, "msg", "red_black", "Error:", errcode,
+					"Unable to send file to ", t.peer.String())
+			}
+		}
+		return
+	}
+	screen.Fprintln(g, "msg", "red_black", cmd["blindput"][0])
 }
 
 func cancel(g *gocui.Gui, args []string) {
@@ -546,7 +613,7 @@ func get(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 3 {
-		if t = addtran(g, args[1], args[2], "reqtype=get,fileordir=file"); t != nil {
+		if t = addtran(g, args[1], args[2], false, "reqtype=get,fileordir=file"); t != nil {
 
 		}
 		return
@@ -572,7 +639,7 @@ func getdir(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 3 {
-		if t = addtran(g, args[1], args[2], "reqtype=getdir,fileordir=directory"); t != nil {
+		if t = addtran(g, args[1], args[2], false, "reqtype=getdir,fileordir=directory"); t != nil {
 
 		}
 		return
@@ -598,7 +665,7 @@ func getrm(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 3 {
-		if t = addtran(g, args[1], args[2], "reqtype=getdelete,fileordir=file"); t != nil {
+		if t = addtran(g, args[1], args[2], false, "reqtype=getdelete,fileordir=file"); t != nil {
 
 		}
 		return
@@ -711,7 +778,7 @@ func put(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 3 {
-		if t = addtran(g, args[1], args[2], "reqtype=put,fileordir=file"); t != nil {
+		if t = addtran(g, args[1], args[2], false, "reqtype=put,fileordir=file"); t != nil {
 			go t.send(g, errflag)
 			errcode := <-errflag
 			if errcode != "success" {
@@ -743,7 +810,7 @@ func putrm(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 3 {
-		if t = addtran(g, args[1], args[2], "reqtype=putdelete,fileordir=file"); t != nil {
+		if t = addtran(g, args[1], args[2], false, "reqtype=putdelete,fileordir=file"); t != nil {
 
 		}
 		return
@@ -770,7 +837,7 @@ func rm(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 3 {
-		if t = addtran(g, args[1], args[2], "reqtype=delete,fileordir=file"); t != nil {
+		if t = addtran(g, args[1], args[2], false, "reqtype=delete,fileordir=file"); t != nil {
 
 		}
 		return
@@ -797,7 +864,7 @@ func rmdir(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 3 {
-		if t = addtran(g, args[1], args[2], "reqtype=delete,fileordir=directory"); t != nil {
+		if t = addtran(g, args[1], args[2], false, "reqtype=delete,fileordir=directory"); t != nil {
 
 		}
 		return
@@ -1070,6 +1137,7 @@ type cmdfunc func(*gocui.Gui, []string)
 var cmdhandler = map[string]cmdfunc{
 	"?":          help,
 	"beacon":     handlebeacon,
+	"blindput":   blindput,
 	"cancel":     cancel,
 	"checksum":   checksum,
 	"debug":      debug,
@@ -1113,6 +1181,10 @@ var cmd = map[string][2]string{
 	"beacon": [2]string{
 		"beacon [off] [v4|v6|<ip>...] [secs]",
 		"send a beacon every n secs",
+	},
+	"blindput": [2]string{
+		"blindput <peer> <filename>",
+		"send a file to a peer with no initial request/status exchange",
 	},
 	"cancel": [2]string{
 		"cancel <transfer>",

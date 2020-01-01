@@ -15,7 +15,7 @@ import (
 	"github.com/jroimartin/gocui"
 )
 
-// MetaData -- Holds Data frame information
+// MetaData -- Holds MetaData frame information
 type MetaData struct {
 	Header   uint32
 	Session  uint32

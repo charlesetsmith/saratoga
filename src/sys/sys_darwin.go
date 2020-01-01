@@ -51,9 +51,9 @@ func (du *DiskUsage) Usage() float32 {
 
 // FileTime - Holds Amend, Modification & Creation Times
 type FileTime struct {
-	Atime time.Time
-	Mtime time.Time
-	Ctime time.Time
+	Atime time.Time // Access
+	Mtime time.Time // Modification
+	Ctime time.Time // Creation
 }
 
 // NewTime - times of file on Darwin
@@ -62,7 +62,9 @@ func (ft *FileTime) NewTime(fi os.FileInfo) {
 	// THIS IS PLATFORM DEPENDENT!!!!!
 	stat := fi.Sys().(*syscall.Stat_t)
 	ft.Atime = time.Unix(int64(stat.Atimespec.Sec), int64(stat.Atimespec.Nsec))
-	ft.Mtime = time.Unix(int64(stat.Mtimespec.Sec), int64(stat.Mtimespec.Nsec))
+	// Mtime
+	// ft.Mtime = time.Unix(int64(stat.Mtimespec.Sec), int64(stat.Mtimespec.Nsec))
+	ft.Mtime = fi.ModTime()
 	ft.Ctime = time.Unix(int64(stat.Ctimespec.Sec), int64(stat.Ctimespec.Nsec))
 	return
 }
