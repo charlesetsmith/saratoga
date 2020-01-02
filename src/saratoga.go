@@ -454,7 +454,7 @@ func main() {
 
 	g, err := gocui.NewGui(gocui.OutputNormal)
 	if err != nil {
-		log.Panicln(err)
+		panic(errors.New("Cannot run gocui user interface"))
 	}
 	defer g.Close()
 
@@ -473,7 +473,8 @@ func main() {
 
 	en0, err = net.InterfaceByName("en0")
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println("Saratoga Unable to lookup interfacebyname: en0")
+		panic(err)
 	}
 
 	// Listen to Unicast & Multicast
