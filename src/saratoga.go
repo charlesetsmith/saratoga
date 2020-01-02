@@ -407,6 +407,12 @@ next:
 
 func main() {
 
+	if len(os.Args) != 2 {
+		fmt.Println("usage:", "saratoga <iface>")
+		fmt.Println("Eg. go run saratoga.go en0")
+		return
+	}
+
 	// Grab my process ID
 	// Pid := os.Getpid()
 
@@ -469,16 +475,16 @@ func main() {
 		IP:   net.ParseIP(sarnet.IPv6Multicast),
 	}
 	// What Interface are we receiving Multicasts on
-	var en0 *net.Interface
+	var iface *net.Interface
 
-	en0, err = net.InterfaceByName("en0")
+	iface, err = net.InterfaceByName(os.Args[1])
 	if err != nil {
-		fmt.Println("Saratoga Unable to lookup interfacebyname: en0")
+		fmt.Println("Saratoga Unable to lookup interfacebyname:", os.Args[1])
 		panic(err)
 	}
 
 	// Listen to Unicast & Multicast
-	v6mcastcon, err := net.ListenMulticastUDP("udp6", en0, &v6mcastaddr)
+	v6mcastcon, err := net.ListenMulticastUDP("udp6", iface, &v6mcastaddr)
 	if err != nil {
 		fmt.Println("Saratoga Unable to Listen on IPv6 Multicast")
 		panic(err)
@@ -488,7 +494,7 @@ func main() {
 		fmt.Println("Saratoga IPv6 Multicast Listener started on", sarnet.UDPinfo(&v6mcastaddr))
 	}
 
-	v4mcastcon, err := net.ListenMulticastUDP("udp4", en0, &v4mcastaddr)
+	v4mcastcon, err := net.ListenMulticastUDP("udp4", iface, &v4mcastaddr)
 	if err != nil {
 		fmt.Println("Saratoga Unable to Listen on IPv4 Multicast")
 		panic(err)
@@ -497,6 +503,28 @@ func main() {
 		go listen(g, v4mcastcon, quit)
 		fmt.Println("Saratoga IPv4 Multicast Listener started on", sarnet.UDPinfo(&v4mcastaddr))
 	}
+
+	// Show Host Interfaces & Address's
+	ifis, _ := net.Interfaces()
+	for _, ifi := range ifis {
+		if ifi.Name == os.Args[1] || ifi.Name == "lo0" {
+			fmt.Println(ifi.Name, ":")
+			adrs, _ := ifi.Addrs()
+			for _, adr := range adrs {
+				if strings.Contains(adr.Network(), "ip") {
+					fmt.Println("\t Unicast ", adr.String(), adr.Network())
+				}
+			}
+			madrs, _ := ifi.MulticastAddrs()
+			for _, madr := range madrs {
+				if strings.Contains(madr.Network(), "ip") {
+					fmt.Println("\t Multicast ", madr.String(), madr.Network())
+				}
+			}
+		}
+	}
+
+	time.Sleep(30 * time.Second)
 
 	g.Cursor = true
 
