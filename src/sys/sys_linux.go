@@ -57,7 +57,7 @@ type FileTime struct {
 }
 
 // NewTime - times of file on linux
-func (ft *FileTime) NewTime(fi os.FileInfo) time.Time {
+func (ft *FileTime) NewTime(fi os.FileInfo) {
 	stat := fi.Sys().(*syscall.Stat_t)
 	ft.Atime = time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec))
 	ft.Mtime = fi.ModTime()

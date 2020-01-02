@@ -261,7 +261,6 @@ func (b *Beacon) Send(g *gocui.Gui, addr string, count uint, interval uint, errf
 	var i uint
 	for i = 0; i < count; i++ {
 		_, err = conn.Write(frame)
-		// screen.Fprintln(g, "msg", "green_black", "Sent:", txb.Print())
 		screen.Fprintf(g, "msg", "green_black", "Beacon %d to %s\n", i+1, addr)
 		select { // We may need to add some more channel i/o here so use select
 		default:
