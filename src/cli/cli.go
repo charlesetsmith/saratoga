@@ -80,13 +80,21 @@ func newsession() uint32 {
 // CurLine -- Current line number in buffer
 var CurLine int
 
+// Hole - Beginning and end of a Hole
+type Hole struct {
+	start uint64
+	end   uint64
+}
+
 // Current Transfer Information
 type cmdTran struct {
-	session  uint32 // Session ID - This is the unique key
-	peer     net.IP // Host we are getting file from
-	filename string // File name to get from remote host
-	flags    string // Flag Header to be used
-	blind    bool   // Is this a blind transfer (no initial request/status exchange)
+	session  uint32   // Session ID - This is the unique key
+	peer     net.IP   // Host we are getting file from
+	filename string   // File name to get from remote host
+	flags    string   // Flag Header to be used
+	blind    bool     // Is this a blind transfer (no initial request/status exchange)
+	frames   [][]byte // Frame queue
+	holes    []Hole   // Holes
 }
 
 var trmu sync.Mutex

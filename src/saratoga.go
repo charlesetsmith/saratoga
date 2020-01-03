@@ -460,7 +460,8 @@ func main() {
 
 	g, err := gocui.NewGui(gocui.OutputNormal)
 	if err != nil {
-		panic(errors.New("Cannot run gocui user interface"))
+		fmt.Printf("Cannot run gocui user interface")
+		panic(err)
 	}
 	defer g.Close()
 

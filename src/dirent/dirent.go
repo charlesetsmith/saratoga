@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"sarflags"
 	"strings"
 
+	"github.com/charlesetsmith/saratoga/src/sarflags"
 	"github.com/charlesetsmith/saratoga/src/sys"
 	"github.com/charlesetsmith/saratoga/src/timestamp"
 )
