@@ -93,7 +93,7 @@ type Hole struct {
 // Current Transfer Information
 type cmdTran struct {
 	session  uint32   // Session ID - This is the unique key
-	peer     net.IP   // Host we are getting file from
+	peer     net.IP   // Remote Host
 	filename string   // File name to get from remote host
 	flags    string   // Flag Header to be used
 	blind    bool     // Is this a blind transfer (no initial request/status exchange)

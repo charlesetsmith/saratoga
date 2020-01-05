@@ -110,16 +110,16 @@ import (
 // *******************************************************************
 
 // MaxUint - Maximum unsigned int on this platform
-const MaxUint = ^uint(0) // What is the biggest unsigned integer supported on platform
+const MaxUint = uint64(^uint(0)) // What is the biggest unsigned integer supported on platform
 
 // MaxUint16 -- Biggest unsigned 16 bit integer
-const MaxUint16 = 65535
+const MaxUint16 = uint64(65535)
 
 // MaxUint32 -- Biggest unsigned 32 bit integer
-const MaxUint32 = 4294967295
+const MaxUint32 = uint64(4294967295)
 
 // MaxUint64 -- Biggest unsigned 64 bit integer
-const MaxUint64 = 18446744073709551615
+const MaxUint64 = uint64(18446744073709551615)
 
 // Length in bits of the saratoga header flag
 const flagsize uint32 = 32
