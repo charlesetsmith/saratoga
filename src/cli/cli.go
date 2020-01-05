@@ -46,13 +46,17 @@ func appendunique(slice []string, i string) []string {
 	return append(slice, i)
 }
 
-// Set the global flags applicable for the particular frame type
-func setglobal(frametype string) string {
+// Set the global flags applicable for the particular frame type & File
+func setglobal(frametype string, fname string) string {
 	fs := ""
 	for _, f := range sarflags.Fields(frametype) {
 		for g := range sarflags.Global {
 			if g == f {
-				fs += f + "=" + sarflags.Global[f] + ","
+				if f == "descriptor" {
+					fs += sarflags.FileD(fname) + ","
+				} else {
+					fs += f + "=" + sarflags.Global[f] + ","
+				}
 			}
 		}
 	}
@@ -123,9 +127,9 @@ func addtran(g *gocui.Gui, ip string, fname string, blind bool, flags string) *c
 		t.filename = fname
 		t.blind = blind
 		if !blind { // request/status exchange
-			t.flags = flags + "," + setglobal("request")
+			t.flags = flags + "," + setglobal("request", t.filename)
 		} else { // no request/status required just metadata then data
-			t.flags = flags + "," + setglobal("metadata")
+			t.flags = flags + "," + setglobal("metadata", t.filename)
 		}
 		Ctran = append(Ctran, t)
 		if !blind {
@@ -254,8 +258,8 @@ func handlebeacon(g *gocui.Gui, args []string) {
 
 	// var bmu sync.Mutex // Protects beacon.Beacon structure (EID)
 
-	clibeacon.flags = setglobal("beacon") // Initialise Global Beacon flags
-	clibeacon.interval = Cinterval        // Set up the correct interval
+	clibeacon.flags = setglobal("beacon", "") // Initialise Global Beacon flags
+	clibeacon.interval = Cinterval            // Set up the correct interval
 
 	// Show current Cbeacon flags and lists - beacon
 	if len(args) == 1 {
@@ -291,7 +295,7 @@ func handlebeacon(g *gocui.Gui, args []string) {
 			screen.Fprintln(g, "msg", "green_black", cmd["beacon"][1])
 			return
 		case "off": // remove and disable all beacons
-			clibeacon.flags = setglobal("beacon")
+			clibeacon.flags = setglobal("beacon", "")
 			clibeacon.count = 0
 			clibeacon.interval = Cinterval
 			clibeacon.host = nil
@@ -299,7 +303,7 @@ func handlebeacon(g *gocui.Gui, args []string) {
 			return
 		case "v4": // V4 Multicast
 			screen.Fprintln(g, "msg", "green_black", "Sending beacons to IPv4 Multicast")
-			clibeacon.flags = setglobal("beacon")
+			clibeacon.flags = setglobal("beacon", "")
 			clibeacon.v4mcast = true
 			clibeacon.count = 1
 			// Start up the beacon client sending count IPv4 beacons
@@ -307,7 +311,7 @@ func handlebeacon(g *gocui.Gui, args []string) {
 			return
 		case "v6": // V6 Multicast
 			screen.Fprintln(g, "msg", "green_black", "Sending beacons to IPv6 Multicast")
-			clibeacon.flags = setglobal("beacon")
+			clibeacon.flags = setglobal("beacon", "")
 			clibeacon.v6mcast = true
 			clibeacon.count = 1
 			// Start up the beacon client sending count IPv6 beacons
@@ -755,12 +759,13 @@ func peers(g *gocui.Gui, args []string) {
 		screen.Fprintln(g, "msg", "purple_black", "No Peers")
 		return
 	}
-	screen.Fprintf(g, "msg", "green_black", "Address | Freespace | EID | Created | Modified\n")
+	screen.Fprintf(g, "msg", "green_black", "Address | Freespace | EID | Max Desc Size | Created | Modified\n")
 	for p := range beacon.Peers {
-		screen.Fprintf(g, "msg", "green_black", "%s | %dMB | %s | %s | %s\n",
+		screen.Fprintf(g, "msg", "green_black", "%s | %dMB | %s | %s | %s | %s\n",
 			beacon.Peers[p].Addr,
 			beacon.Peers[p].Freespace/1024,
 			beacon.Peers[p].Eid,
+			beacon.Peers[p].Maxdesc,
 			beacon.Peers[p].Created.Print(),
 			beacon.Peers[p].Updated.Print())
 	}

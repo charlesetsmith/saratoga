@@ -273,7 +273,7 @@ func (b *Beacon) Send(g *gocui.Gui, addr string, count uint, interval uint, errf
 
 // Handler We have an inbound beacon frame
 func (b *Beacon) Handler(g *gocui.Gui, from *net.UDPAddr) string {
-	// fmt.Println(b.Print())
+	// screen.Fprintln(g, "msg", "yellow_black", b.Print())
 	// We add / alter the peer information
 	if b.NewPeer(from) == true {
 		screen.Fprintln(g, "msg", "yellow_black", "Added/Changed Peer", from.String())
@@ -288,6 +288,7 @@ type Peer struct {
 	Addr      string              // The Peer IP Address. is format net.UDPAddr.IP.String()
 	Freespace uint64              // 0 if freespace not advertised
 	Eid       string              // Exactly who sent this and from what PID
+	Maxdesc   string              // The maximum descriptor size of the peer
 	Created   timestamp.Timestamp // When was this Peer created
 	Updated   timestamp.Timestamp // When was this Peer last updated
 }
@@ -310,6 +311,9 @@ func (b *Beacon) NewPeer(from *net.UDPAddr) bool {
 			if Peers[p].Eid != b.Eid { // Update Eid
 				Peers[p].Eid = b.Eid
 			}
+			if Peers[p].Maxdesc != sarflags.GetStr(b.Header, "descriptor") { // Update Maxdesc
+				Peers[p].Maxdesc = sarflags.GetStr(b.Header, "descriptor")
+			}
 			Peers[p].Updated.Now("posix32_32") // Last updated now
 			return true
 		}
@@ -319,6 +323,7 @@ func (b *Beacon) NewPeer(from *net.UDPAddr) bool {
 	newp.Addr = from.IP.String()
 	newp.Freespace = b.Freespace
 	newp.Eid = b.Eid
+	newp.Maxdesc = sarflags.GetStr(b.Header, "descriptor")
 	newp.Created.Now("posix32_32")
 	newp.Updated = newp.Created
 

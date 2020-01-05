@@ -5,6 +5,7 @@ package sarflags
 import (
 	"errors"
 	"log"
+	"os"
 )
 
 // Saratoga Sflag Header Field Format - 32 bit unsigned integer (uint32)
@@ -560,6 +561,31 @@ var dflagvals = map[string][]dflaginfo{
 		dflaginfo{name: "yes", val: 0},
 		dflaginfo{name: "no", val: 1},
 	},
+}
+
+// FileD - Get the appropriate descriptor size based on file length
+// but only if the global descriptor is "auto"
+func FileD(fname string) string {
+	if fi, err := os.Stat(fname); err == nil {
+		size := uint64(fi.Size())
+		if size <= MaxUint16 {
+			return "descriptor=d16"
+		}
+		if size <= MaxUint32 {
+			return "descriptor=d32"
+		}
+		if size <= MaxUint64 {
+			return "descriptor=d64"
+		}
+	}
+	// Just send back the maximum supported descriptor
+	if MaxUint <= MaxUint16 {
+		return "descriptor=d16"
+	}
+	if MaxUint <= MaxUint32 {
+		return "descriptor=d32"
+	}
+	return "descriptor=d64"
 }
 
 // GetD - Given a current flag and bitfield name return the integer value of the bitfield
