@@ -38,7 +38,7 @@ func (t *Timestamp) New(flag string, ts time.Time) error {
 	case "posix32":
 		secs := ts.Unix()
 		t.secs = uint64(secs)
-		if secs > sarflags.MaxUint32 {
+		if t.secs > sarflags.MaxUint32 {
 			return errors.New("posix32:Seconds exceed 32 bits")
 		}
 		t.nsecs = 0
@@ -69,7 +69,7 @@ func (t *Timestamp) New(flag string, ts time.Time) error {
 		secs := ts.Unix()
 		secs -= epoch2k.Unix()
 		t.secs = uint64(secs)
-		if secs < 0 || secs > sarflags.MaxUint32 {
+		if t.secs < 0 || t.secs > sarflags.MaxUint32 {
 			return errors.New("epoch2000_32:Seconds out of bounds")
 		}
 		t.nsecs = 0
