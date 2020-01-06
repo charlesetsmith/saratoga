@@ -525,8 +525,8 @@ func main() {
 		}
 	}
 
-	fmt.Println("Sleeping for 15 seconds so you can check the interfaces")
-	time.Sleep(15 * time.Second)
+	fmt.Println("Sleeping for 10 seconds so you can check the interfaces")
+	time.Sleep(10 * time.Second)
 
 	g.Cursor = true
 

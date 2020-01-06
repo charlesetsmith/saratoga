@@ -3,15 +3,12 @@ package cli
 import (
 	"errors"
 	"net"
-	"os"
 	"strconv"
 	"strings"
-	"sync"
 
-	"github.com/charlesetsmith/saratoga/src/metadata"
+	"github.com/charlesetsmith/saratoga/src/transfer"
 
 	"github.com/charlesetsmith/saratoga/src/beacon"
-	"github.com/charlesetsmith/saratoga/src/request"
 	"github.com/charlesetsmith/saratoga/src/sarflags"
 	"github.com/charlesetsmith/saratoga/src/sarnet"
 	"github.com/charlesetsmith/saratoga/src/screen"
@@ -46,168 +43,8 @@ func appendunique(slice []string, i string) []string {
 	return append(slice, i)
 }
 
-// Set the global flags applicable for the particular frame type & File
-func setglobal(frametype string, fname string) string {
-	fs := ""
-	for _, f := range sarflags.Fields(frametype) {
-		for g := range sarflags.Global {
-			if g == f {
-				if f == "descriptor" {
-					fs += sarflags.FileD(fname) + ","
-				} else {
-					fs += f + "=" + sarflags.Global[f] + ","
-				}
-			}
-		}
-	}
-	return strings.TrimRight(fs, ",")
-}
-
-// current protected session number
-var smu sync.Mutex
-var sessionid uint32
-
-// Create new Session number
-func newsession() uint32 {
-
-	smu.Lock()
-	defer smu.Unlock()
-
-	if sessionid == 0 {
-		sessionid = uint32(os.Getpid()) + 1
-	} else {
-		sessionid++
-	}
-	return sessionid
-}
-
 // CurLine -- Current line number in buffer
 var CurLine int
-
-// Hole - Beginning and end of a Hole
-type Hole struct {
-	start uint64
-	end   uint64
-}
-
-// Current Transfer Information
-type cmdTran struct {
-	session  uint32   // Session ID - This is the unique key
-	peer     net.IP   // Remote Host
-	filename string   // File name to get from remote host
-	flags    string   // Flag Header to be used
-	blind    bool     // Is this a blind transfer (no initial request/status exchange)
-	frames   [][]byte // Frame queue
-	holes    []Hole   // Holes
-}
-
-var trmu sync.Mutex
-
-// Ctran - Get list used in get,getrm,getdir,put,putrm & delete
-var Ctran = []cmdTran{}
-
-// Add a new transfer to the Ctran list and return pointer to it
-func addtran(g *gocui.Gui, ip string, fname string, blind bool, flags string) *cmdTran {
-	var t cmdTran
-
-	// screen.Fprintln(g, "msg", "red_black", "Addtran for", ip, fname, flags)
-	if addr := net.ParseIP(ip); addr != nil { // We have a valid IP Address
-		for _, i := range Ctran { // Don't add duplicates
-			if addr.Equal(i.peer) && fname == i.filename {
-				screen.Fprintln(g, "msg", "red_black", "Transaction for", fname, "currently in progress")
-				return nil
-			}
-		}
-
-		// Lock it as we are going to add a new transfer slice
-		trmu.Lock()
-		defer trmu.Unlock()
-		t.session = newsession()
-		t.peer = addr
-		t.filename = fname
-		t.blind = blind
-		if !blind { // request/status exchange
-			t.flags = flags + "," + setglobal("request", t.filename)
-		} else { // no request/status required just metadata then data
-			t.flags = flags + "," + setglobal("metadata", t.filename)
-		}
-		Ctran = append(Ctran, t)
-		if !blind {
-			screen.Fprintln(g, "msg", "green_black", "Added Transaction to ",
-				t.peer.String(), t.filename, t.flags)
-		} else {
-			screen.Fprintln(g, "msg", "green_black", "Added Blind Transaction to ",
-				t.peer.String(), t.filename, t.flags)
-		}
-		return &t
-	}
-	screen.Fprintln(g, "msg", "red_black", "Transaction not added, invalid IP address", ip)
-	return nil
-}
-
-// Send - Go routine to setup a client connection to a peer to get/put/delete/getdir files
-func (t *cmdTran) send(g *gocui.Gui, errflag chan string) {
-
-	var err error
-
-	// Set up the connection
-	var udpad string
-	if t.peer.To4() == nil { // IPv6
-		udpad = "[" + t.peer.String() + "]" + ":" + strconv.Itoa(sarnet.Port())
-	} else { // IPv4
-		udpad = t.peer.String() + ":" + strconv.Itoa(sarnet.Port())
-	}
-	conn, err := net.Dial("udp", udpad)
-	defer conn.Close()
-	if err != nil {
-		errflag <- "cantsend"
-		return
-	}
-
-	// Create the request & make a frame for normal request/status exchange startup
-	var frame []byte
-	if !t.blind {
-		var req request.Request
-		r := &req
-		if err = r.New(t.flags, t.session, t.filename, nil); err != nil {
-			screen.Fprintln(g, "msg", "red_black", "Cannot create request", err.Error())
-			errflag <- "badrequest"
-			return
-		}
-		if frame, err = r.Put(); err != nil {
-			errflag <- "badrequest"
-			return
-		}
-	} else { // Create the metadata & make a frame for blind put startup
-		var met metadata.MetaData
-		m := &met
-		if err = m.New(t.flags, t.session, t.filename); err != nil {
-			screen.Fprintln(g, "msg", "red_black", "Cannot create metadata", err.Error())
-			errflag <- "badrequest"
-			return
-		}
-		if frame, err = m.Put(); err != nil {
-			errflag <- "badrequest"
-			return
-		}
-	}
-
-	// Send the frame
-	_, err = conn.Write(frame)
-	if err != nil {
-		errflag <- "cantsend"
-		return
-	}
-	// screen.Fprintln(g, "msg", "green_black", "Sent:", txb.Print())
-	if !t.blind {
-		screen.Fprintf(g, "msg", "green_black", "Request Sent to %s\n",
-			t.peer.String())
-	} else {
-		screen.Fprintf(g, "msg", "green_black", "Metadata Sent for blind put to %s\n",
-			t.peer.String())
-	}
-	errflag <- "success"
-}
 
 // Send count beacons to host
 func sendbeacons(g *gocui.Gui, flags string, count uint, interval uint, host string) {
@@ -258,8 +95,8 @@ func handlebeacon(g *gocui.Gui, args []string) {
 
 	// var bmu sync.Mutex // Protects beacon.Beacon structure (EID)
 
-	clibeacon.flags = setglobal("beacon", "") // Initialise Global Beacon flags
-	clibeacon.interval = Cinterval            // Set up the correct interval
+	clibeacon.flags = sarflags.Setglobal("beacon", "") // Initialise Global Beacon flags
+	clibeacon.interval = Cinterval                     // Set up the correct interval
 
 	// Show current Cbeacon flags and lists - beacon
 	if len(args) == 1 {
@@ -295,7 +132,7 @@ func handlebeacon(g *gocui.Gui, args []string) {
 			screen.Fprintln(g, "msg", "green_black", cmd["beacon"][1])
 			return
 		case "off": // remove and disable all beacons
-			clibeacon.flags = setglobal("beacon", "")
+			clibeacon.flags = sarflags.Setglobal("beacon", "")
 			clibeacon.count = 0
 			clibeacon.interval = Cinterval
 			clibeacon.host = nil
@@ -303,7 +140,7 @@ func handlebeacon(g *gocui.Gui, args []string) {
 			return
 		case "v4": // V4 Multicast
 			screen.Fprintln(g, "msg", "green_black", "Sending beacons to IPv4 Multicast")
-			clibeacon.flags = setglobal("beacon", "")
+			clibeacon.flags = sarflags.Setglobal("beacon", "")
 			clibeacon.v4mcast = true
 			clibeacon.count = 1
 			// Start up the beacon client sending count IPv4 beacons
@@ -311,7 +148,7 @@ func handlebeacon(g *gocui.Gui, args []string) {
 			return
 		case "v6": // V6 Multicast
 			screen.Fprintln(g, "msg", "green_black", "Sending beacons to IPv6 Multicast")
-			clibeacon.flags = setglobal("beacon", "")
+			clibeacon.flags = sarflags.Setglobal("beacon", "")
 			clibeacon.v6mcast = true
 			clibeacon.count = 1
 			// Start up the beacon client sending count IPv6 beacons
@@ -376,18 +213,13 @@ func handlebeacon(g *gocui.Gui, args []string) {
 }
 
 // blind put/send a file to a destination
-func blindput(g *gocui.Gui, args []string) {
-	var t *cmdTran
+func putblind(g *gocui.Gui, args []string) {
+
 	errflag := make(chan string, 1) // The return channel holding the saratoga errflag
 
 	if len(args) == 1 {
-		if len(Ctran) == 0 {
-			screen.Fprintln(g, "msg", "green_black", "No current put transactions")
-		} else {
-			for _, i := range Ctran {
-				screen.Fprintln(g, "msg", "green_black", i.peer, i.filename, i.flags)
-			}
-		}
+		transfer.Info(g, "putblind")
+		return
 	}
 	if len(args) == 2 && args[1] == "?" {
 		screen.Fprintln(g, "msg", "green_black", cmd["blindput"][0])
@@ -395,13 +227,14 @@ func blindput(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 3 {
+		var t transfer.Transfer
 		// We send the Metadata and do not bother with request/status exchange
-		if t = addtran(g, args[1], args[2], true, "transfer=file"); t != nil {
-			go t.send(g, errflag)
+		if err := t.New(g, "putblind", args[1], args[2], true, "transfer=file"); err != nil {
+			go t.Client(g, errflag)
 			errcode := <-errflag
 			if errcode != "success" {
 				screen.Fprintln(g, "msg", "red_black", "Error:", errcode,
-					"Unable to send file to ", t.peer.String())
+					"Unable to send file: ", t.Print())
 			}
 		}
 		return
@@ -608,16 +441,10 @@ func freespace(g *gocui.Gui, args []string) {
 }
 
 func get(g *gocui.Gui, args []string) {
-	var t *cmdTran
 
 	if len(args) == 1 {
-		if len(Ctran) == 0 {
-			screen.Fprintln(g, "msg", "green_black", "No current transactions")
-		} else {
-			for _, i := range Ctran {
-				screen.Fprintln(g, "msg", "green_black", i.peer.String(), i.filename)
-			}
-		}
+		transfer.Info(g, "get")
+		return
 	}
 	if len(args) == 2 && args[1] == "?" {
 		screen.Fprintln(g, "msg", "green_black", cmd["get"][0])
@@ -625,7 +452,8 @@ func get(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 3 {
-		if t = addtran(g, args[1], args[2], false, "reqtype=get,fileordir=file"); t != nil {
+		var t transfer.Transfer
+		if err := t.New(g, "get", args[1], args[2], false, "reqtype=get,fileordir=file"); err != nil {
 
 		}
 		return
@@ -634,16 +462,10 @@ func get(g *gocui.Gui, args []string) {
 }
 
 func getdir(g *gocui.Gui, args []string) {
-	var t *cmdTran
 
 	if len(args) == 1 {
-		if len(Ctran) == 0 {
-			screen.Fprintln(g, "msg", "green_black", "No current transactions")
-		} else {
-			for _, i := range Ctran {
-				screen.Fprintln(g, "msg", "green_black", i.peer.String(), i.filename)
-			}
-		}
+		transfer.Info(g, "getdir")
+		return
 	}
 	if len(args) == 2 && args[1] == "?" {
 		screen.Fprintln(g, "msg", "green_black", cmd["getdir"][0])
@@ -651,7 +473,8 @@ func getdir(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 3 {
-		if t = addtran(g, args[1], args[2], false, "reqtype=getdir,fileordir=directory"); t != nil {
+		var t transfer.Transfer
+		if err := t.New(g, "getdir", args[1], args[2], false, "reqtype=getdir,fileordir=directory"); err != nil {
 
 		}
 		return
@@ -660,16 +483,9 @@ func getdir(g *gocui.Gui, args []string) {
 }
 
 func getrm(g *gocui.Gui, args []string) {
-	var t *cmdTran
-
 	if len(args) == 1 {
-		if len(Ctran) == 0 {
-			screen.Fprintln(g, "msg", "green_black", "No current get transactions")
-		} else {
-			for _, i := range Ctran {
-				screen.Fprintln(g, "msg", "green_black", i.peer.String(), i.filename)
-			}
-		}
+		transfer.Info(g, "getrm")
+		return
 	}
 	if len(args) == 2 && args[1] == "?" {
 		screen.Fprintln(g, "msg", "green_black", cmd["getrm"][0])
@@ -677,7 +493,8 @@ func getrm(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 3 {
-		if t = addtran(g, args[1], args[2], false, "reqtype=getdelete,fileordir=file"); t != nil {
+		var t transfer.Transfer
+		if err := t.New(g, "getrm", args[1], args[2], false, "reqtype=getdelete,fileordir=file"); err != nil {
 
 		}
 		return
@@ -773,17 +590,12 @@ func peers(g *gocui.Gui, args []string) {
 
 // put/send a file to a destination
 func put(g *gocui.Gui, args []string) {
-	var t *cmdTran
+
 	errflag := make(chan string, 1) // The return channel holding the saratoga errflag
 
 	if len(args) == 1 {
-		if len(Ctran) == 0 {
-			screen.Fprintln(g, "msg", "green_black", "No current put transactions")
-		} else {
-			for _, i := range Ctran {
-				screen.Fprintln(g, "msg", "green_black", i.peer, i.filename, i.flags)
-			}
-		}
+		transfer.Info(g, "put")
+		return
 	}
 	if len(args) == 2 && args[1] == "?" {
 		screen.Fprintln(g, "msg", "green_black", cmd["put"][0])
@@ -791,12 +603,13 @@ func put(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 3 {
-		if t = addtran(g, args[1], args[2], false, "reqtype=put,fileordir=file"); t != nil {
-			go t.send(g, errflag)
+		var t transfer.Transfer
+		if err := t.New(g, "put", args[1], args[2], false, "reqtype=put,fileordir=file"); err != nil {
+			go t.Client(g, errflag)
 			errcode := <-errflag
 			if errcode != "success" {
 				screen.Fprintln(g, "msg", "red_black", "Error:", errcode,
-					"Unable to send file to ", t.peer.String())
+					"Unable to send file: ", t.Print())
 			}
 		}
 		return
@@ -806,16 +619,12 @@ func put(g *gocui.Gui, args []string) {
 
 // put/send a file file to a remote destination then remove it from the origin
 func putrm(g *gocui.Gui, args []string) {
-	var t *cmdTran
+
+	errflag := make(chan string, 1) // The return channel holding the saratoga errflag
 
 	if len(args) == 1 {
-		if len(Ctran) == 0 {
-			screen.Fprintln(g, "msg", "green_black", "No current transactions")
-		} else {
-			for _, i := range Ctran {
-				screen.Fprintln(g, "msg", "green_black", i.peer, i.filename, i.flags)
-			}
-		}
+		transfer.Info(g, "putrm")
+		return
 	}
 	if len(args) == 2 && args[1] == "?" {
 		screen.Fprintln(g, "msg", "green_black", cmd["putrm"][0])
@@ -823,8 +632,16 @@ func putrm(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 3 {
-		if t = addtran(g, args[1], args[2], false, "reqtype=putdelete,fileordir=file"); t != nil {
-
+		var t transfer.Transfer
+		if err := t.New(g, "putrm", args[1], args[2], false, "reqtype=putdelete,fileordir=file"); err != nil {
+			go t.Client(g, errflag)
+			errcode := <-errflag
+			if errcode != "success" {
+				screen.Fprintln(g, "msg", "red_black", "Error:", errcode,
+					"Unable to send file: ", t.Print())
+			} else {
+				// NOW REMOVE THE LOCAL FILE AS IT SUCCEEDED
+			}
 		}
 		return
 	}
@@ -833,16 +650,10 @@ func putrm(g *gocui.Gui, args []string) {
 
 // remove a file from a remote destination
 func rm(g *gocui.Gui, args []string) {
-	var t *cmdTran
 
 	if len(args) == 1 {
-		if len(Ctran) == 0 {
-			screen.Fprintln(g, "msg", "green_black", "No current transactions")
-		} else {
-			for _, i := range Ctran {
-				screen.Fprintln(g, "msg", "green_black", i.peer, i.filename, i.flags)
-			}
-		}
+		transfer.Info(g, "rm")
+		return
 	}
 	if len(args) == 2 && args[1] == "?" {
 		screen.Fprintln(g, "msg", "green_black", cmd["rm"][0])
@@ -850,7 +661,8 @@ func rm(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 3 {
-		if t = addtran(g, args[1], args[2], false, "reqtype=delete,fileordir=file"); t != nil {
+		var t transfer.Transfer
+		if err := t.New(g, "rm", args[1], args[2], false, "reqtype=delete,fileordir=file"); err != nil {
 
 		}
 		return
@@ -860,16 +672,10 @@ func rm(g *gocui.Gui, args []string) {
 
 // remove a directory from a remote destination
 func rmdir(g *gocui.Gui, args []string) {
-	var t *cmdTran
 
 	if len(args) == 1 {
-		if len(Ctran) == 0 {
-			screen.Fprintln(g, "msg", "green_black", "No current transactions")
-		} else {
-			for _, i := range Ctran {
-				screen.Fprintln(g, "msg", "green_black", i.peer, i.filename, i.flags)
-			}
-		}
+		transfer.Info(g, "rmdir")
+		return
 	}
 	if len(args) == 2 && args[1] == "?" {
 		screen.Fprintln(g, "msg", "green_black", cmd["rmdir"][0])
@@ -877,7 +683,8 @@ func rmdir(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 3 {
-		if t = addtran(g, args[1], args[2], false, "reqtype=delete,fileordir=directory"); t != nil {
+		var t transfer.Transfer
+		if err := t.New(g, "rmdir", args[1], args[2], false, "reqtype=delete,fileordir=directory"); err != nil {
 
 		}
 		return
@@ -1086,14 +893,7 @@ func timezone(g *gocui.Gui, args []string) {
 // show current transfers in progress & % completed
 func transfers(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
-		if len(Ctran) > 0 {
-			screen.Fprintln(g, "msg", "green_black", "Transfers in progress:")
-			for _, i := range Ctran {
-				screen.Fprintln(g, "msg", "green_black", i.peer.String(), i.filename, i.flags)
-			}
-		} else {
-			screen.Fprintln(g, "msg", "green_black", "No transfers currently in progress")
-		}
+		transfer.Info(g, "")
 		return
 	}
 	if len(args) == 2 {
@@ -1101,6 +901,8 @@ func transfers(g *gocui.Gui, args []string) {
 		case "?":
 			screen.Fprintln(g, "msg", "green_black", cmd["transfers"][0])
 			screen.Fprintln(g, "msg", "green_black", cmd["transfers"][1])
+		case "get", "getrm", "getdir", "put", "putblind", "putrm", "rm", "rmdir":
+			transfer.Info(g, args[1])
 		default:
 			screen.Fprintln(g, "msg", "green_black", cmd["transfers"][0])
 		}
@@ -1150,7 +952,6 @@ type cmdfunc func(*gocui.Gui, []string)
 var cmdhandler = map[string]cmdfunc{
 	"?":          help,
 	"beacon":     handlebeacon,
-	"blindput":   blindput,
 	"cancel":     cancel,
 	"checksum":   checksum,
 	"debug":      debug,
@@ -1169,6 +970,7 @@ var cmdhandler = map[string]cmdfunc{
 	"peers":      peers,
 	"prompt":     prompt,
 	"put":        put,
+	"putblind":   putblind,
 	"putrm":      putrm,
 	"quit":       exit,
 	"rm":         rm,
@@ -1311,8 +1113,8 @@ var cmd = map[string][2]string{
 		"show current or set to use local or universal time",
 	},
 	"transfers": [2]string{
-		"transfers",
-		"list current active transfers",
+		"transfers [get|getrm|getdir|put|putblind|putrm|rm|rmdir]",
+		"list current active transfers of specific type or all",
 	},
 	"txwilling": [2]string{
 		"txwilling [on|off|capable]",

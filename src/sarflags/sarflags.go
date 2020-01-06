@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"strings"
 )
 
 // Saratoga Sflag Header Field Format - 32 bit unsigned integer (uint32)
@@ -491,6 +492,23 @@ func Good(field string) bool {
 		}
 	}
 	return false
+}
+
+// Setglobal - Set the global flags applicable for the particular frame type & File
+func Setglobal(frametype string, fname string) string {
+	fs := ""
+	for _, f := range Fields(frametype) {
+		for g := range Global {
+			if g == f {
+				if f == "descriptor" {
+					fs += FileD(fname) + ","
+				} else {
+					fs += f + "=" + Global[f] + ","
+				}
+			}
+		}
+	}
+	return strings.TrimRight(fs, ",")
 }
 
 // *******************************************************************
