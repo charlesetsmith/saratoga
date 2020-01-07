@@ -16,6 +16,9 @@ import (
 	"github.com/jroimartin/gocui"
 )
 
+// Ttypes - Transfer types
+var Ttypes = []string{"get", "getrm", "getdir", "put", "putblind", "putrm", "rm", "rmdir"}
+
 // current protected session number
 var smu sync.Mutex
 var sessionid uint32
@@ -96,6 +99,50 @@ func (t *Transfer) New(g *gocui.Gui, ttype string, ip string, fname string, blin
 	}
 	screen.Fprintln(g, "msg", "red_black", "Transfer not added, invalid IP address", ip)
 	return errors.New("Invalid IP Address")
+}
+
+// Match - Return a pointer to the transfer if we find it, nil otherwise
+func Match(ttype string, ip string, fname string) *Transfer {
+	ttypeok := false
+	addrok := false
+
+	// Check that transfer type is valid
+	for _, tt := range Ttypes {
+		if tt == ttype {
+			ttypeok = true
+			break
+		}
+	}
+	// Check that ip address is valid
+	var addr net.IP
+	if addr = net.ParseIP(ip); addr != nil { // We have a valid IP Address
+		addrok = true
+	}
+	if !ttypeok || !addrok {
+		return nil
+	}
+
+	for _, i := range Transfers {
+		if ttype == i.ttype && addr.Equal(i.peer) && fname == i.filename {
+			return &i
+		}
+	}
+	return nil
+}
+
+// Remove - Remove a Transfer from the Transfers
+func (t *Transfer) Remove() error {
+	trmu.Lock()
+	defer trmu.Unlock()
+	for i := len(Transfers) - 1; i >= 0; i-- {
+		if t.peer.Equal(Transfers[i].peer) && t.filename == Transfers[i].filename {
+			Transfers = append(Transfers[:i], Transfers[i+1:]...)
+			return nil
+		}
+	}
+	emsg := fmt.Sprintf("Cannot remove %s Transfer for %s to %s",
+		t.ttype, t.filename, t.peer.String())
+	return errors.New(emsg)
 }
 
 // Print - String of relevant transfer info

@@ -91,7 +91,7 @@ type cmdBeacon struct {
 // clibeacon - Beacon commands
 var clibeacon cmdBeacon
 
-func handlebeacon(g *gocui.Gui, args []string) {
+func cmdbeacon(g *gocui.Gui, args []string) {
 
 	// var bmu sync.Mutex // Protects beacon.Beacon structure (EID)
 
@@ -210,36 +210,6 @@ func handlebeacon(g *gocui.Gui, args []string) {
 		}
 	}
 	screen.Fprintln(g, "msg", "green_black", "")
-}
-
-// blind put/send a file to a destination
-func putblind(g *gocui.Gui, args []string) {
-
-	errflag := make(chan string, 1) // The return channel holding the saratoga errflag
-
-	if len(args) == 1 {
-		transfer.Info(g, "putblind")
-		return
-	}
-	if len(args) == 2 && args[1] == "?" {
-		screen.Fprintln(g, "msg", "green_black", cmd["blindput"][0])
-		screen.Fprintln(g, "msg", "green_black", cmd["blindput"][1])
-		return
-	}
-	if len(args) == 3 {
-		var t transfer.Transfer
-		// We send the Metadata and do not bother with request/status exchange
-		if err := t.New(g, "putblind", args[1], args[2], true, "transfer=file"); err != nil {
-			go t.Client(g, errflag)
-			errcode := <-errflag
-			if errcode != "success" {
-				screen.Fprintln(g, "msg", "red_black", "Error:", errcode,
-					"Unable to send file: ", t.Print())
-			}
-		}
-		return
-	}
-	screen.Fprintln(g, "msg", "red_black", cmd["blindput"][0])
 }
 
 func cancel(g *gocui.Gui, args []string) {
@@ -551,6 +521,24 @@ func ls(g *gocui.Gui, args []string) {
 	screen.Fprintln(g, "msg", "green_black", args)
 }
 
+// Display all of the peer information learned frm beacons
+func peers(g *gocui.Gui, args []string) {
+	if len(beacon.Peers) == 0 {
+		screen.Fprintln(g, "msg", "purple_black", "No Peers")
+		return
+	}
+	screen.Fprintf(g, "msg", "green_black", "Address | Freespace | EID | Max Desc Size | Created | Modified\n")
+	for p := range beacon.Peers {
+		screen.Fprintf(g, "msg", "green_black", "%s | %dMB | %s | %s | %s | %s\n",
+			beacon.Peers[p].Addr,
+			beacon.Peers[p].Freespace/1024,
+			beacon.Peers[p].Eid,
+			beacon.Peers[p].Maxdesc,
+			beacon.Peers[p].Created.Print(),
+			beacon.Peers[p].Updated.Print())
+	}
+}
+
 // Cprompt - Command line prompt
 var Cprompt = "saratoga"
 
@@ -567,24 +555,6 @@ func prompt(g *gocui.Gui, args []string) {
 	if len(args) == 2 {
 		Cprompt = args[1]
 		return
-	}
-}
-
-// Display all of the peer information learned frm beacons
-func peers(g *gocui.Gui, args []string) {
-	if len(beacon.Peers) == 0 {
-		screen.Fprintln(g, "msg", "purple_black", "No Peers")
-		return
-	}
-	screen.Fprintf(g, "msg", "green_black", "Address | Freespace | EID | Max Desc Size | Created | Modified\n")
-	for p := range beacon.Peers {
-		screen.Fprintf(g, "msg", "green_black", "%s | %dMB | %s | %s | %s | %s\n",
-			beacon.Peers[p].Addr,
-			beacon.Peers[p].Freespace/1024,
-			beacon.Peers[p].Eid,
-			beacon.Peers[p].Maxdesc,
-			beacon.Peers[p].Created.Print(),
-			beacon.Peers[p].Updated.Print())
 	}
 }
 
@@ -605,6 +575,39 @@ func put(g *gocui.Gui, args []string) {
 	if len(args) == 3 {
 		var t transfer.Transfer
 		if err := t.New(g, "put", args[1], args[2], false, "reqtype=put,fileordir=file"); err != nil {
+			go t.Client(g, errflag) // Actually do the transfer
+			errcode := <-errflag
+			if errcode != "success" {
+				screen.Fprintln(g, "msg", "red_black", "Error:", errcode,
+					"Unable to send file: ", t.Print())
+				if derr := t.Remove(); derr != nil {
+					screen.Fprintln(g, "msg", "red_black", "Unable to remove transfer: ", t.Print())
+				}
+			}
+		}
+		return
+	}
+	screen.Fprintln(g, "msg", "red_black", cmd["put"][0])
+}
+
+// blind put/send a file to a destination
+func putblind(g *gocui.Gui, args []string) {
+
+	errflag := make(chan string, 1) // The return channel holding the saratoga errflag
+
+	if len(args) == 1 {
+		transfer.Info(g, "putblind")
+		return
+	}
+	if len(args) == 2 && args[1] == "?" {
+		screen.Fprintln(g, "msg", "green_black", cmd["blindput"][0])
+		screen.Fprintln(g, "msg", "green_black", cmd["blindput"][1])
+		return
+	}
+	if len(args) == 3 {
+		var t transfer.Transfer
+		// We send the Metadata and do not bother with request/status exchange
+		if err := t.New(g, "putblind", args[1], args[2], true, "transfer=file"); err != nil {
 			go t.Client(g, errflag)
 			errcode := <-errflag
 			if errcode != "success" {
@@ -614,7 +617,7 @@ func put(g *gocui.Gui, args []string) {
 		}
 		return
 	}
-	screen.Fprintln(g, "msg", "red_black", cmd["put"][0])
+	screen.Fprintln(g, "msg", "red_black", cmd["blindput"][0])
 }
 
 // put/send a file file to a remote destination then remove it from the origin
@@ -692,6 +695,26 @@ func rmdir(g *gocui.Gui, args []string) {
 	screen.Fprintln(g, "msg", "red_black", cmd["rmdir"][0])
 }
 
+func rmtran(g *gocui.Gui, args []string) {
+
+	if len(args) == 1 || (len(args) == 2 && args[1] == "?") || len(args) != 4 {
+		screen.Fprintln(g, "msg", "green_black", cmd["rmtransfer"][0])
+		screen.Fprintln(g, "msg", "green_black", cmd["rmtransfer"][1])
+		return
+	}
+	ttype := args[1]
+	addr := args[2]
+	fname := args[3]
+	if t := transfer.Match(ttype, addr, fname); t != nil {
+		if err := t.Remove(); err != nil {
+			screen.Fprintln(g, "msg", "red_black", err.Error())
+		}
+	} else {
+		screen.Fprintln(g, "msg", "red_black", "No such transfer: ", ttype, addr, fname)
+	}
+	return
+}
+
 // Are we willing to transmit files
 func rxwilling(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
@@ -749,6 +772,7 @@ func stream(g *gocui.Gui, args []string) {
 }
 
 type cmdTimeout struct {
+	metadata int
 	request  int
 	status   int
 	transfer int
@@ -760,6 +784,11 @@ var Ctimeout = cmdTimeout{}
 // set timeouts for responses to request/status/transfer in seconds
 func timeout(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
+		if Ctimeout.metadata == 0 {
+			screen.Fprintln(g, "msg", "green_black", "metadata: No timeout")
+		} else {
+			screen.Fprintln(g, "msg", "green_black", "metadata:", Ctimeout.metadata, "seconds")
+		}
 		if Ctimeout.request == 0 {
 			screen.Fprintln(g, "msg", "green_black", "request: No timeout")
 		} else {
@@ -891,7 +920,7 @@ func timezone(g *gocui.Gui, args []string) {
 }
 
 // show current transfers in progress & % completed
-func transfers(g *gocui.Gui, args []string) {
+func tran(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
 		transfer.Info(g, "")
 		return
@@ -901,9 +930,13 @@ func transfers(g *gocui.Gui, args []string) {
 		case "?":
 			screen.Fprintln(g, "msg", "green_black", cmd["transfers"][0])
 			screen.Fprintln(g, "msg", "green_black", cmd["transfers"][1])
-		case "get", "getrm", "getdir", "put", "putblind", "putrm", "rm", "rmdir":
-			transfer.Info(g, args[1])
 		default:
+			for _, tt := range transfer.Ttypes {
+				if args[1] == tt {
+					transfer.Info(g, args[1])
+					return
+				}
+			}
 			screen.Fprintln(g, "msg", "green_black", cmd["transfers"][0])
 		}
 		return
@@ -951,7 +984,7 @@ type cmdfunc func(*gocui.Gui, []string)
 // Commands and function pointers to handle them
 var cmdhandler = map[string]cmdfunc{
 	"?":          help,
-	"beacon":     handlebeacon,
+	"beacon":     cmdbeacon,
 	"cancel":     cancel,
 	"checksum":   checksum,
 	"debug":      debug,
@@ -974,13 +1007,14 @@ var cmdhandler = map[string]cmdfunc{
 	"putrm":      putrm,
 	"quit":       exit,
 	"rm":         rm,
+	"rmtran":     rmtran,
 	"rmdir":      rmdir,
 	"rxwilling":  rxwilling,
 	"stream":     stream,
 	"timeout":    timeout,
 	"timestamp":  timestamp,
 	"timezone":   timezone,
-	"transfers":  transfers,
+	"tran":       tran,
 	"txwilling":  txwilling,
 	"usage":      usage,
 }
@@ -1089,6 +1123,10 @@ var cmd = map[string][2]string{
 		"rmdir <peer> <dirname>",
 		"remove a directory from a peer",
 	},
+	"rmtran": [2]string{
+		"rmtran <ttype> <peer> <filename>",
+		"remove a current transfer",
+	},
 	"rxwilling": [2]string{
 		"rxwilling [on|off|capable",
 		"current receive status or turn receive on/off/capable",
@@ -1101,8 +1139,8 @@ var cmd = map[string][2]string{
 	// Timout for transfer is how long I wait before I receive next frame in a transfer
 	// Timeout for status is how long I wait between receiving a status frame
 	"timeout": [2]string{
-		"timeout [request|transfer|status] <secs|off>",
-		"timeout in seconds for requests, transfers and status",
+		"timeout [metadata|request|transfer|status] <secs|off>",
+		"timeout in seconds for metadata,request frames, status receipts & transfer completion",
 	},
 	"timestamp": [2]string{
 		"timestamp [off|32|64|32_32|64_32|32_y2k]",
@@ -1112,8 +1150,8 @@ var cmd = map[string][2]string{
 		"timezone [utc|local]",
 		"show current or set to use local or universal time",
 	},
-	"transfers": [2]string{
-		"transfers [get|getrm|getdir|put|putblind|putrm|rm|rmdir]",
+	"tran": [2]string{
+		"tran [get|getrm|getdir|put|putblind|putrm|rm|rmdir]",
 		"list current active transfers of specific type or all",
 	},
 	"txwilling": [2]string{
