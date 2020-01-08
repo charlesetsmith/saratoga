@@ -125,6 +125,9 @@ const MaxUint64 = uint64(18446744073709551615)
 // Length in bits of the saratoga header flag
 const flagsize uint32 = 32
 
+// MaxBuff -- Maximum read or write []byte buffer
+const MaxBuff = 9216 // To be sure, to be sure!
+
 // Index for length and msb values in flagfield map
 const fieldlen = 0
 const fieldmsb = 1

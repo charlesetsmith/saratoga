@@ -451,12 +451,8 @@ func main() {
 	if err := syscall.Statfs(sardir, &fs); err != nil {
 		panic(errors.New("Cannot stat sardir"))
 	}
-	fmt.Printf("Saratoga Directory is %s\n", sardir)
-	fmt.Printf("Available space is %d MB\n", (uint64(fs.Bsize)*fs.Bavail)/1024/1024)
 
 	quit := make(chan struct{})
-
-	time.Sleep(2 * time.Second)
 
 	g, err := gocui.NewGui(gocui.OutputNormal)
 	if err != nil {
@@ -492,7 +488,7 @@ func main() {
 	} else {
 		sarnet.SetMulticastLoop(v6mcastcon, "IPv6")
 		go listen(g, v6mcastcon, quit)
-		fmt.Println("Saratoga IPv6 Multicast Listener started on", sarnet.UDPinfo(&v6mcastaddr))
+		fmt.Println("Saratoga IPv6 Multicast Server started on", sarnet.UDPinfo(&v6mcastaddr))
 	}
 
 	v4mcastcon, err := net.ListenMulticastUDP("udp4", iface, &v4mcastaddr)
@@ -502,8 +498,11 @@ func main() {
 	} else {
 		sarnet.SetMulticastLoop(v4mcastcon, "IPv4")
 		go listen(g, v4mcastcon, quit)
-		fmt.Println("Saratoga IPv4 Multicast Listener started on", sarnet.UDPinfo(&v4mcastaddr))
+		fmt.Println("Saratoga IPv4 Multicast Server started on", sarnet.UDPinfo(&v4mcastaddr))
 	}
+
+	fmt.Printf("Saratoga Directory is %s\n", sardir)
+	fmt.Printf("Available space is %d MB\n\n", (uint64(fs.Bsize)*fs.Bavail)/1024/1024)
 
 	// Show Host Interfaces & Address's
 	ifis, _ := net.Interfaces()
@@ -525,8 +524,8 @@ func main() {
 		}
 	}
 
-	fmt.Println("Sleeping for 10 seconds so you can check the interfaces")
-	time.Sleep(10 * time.Second)
+	fmt.Println("Sleeping for 7 seconds so you can check the interfaces")
+	time.Sleep(7 * time.Second)
 
 	g.Cursor = true
 
@@ -536,6 +535,7 @@ func main() {
 		log.Panicln(err)
 	}
 
+	// The Base calling functions for Saratoga live in cli.go so look there first!
 	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
 		log.Panicln(err)
 	}

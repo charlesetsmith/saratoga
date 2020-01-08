@@ -87,7 +87,7 @@ func (r *Request) Put() ([]byte, error) {
 
 	// Create the frame slice
 	framelen := 4 + 4 + len(r.Fname) + 1 + len(r.Auth) // Header + Session + Fname + NULL + Auth
-	frame := make([]byte, framelen)
+	frame := make([]byte, framelen)                    // Allocate the frame buffer
 
 	binary.BigEndian.PutUint32(frame[:4], r.Header)
 	binary.BigEndian.PutUint32(frame[4:8], r.Session)

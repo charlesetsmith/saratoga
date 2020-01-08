@@ -561,7 +561,7 @@ func prompt(g *gocui.Gui, args []string) {
 // put/send a file to a destination
 func put(g *gocui.Gui, args []string) {
 
-	errflag := make(chan string, 1) // The return channel holding the saratoga errflag
+	// errflag := make(chan string, 1) // The return channel holding the saratoga errflag
 
 	if len(args) == 1 {
 		transfer.Info(g, "put")
@@ -574,8 +574,10 @@ func put(g *gocui.Gui, args []string) {
 	}
 	if len(args) == 3 {
 		var t transfer.Transfer
-		if err := t.New(g, "put", args[1], args[2], false, "reqtype=put,fileordir=file"); err != nil {
-			go t.Client(g, errflag) // Actually do the transfer
+		if err := t.New(g, "put", args[1], args[2], false, "reqtype=put,fileordir=file"); err == nil {
+			errflag := make(chan string, 1) // The return channel holding the saratoga errflag
+			defer close(errflag)
+			go t.ClientPut(g, errflag) // Actually do the transfer
 			errcode := <-errflag
 			if errcode != "success" {
 				screen.Fprintln(g, "msg", "red_black", "Error:", errcode,
@@ -584,6 +586,8 @@ func put(g *gocui.Gui, args []string) {
 					screen.Fprintln(g, "msg", "red_black", "Unable to remove transfer: ", t.Print())
 				}
 			}
+		} else {
+			screen.Fprintln(g, "msg", "red_black", "Cannot add transfer: ", err.Error())
 		}
 		return
 	}
@@ -608,7 +612,7 @@ func putblind(g *gocui.Gui, args []string) {
 		var t transfer.Transfer
 		// We send the Metadata and do not bother with request/status exchange
 		if err := t.New(g, "putblind", args[1], args[2], true, "transfer=file"); err != nil {
-			go t.Client(g, errflag)
+			go t.ClientPut(g, errflag)
 			errcode := <-errflag
 			if errcode != "success" {
 				screen.Fprintln(g, "msg", "red_black", "Error:", errcode,
@@ -637,7 +641,7 @@ func putrm(g *gocui.Gui, args []string) {
 	if len(args) == 3 {
 		var t transfer.Transfer
 		if err := t.New(g, "putrm", args[1], args[2], false, "reqtype=putdelete,fileordir=file"); err != nil {
-			go t.Client(g, errflag)
+			go t.ClientPutrm(g, errflag)
 			errcode := <-errflag
 			if errcode != "success" {
 				screen.Fprintln(g, "msg", "red_black", "Error:", errcode,
