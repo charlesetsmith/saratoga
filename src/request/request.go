@@ -35,18 +35,19 @@ func (r *Request) New(flags string, session uint32, fname string, auth []byte) e
 	}
 
 	flags = strings.Replace(flags, " ", "", -1) // Get rid of extra spaces in flags
+	flags = strings.TrimRight(flags, ",")       // And the last comma if its there
 
 	// Grab the flags and set the frame header
 	flag := strings.Split(flags, ",") // The name=val of the flag
 	for fl := range flag {
 		f := strings.Split(flag[fl], "=") // f[0]=name f[1]=val
 		switch f[0] {
-		case "descriptor", "stream", "fileordir", "reqtype", "udplite":
+		case "frametype", "version", "descriptor", "stream", "fileordir", "reqtype", "udplite":
 			if r.Header, err = sarflags.Set(r.Header, f[0], f[1]); err != nil {
 				return err
 			}
 		default:
-			e := "Request.New: Invalid Flag " + f[0] + "=" + f[1]
+			e := "Request.New: Invalid Flag " + f[0] + "=" + f[1] + "<" + flags + ">"
 			return errors.New(e)
 		}
 	}

@@ -3,9 +3,11 @@ package transfer
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/charlesetsmith/saratoga/src/metadata"
@@ -45,14 +47,13 @@ type Hole struct {
 
 // Transfer Information
 type Transfer struct {
-	ttype    string   // Transfer type "get,getrm,put,putrm,blindput,rm"
-	session  uint32   // Session ID - This is the unique key
-	peer     net.IP   // Remote Host
-	filename string   // File name to get from remote host
-	flags    string   // Flag Header to be used
-	blind    bool     // Is this a blind transfer (no initial request/status exchange)
-	frames   [][]byte // Frame queue
-	holes    []Hole   // Holes
+	direction string   // "client|server"
+	ttype     string   // Transfer type "get,getrm,put,putrm,blindput,rm"
+	session   uint32   // Session ID - This is the unique key
+	peer      net.IP   // Remote Host
+	filename  string   // File name to get from remote host
+	frames    [][]byte // Frame queue
+	holes     []Hole   // Holes
 }
 
 var trmu sync.Mutex
@@ -61,7 +62,7 @@ var trmu sync.Mutex
 var Transfers = []Transfer{}
 
 // New - Add a new transfer to the Transfers list
-func (t *Transfer) New(g *gocui.Gui, ttype string, ip string, fname string, blind bool, flags string) error {
+func (t *Transfer) New(g *gocui.Gui, ttype string, ip string, fname string) error {
 
 	// screen.Fprintln(g, "msg", "red_black", "Addtran for", ip, fname, flags)
 	if addr := net.ParseIP(ip); addr != nil { // We have a valid IP Address
@@ -77,22 +78,15 @@ func (t *Transfer) New(g *gocui.Gui, ttype string, ip string, fname string, blin
 		// Lock it as we are going to add a new transfer slice
 		trmu.Lock()
 		defer trmu.Unlock()
+		t.direction = "client"
 		t.ttype = ttype
 		t.session = newsession()
 		t.peer = addr
 		t.filename = fname
-		t.blind = blind
 		var msg string
 
-		if !blind { // request/status exchange
-			t.flags = flags + "," + sarflags.Setglobal("request", t.filename)
-			msg = fmt.Sprintf("Added %s Transfer to %s %s %s",
-				t.ttype, t.peer.String(), t.filename, t.flags)
-		} else { // no request/status required just metadata then data
-			t.flags = flags + "," + sarflags.Setglobal("metadata", t.filename)
-			msg = fmt.Sprintf("Added Blind %s Transfer to %s %s %s",
-				t.ttype, t.peer.String(), t.filename, t.flags)
-		}
+		msg = fmt.Sprintf("Added %s Transfer to %s %s",
+			t.ttype, t.peer.String(), t.filename)
 		Transfers = append(Transfers, *t)
 		screen.Fprintln(g, "msg", "green_black", msg)
 		return nil
@@ -147,7 +141,10 @@ func (t *Transfer) Remove() error {
 
 // Print - String of relevant transfer info
 func (t *Transfer) Print() string {
-	return fmt.Sprintf("%s %s %s %s", t.ttype, t.peer.String(), t.filename, t.flags)
+	return fmt.Sprintf("%s %s %s %s", t.direction,
+		t.ttype,
+		t.peer.String(),
+		t.filename)
 }
 
 // Info - List transfers in progress to msg window matching ttype or all if ""
@@ -166,13 +163,62 @@ func Info(g *gocui.Gui, ttype string) {
 		}
 	}
 	if len(tinfo) > 0 {
+		var colour string
 		for _, i := range tinfo {
-			screen.Fprintln(g, "msg", "green_black", i.Print())
+			if i.direction == "client" {
+				colour = "green_black"
+			} else {
+				colour = "yellow_black"
+			}
+			screen.Fprintln(g, "msg", colour, i.Print())
 		}
 	} else {
 		msg := fmt.Sprintf("No %s transfers currently in progress", ttype)
 		screen.Fprintln(g, "msg", "green_black", msg)
 	}
+}
+
+// FileDescriptor - Get the appropriate descriptor flag size based on file length
+func filedescriptor(fname string) string {
+	if fi, err := os.Stat(fname); err == nil {
+		size := uint64(fi.Size())
+		if size <= sarflags.MaxUint16 {
+			return "descriptor=d16"
+		}
+		if size <= sarflags.MaxUint32 {
+			return "descriptor=d32"
+		}
+		if size <= sarflags.MaxUint64 {
+			return "descriptor=d64"
+		}
+	}
+	// Just send back the maximum supported descriptor
+	if sarflags.MaxUint <= sarflags.MaxUint16 {
+		return "descriptor=d16"
+	}
+	if sarflags.MaxUint <= sarflags.MaxUint32 {
+		return "descriptor=d32"
+	}
+	return "descriptor=d64"
+}
+
+// Replace an existing flag or add it
+func replaceflag(curflags string, newflag string) string {
+	var fs string
+	var replaced bool
+
+	for _, curflag := range strings.Split(curflags, ",") {
+		if strings.Split(curflag, "=")[0] == strings.Split(newflag, "=")[0] {
+			replaced = true
+			fs += newflag + ","
+		} else {
+			fs += curflag + ","
+		}
+	}
+	if !replaced {
+		fs += newflag
+	}
+	return strings.TrimRight(fs, ",")
 }
 
 /*
@@ -185,6 +231,26 @@ func Info(g *gocui.Gui, ttype string) {
 func (t *Transfer) ClientPut(g *gocui.Gui, errflag chan string) {
 	var err error
 	var wframe []byte // The frame to write
+	var fp *os.File
+	var pos int64
+
+	// Open the local data file for reading only
+	fname := os.Getenv("SARDIR") +
+		string(os.PathSeparator) +
+		strings.TrimLeft(t.filename, string(os.PathSeparator))
+	if fp, err = os.Open(fname); err != nil {
+		screen.Fprintln(g, "msg", "red_black", "Cannot open", fname)
+		errflag <- "filenotfound"
+		return
+	}
+	defer fp.Close()
+	tdesc := filedescriptor(fname) // Transfer descriptor to be used
+
+	if pos, err = fp.Seek(0, io.SeekStart); err != nil {
+		screen.Fprintln(g, "msg", "red_black", "Cannot seek to", pos)
+		errflag <- "badoffset"
+		return
+	}
 
 	screen.Fprintln(g, "msg", "red_black", "ping 1")
 	// Set up the connection
@@ -203,34 +269,23 @@ func (t *Transfer) ClientPut(g *gocui.Gui, errflag chan string) {
 	screen.Fprintln(g, "msg", "red_black", "ping 2")
 
 	// Create the request & make a frame for normal request/status exchange startup
-	if !t.blind {
-		var req request.Request
-		r := &req
-		if err = r.New(t.flags, t.session, t.filename, nil); err != nil {
-			screen.Fprintln(g, "msg", "red_black", "Cannot create request", err.Error())
-			errflag <- "badrequest"
-			return
-		}
-		if wframe, err = r.Put(); err != nil {
-			errflag <- "badrequest"
-			return
-		}
-		screen.Fprintln(g, "msg", "red_black", "ping 3")
-	} else { // Create the metadata & make a frame for blind put startup
-		var met metadata.MetaData
-		m := &met
-		if err = m.New(t.flags, t.session, t.filename); err != nil {
-			screen.Fprintln(g, "msg", "red_black", "Cannot create metadata", err.Error())
-			errflag <- "badrequest"
-			return
-		}
-		if wframe, err = m.Put(); err != nil {
-			errflag <- "badrequest"
-			return
-		}
+	var req request.Request
+	r := &req
+	rflags := "reqtype=put,fileordir=file,"
+	rflags += sarflags.Setglobal("request")
+	rflags = replaceflag(rflags, tdesc)
+	screen.Fprintln(g, "msg", "magenta_black", "Request Flags <", rflags, ">")
+	if err = r.New(rflags, t.session, t.filename, nil); err != nil {
+		screen.Fprintln(g, "msg", "red_black", "Cannot create request", err.Error())
+		errflag <- "badrequest"
+		return
 	}
-
-	// Send the initial request or metadata frame
+	if wframe, err = r.Put(); err != nil {
+		errflag <- "badrequest"
+		return
+	}
+	screen.Fprintln(g, "msg", "red_black", "ping 3")
+	// Send the request frame
 	_, err = conn.Write(wframe)
 	screen.Fprintln(g, "msg", "red_black", "ping 4")
 	if err != nil {
@@ -238,12 +293,31 @@ func (t *Transfer) ClientPut(g *gocui.Gui, errflag chan string) {
 		return
 	}
 	screen.Fprintln(g, "msg", "green_black", "Sent:", t.Print())
-	if !t.blind {
-		screen.Fprintf(g, "msg", "green_black", "Transfer Request Sent to %s\n",
-			t.peer.String())
-	} else {
-		screen.Fprintf(g, "msg", "green_black", "Transfer Metadata Sent for blind put to %s\n",
-			t.peer.String())
+	screen.Fprintln(g, "msg", "green_black", "Transfer Request Sent to",
+		t.peer.String())
+
+	// Create the metadata & send
+	var met metadata.MetaData
+	m := &met
+	mflags := "transfer=file,progress=inprogress,"
+	mflags += sarflags.Setglobal("metadata")
+	mflags = replaceflag(mflags, tdesc)
+	screen.Fprintln(g, "msg", "magenta_black", "Metadata Flags <", mflags, ">")
+	if err = m.New(mflags, t.session, t.filename); err != nil {
+		screen.Fprintln(g, "msg", "red_black", "Cannot create metadata", err.Error())
+		errflag <- "badrequest"
+		return
+	}
+	if wframe, err = m.Put(); err != nil {
+		errflag <- "badrequest"
+		return
+	}
+	// Send the initial metadata frame
+	_, err = conn.Write(wframe)
+	screen.Fprintln(g, "msg", "red_black", "ping 4")
+	if err != nil {
+		errflag <- "cantsend"
+		return
 	}
 	errflag <- "success"
 	return
@@ -280,11 +354,8 @@ func (t *Transfer) ClientPut(g *gocui.Gui, errflag chan string) {
 		   			case "metadatarequired": // Flag to send a metadata all good process status
 		   				sendmetadata = true
 
-		   			case "badoffset", // Send warning & Drop the frame (dont process status)
-		   				"badpacket",
-		   				"badstatus",
-		   				"didnotdelete":
-		   				goto next
+		   			case "badpacket": // Send warning to msg & Drop the frame (dont process the status)
+		   				break next
 
 		   			case "internaltimeout", // Kill the Transfer
 		   				"rxnotinterested",
@@ -297,13 +368,16 @@ func (t *Transfer) ClientPut(g *gocui.Gui, errflag chan string) {
 		   				"filenotfound",
 		   				"unknownid",
 		   				"unspecified",
-		   				"badrequest",
+						"badrequest",
+						"didnotdelete",
+						"badstatus",
+						"badoffset",
 		   				"baddataflag":
 		   				errflag <- errf
 		   				return
 
 		   			default: // Invlid code Send warning & Drop the frame (dont process status)
-		   				goto next
+		   				break next
 		   			}
 
 		   			if sarflags.GetStr(header, "metadatarecvd") == "no" || sendmetadata {
@@ -311,7 +385,7 @@ func (t *Transfer) ClientPut(g *gocui.Gui, errflag chan string) {
 		   				sendmetadata = false
 		   				var met metadata.MetaData
 		   				m := &met
-		   				if err = m.New(t.flags, t.session, t.filename); err != nil {
+		   				if err = m.New(mflags, t.session, t.filename); err != nil {
 		   					screen.Fprintln(g, "msg", "red_black", "Cannot create metadata", err.Error())
 		   					errflag <- "badrequest"
 		   					return
@@ -336,6 +410,77 @@ func (t *Transfer) ClientPut(g *gocui.Gui, errflag chan string) {
 	*/
 }
 
+// ClientBlindPut - blind put a file
+func (t *Transfer) ClientBlindPut(g *gocui.Gui, errflag chan string) {
+	var err error
+	var wframe []byte // The frame to write
+	var fp *os.File
+	var pos int64
+
+	// Open the local data file for reading only
+	fname := os.Getenv("SARDIR") +
+		string(os.PathSeparator) +
+		strings.TrimLeft(t.filename, string(os.PathSeparator))
+	if fp, err = os.Open(fname); err != nil {
+		screen.Fprintln(g, "msg", "red_black", "Cannot open", fname)
+		errflag <- "filenotfound"
+		return
+	}
+	defer fp.Close()
+	tdesc := filedescriptor(fname) // Transfer descriptor to be used
+
+	if pos, err = fp.Seek(0, io.SeekStart); err != nil {
+		screen.Fprintln(g, "msg", "red_black", "Cannot seek to", pos)
+		errflag <- "badoffset"
+		return
+	}
+
+	screen.Fprintln(g, "msg", "red_black", "ping 1")
+	// Set up the connection
+	var udpad string
+	if t.peer.To4() == nil { // IPv6
+		udpad = "[" + t.peer.String() + "]" + ":" + strconv.Itoa(sarnet.Port())
+	} else { // IPv4
+		udpad = t.peer.String() + ":" + strconv.Itoa(sarnet.Port())
+	}
+	conn, err := net.Dial("udp", udpad)
+	defer conn.Close()
+	if err != nil {
+		errflag <- "cantsend"
+		return
+	}
+	screen.Fprintln(g, "msg", "red_black", "ping 2")
+
+	// Create the request & make a frame for normal request/status exchange startup
+	var met metadata.MetaData
+	m := &met
+	mflags := "transfer=file,progress=inprogress,"
+	mflags += sarflags.Setglobal("metadata")
+	mflags = replaceflag(mflags, tdesc)
+	if err = m.New(mflags, t.session, t.filename); err != nil {
+		screen.Fprintln(g, "msg", "red_black", "Cannot create metadata", err.Error())
+		errflag <- "badrequest"
+		return
+	}
+	if wframe, err = m.Put(); err != nil {
+		errflag <- "badrequest"
+		return
+	}
+
+	// Send the initial metadata frame
+	_, err = conn.Write(wframe)
+	screen.Fprintln(g, "msg", "red_black", "ping 4")
+	if err != nil {
+		errflag <- "cantsend"
+		return
+	}
+	screen.Fprintln(g, "msg", "green_black", "Sent:", t.Print())
+	screen.Fprintln(g, "msg", "green_black", "Transfer Metadata Sent for blind put to",
+		t.peer.String())
+	errflag <- "success"
+	return
+}
+
 // ClientPutrm - put a file then remove the local copy of that file
 func (t *Transfer) ClientPutrm(g *gocui.Gui, errflag chan string) {
 	rmerrflag := make(chan string, 1) // The return channel holding the saratoga errflag
@@ -343,7 +488,16 @@ func (t *Transfer) ClientPutrm(g *gocui.Gui, errflag chan string) {
 
 	t.ClientPut(g, rmerrflag)
 	errcode := <-rmerrflag
+	if errcode == "success" {
+		fname := strings.TrimRight(os.Getenv("SARDIR"), "/") + "/" + t.filename
+		screen.Fprintln(g, "msg", "green_black", "Successfully put file", fname)
+		// All good so remove the local file
+		if os.Remove(fname) != nil {
+			screen.Fprintln(g, "msg", "red_black", "Cannot remove local file", fname)
+			errflag <- "didnotdelete"
+			return
+		}
+	}
 	errflag <- errcode
-	// MORE TO GO HERE TO REMOVE THE LOCAL FILE
 	return
 }

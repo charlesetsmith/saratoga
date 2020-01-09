@@ -95,8 +95,8 @@ func cmdbeacon(g *gocui.Gui, args []string) {
 
 	// var bmu sync.Mutex // Protects beacon.Beacon structure (EID)
 
-	clibeacon.flags = sarflags.Setglobal("beacon", "") // Initialise Global Beacon flags
-	clibeacon.interval = Cinterval                     // Set up the correct interval
+	clibeacon.flags = sarflags.Setglobal("beacon") // Initialise Global Beacon flags
+	clibeacon.interval = Cinterval                 // Set up the correct interval
 
 	// Show current Cbeacon flags and lists - beacon
 	if len(args) == 1 {
@@ -132,7 +132,7 @@ func cmdbeacon(g *gocui.Gui, args []string) {
 			screen.Fprintln(g, "msg", "green_black", cmd["beacon"][1])
 			return
 		case "off": // remove and disable all beacons
-			clibeacon.flags = sarflags.Setglobal("beacon", "")
+			clibeacon.flags = sarflags.Setglobal("beacon")
 			clibeacon.count = 0
 			clibeacon.interval = Cinterval
 			clibeacon.host = nil
@@ -140,7 +140,7 @@ func cmdbeacon(g *gocui.Gui, args []string) {
 			return
 		case "v4": // V4 Multicast
 			screen.Fprintln(g, "msg", "green_black", "Sending beacons to IPv4 Multicast")
-			clibeacon.flags = sarflags.Setglobal("beacon", "")
+			clibeacon.flags = sarflags.Setglobal("beacon")
 			clibeacon.v4mcast = true
 			clibeacon.count = 1
 			// Start up the beacon client sending count IPv4 beacons
@@ -148,7 +148,7 @@ func cmdbeacon(g *gocui.Gui, args []string) {
 			return
 		case "v6": // V6 Multicast
 			screen.Fprintln(g, "msg", "green_black", "Sending beacons to IPv6 Multicast")
-			clibeacon.flags = sarflags.Setglobal("beacon", "")
+			clibeacon.flags = sarflags.Setglobal("beacon")
 			clibeacon.v6mcast = true
 			clibeacon.count = 1
 			// Start up the beacon client sending count IPv6 beacons
@@ -423,7 +423,7 @@ func get(g *gocui.Gui, args []string) {
 	}
 	if len(args) == 3 {
 		var t transfer.Transfer
-		if err := t.New(g, "get", args[1], args[2], false, "reqtype=get,fileordir=file"); err != nil {
+		if err := t.New(g, "get", args[1], args[2]); err != nil {
 
 		}
 		return
@@ -444,7 +444,7 @@ func getdir(g *gocui.Gui, args []string) {
 	}
 	if len(args) == 3 {
 		var t transfer.Transfer
-		if err := t.New(g, "getdir", args[1], args[2], false, "reqtype=getdir,fileordir=directory"); err != nil {
+		if err := t.New(g, "getdir", args[1], args[2]); err != nil {
 
 		}
 		return
@@ -464,7 +464,7 @@ func getrm(g *gocui.Gui, args []string) {
 	}
 	if len(args) == 3 {
 		var t transfer.Transfer
-		if err := t.New(g, "getrm", args[1], args[2], false, "reqtype=getdelete,fileordir=file"); err != nil {
+		if err := t.New(g, "getrm", args[1], args[2]); err != nil {
 
 		}
 		return
@@ -574,7 +574,7 @@ func put(g *gocui.Gui, args []string) {
 	}
 	if len(args) == 3 {
 		var t transfer.Transfer
-		if err := t.New(g, "put", args[1], args[2], false, "reqtype=put,fileordir=file"); err == nil {
+		if err := t.New(g, "put", args[1], args[2]); err == nil {
 			errflag := make(chan string, 1) // The return channel holding the saratoga errflag
 			defer close(errflag)
 			go t.ClientPut(g, errflag) // Actually do the transfer
@@ -611,7 +611,7 @@ func putblind(g *gocui.Gui, args []string) {
 	if len(args) == 3 {
 		var t transfer.Transfer
 		// We send the Metadata and do not bother with request/status exchange
-		if err := t.New(g, "putblind", args[1], args[2], true, "transfer=file"); err != nil {
+		if err := t.New(g, "putblind", args[1], args[2]); err != nil {
 			go t.ClientPut(g, errflag)
 			errcode := <-errflag
 			if errcode != "success" {
@@ -640,7 +640,7 @@ func putrm(g *gocui.Gui, args []string) {
 	}
 	if len(args) == 3 {
 		var t transfer.Transfer
-		if err := t.New(g, "putrm", args[1], args[2], false, "reqtype=putdelete,fileordir=file"); err != nil {
+		if err := t.New(g, "putrm", args[1], args[2]); err != nil {
 			go t.ClientPutrm(g, errflag)
 			errcode := <-errflag
 			if errcode != "success" {
@@ -669,7 +669,7 @@ func rm(g *gocui.Gui, args []string) {
 	}
 	if len(args) == 3 {
 		var t transfer.Transfer
-		if err := t.New(g, "rm", args[1], args[2], false, "reqtype=delete,fileordir=file"); err != nil {
+		if err := t.New(g, "rm", args[1], args[2]); err != nil {
 
 		}
 		return
@@ -691,7 +691,7 @@ func rmdir(g *gocui.Gui, args []string) {
 	}
 	if len(args) == 3 {
 		var t transfer.Transfer
-		if err := t.New(g, "rmdir", args[1], args[2], false, "reqtype=delete,fileordir=directory"); err != nil {
+		if err := t.New(g, "rmdir", args[1], args[2]); err != nil {
 
 		}
 		return
@@ -702,8 +702,8 @@ func rmdir(g *gocui.Gui, args []string) {
 func rmtran(g *gocui.Gui, args []string) {
 
 	if len(args) == 1 || (len(args) == 2 && args[1] == "?") || len(args) != 4 {
-		screen.Fprintln(g, "msg", "green_black", cmd["rmtransfer"][0])
-		screen.Fprintln(g, "msg", "green_black", cmd["rmtransfer"][1])
+		screen.Fprintln(g, "msg", "green_black", cmd["rmtran"][0])
+		screen.Fprintln(g, "msg", "green_black", cmd["rmtran"][1])
 		return
 	}
 	ttype := args[1]
@@ -932,8 +932,8 @@ func tran(g *gocui.Gui, args []string) {
 	if len(args) == 2 {
 		switch args[1] {
 		case "?":
-			screen.Fprintln(g, "msg", "green_black", cmd["transfers"][0])
-			screen.Fprintln(g, "msg", "green_black", cmd["transfers"][1])
+			screen.Fprintln(g, "msg", "green_black", cmd["tran"][0])
+			screen.Fprintln(g, "msg", "green_black", cmd["tran"][1])
 		default:
 			for _, tt := range transfer.Ttypes {
 				if args[1] == tt {
@@ -941,11 +941,11 @@ func tran(g *gocui.Gui, args []string) {
 					return
 				}
 			}
-			screen.Fprintln(g, "msg", "green_black", cmd["transfers"][0])
+			screen.Fprintln(g, "msg", "green_black", cmd["tran"][0])
 		}
 		return
 	}
-	screen.Fprintln(g, "msg", "green_black", cmd["transfers"][0])
+	screen.Fprintln(g, "msg", "green_black", cmd["tran"][0])
 }
 
 // we are willing to transmit files

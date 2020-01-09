@@ -30,14 +30,12 @@ func (m *MetaData) New(flags string, session uint32, fname string) error {
 	var err error
 
 	flags = strings.Replace(flags, " ", "", -1) // Get rid of extra spaces in flags
-
 	if m.Header, err = sarflags.Set(m.Header, "version", "v1"); err != nil {
 		return err
 	}
 	if m.Header, err = sarflags.Set(m.Header, "frametype", "metadata"); err != nil {
 		return err
 	}
-
 	var direntflags string // Particular Flags for directory entry
 	var csumtype string    // Checksum type
 

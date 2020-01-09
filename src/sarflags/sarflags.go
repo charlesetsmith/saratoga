@@ -5,7 +5,6 @@ package sarflags
 import (
 	"errors"
 	"log"
-	"os"
 	"strings"
 )
 
@@ -125,8 +124,11 @@ const MaxUint64 = uint64(18446744073709551615)
 // Length in bits of the saratoga header flag
 const flagsize uint32 = 32
 
-// MaxBuff -- Maximum read or write []byte buffer
-const MaxBuff = 9216 // To be sure, to be sure!
+// MaxBuff -- Maximum read []byte buffer, set to Jumbo to be sure
+const MaxBuff = uint64(9000)
+
+// MTU -- Maximum write []byte buffer, set to interface MTU
+var MTU uint64
 
 // Index for length and msb values in flagfield map
 const fieldlen = 0
@@ -497,17 +499,14 @@ func Good(field string) bool {
 	return false
 }
 
-// Setglobal - Set the global flags applicable for the particular frame type & File
-func Setglobal(frametype string, fname string) string {
+// Setglobal - Set the global flags applicable for the particular frame type
+// Dont set final descriptor here - Work it out in the transfer as it depends on file size
+func Setglobal(frametype string) string {
 	fs := ""
 	for _, f := range Fields(frametype) {
 		for g := range Global {
 			if g == f {
-				if f == "descriptor" {
-					fs += FileD(fname) + ","
-				} else {
-					fs += f + "=" + Global[f] + ","
-				}
+				fs += f + "=" + Global[f] + ","
 			}
 		}
 	}
@@ -582,31 +581,6 @@ var dflagvals = map[string][]dflaginfo{
 		dflaginfo{name: "yes", val: 0},
 		dflaginfo{name: "no", val: 1},
 	},
-}
-
-// FileD - Get the appropriate descriptor size based on file length
-// but only if the global descriptor is "auto"
-func FileD(fname string) string {
-	if fi, err := os.Stat(fname); err == nil {
-		size := uint64(fi.Size())
-		if size <= MaxUint16 {
-			return "descriptor=d16"
-		}
-		if size <= MaxUint32 {
-			return "descriptor=d32"
-		}
-		if size <= MaxUint64 {
-			return "descriptor=d64"
-		}
-	}
-	// Just send back the maximum supported descriptor
-	if MaxUint <= MaxUint16 {
-		return "descriptor=d16"
-	}
-	if MaxUint <= MaxUint32 {
-		return "descriptor=d32"
-	}
-	return "descriptor=d64"
 }
 
 // GetD - Given a current flag and bitfield name return the integer value of the bitfield

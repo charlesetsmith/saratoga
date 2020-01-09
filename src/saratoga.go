@@ -418,8 +418,16 @@ func main() {
 
 	// Global Flags set in cli
 	sarflags.Global = make(map[string]string)
+
 	// Give them some defaults
-	sarflags.Global["descriptor"] = "d64"
+	// Find the maximum supported descriptor
+	if sarflags.MaxUint <= sarflags.MaxUint16 {
+		sarflags.Global["descriptor"] = "d16"
+	} else if sarflags.MaxUint <= sarflags.MaxUint32 {
+		sarflags.Global["descriptor"] = "d32"
+	} else {
+		sarflags.Global["descriptor"] = "d64"
+	}
 	sarflags.Global["csumtype"] = "none"
 	sarflags.Global["freespace"] = "no"
 	sarflags.Global["txwilling"] = "yes"
@@ -439,17 +447,17 @@ func main() {
 
 	// Get the default directory for sarotaga transfers from environment
 	if sardir = os.Getenv("SARDIR"); sardir == "" {
-		panic(errors.New("No Saratoga transfer directory SARDIR environment variabe set"))
+		log.Fatal(errors.New("No Saratoga transfer directory SARDIR environment variabe set"))
 	}
 	// Move to it
 	if err := os.Chdir(sardir); err != nil {
 		e := fmt.Sprintf("No such directory SARDIR=%s", sardir)
-		panic(errors.New(e))
+		log.Fatal(errors.New(e))
 	}
 
 	var fs syscall.Statfs_t
 	if err := syscall.Statfs(sardir, &fs); err != nil {
-		panic(errors.New("Cannot stat sardir"))
+		log.Fatal(errors.New("Cannot stat sardir"))
 	}
 
 	quit := make(chan struct{})
@@ -457,7 +465,7 @@ func main() {
 	g, err := gocui.NewGui(gocui.OutputNormal)
 	if err != nil {
 		fmt.Printf("Cannot run gocui user interface")
-		panic(err)
+		log.Fatal(err)
 	}
 	defer g.Close()
 
@@ -477,14 +485,15 @@ func main() {
 	iface, err = net.InterfaceByName(os.Args[1])
 	if err != nil {
 		fmt.Println("Saratoga Unable to lookup interfacebyname:", os.Args[1])
-		panic(err)
+		log.Fatal(err)
 	}
+	sarflags.MTU = uint64(iface.MTU)
 
 	// Listen to Unicast & Multicast
 	v6mcastcon, err := net.ListenMulticastUDP("udp6", iface, &v6mcastaddr)
 	if err != nil {
 		fmt.Println("Saratoga Unable to Listen on IPv6 Multicast")
-		panic(err)
+		log.Fatal(err)
 	} else {
 		sarnet.SetMulticastLoop(v6mcastcon, "IPv6")
 		go listen(g, v6mcastcon, quit)
@@ -494,7 +503,7 @@ func main() {
 	v4mcastcon, err := net.ListenMulticastUDP("udp4", iface, &v4mcastaddr)
 	if err != nil {
 		fmt.Println("Saratoga Unable to Listen on IPv4 Multicast")
-		panic(err)
+		log.Fatal(err)
 	} else {
 		sarnet.SetMulticastLoop(v4mcastcon, "IPv4")
 		go listen(g, v4mcastcon, quit)
@@ -508,7 +517,7 @@ func main() {
 	ifis, _ := net.Interfaces()
 	for _, ifi := range ifis {
 		if ifi.Name == os.Args[1] || ifi.Name == "lo0" {
-			fmt.Println(ifi.Name, ":")
+			fmt.Println(ifi.Name, "MTU", ifi.MTU, ifi.Flags.String(), ":")
 			adrs, _ := ifi.Addrs()
 			for _, adr := range adrs {
 				if strings.Contains(adr.Network(), "ip") {
@@ -524,7 +533,7 @@ func main() {
 		}
 	}
 
-	fmt.Println("Sleeping for 7 seconds so you can check the interfaces")
+	fmt.Println("Sleeping for 7 seconds so you can check out the interfaces")
 	time.Sleep(7 * time.Second)
 
 	g.Cursor = true
