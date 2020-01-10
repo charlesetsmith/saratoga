@@ -573,11 +573,11 @@ func put(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 3 {
-		var t transfer.Transfer
+		t := new(transfer.Transfer)
 		if err := t.New(g, "put", args[1], args[2]); err == nil {
 			errflag := make(chan string, 1) // The return channel holding the saratoga errflag
 			defer close(errflag)
-			go t.ClientPut(g, errflag) // Actually do the transfer
+			go transfer.Doclient(t, g, errflag) // Actually do the transfer
 			errcode := <-errflag
 			if errcode != "success" {
 				screen.Fprintln(g, "msg", "red_black", "Error:", errcode,
@@ -609,10 +609,10 @@ func putblind(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 3 {
-		var t transfer.Transfer
+		t := new(transfer.Transfer)
 		// We send the Metadata and do not bother with request/status exchange
 		if err := t.New(g, "putblind", args[1], args[2]); err != nil {
-			go t.ClientPut(g, errflag)
+			go transfer.Doclient(t, g, errflag)
 			errcode := <-errflag
 			if errcode != "success" {
 				screen.Fprintln(g, "msg", "red_black", "Error:", errcode,
@@ -639,9 +639,9 @@ func putrm(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 3 {
-		var t transfer.Transfer
+		t := new(transfer.Transfer)
 		if err := t.New(g, "putrm", args[1], args[2]); err != nil {
-			go t.ClientPutrm(g, errflag)
+			go transfer.Doclient(t, g, errflag)
 			errcode := <-errflag
 			if errcode != "success" {
 				screen.Fprintln(g, "msg", "red_black", "Error:", errcode,
@@ -776,10 +776,11 @@ func stream(g *gocui.Gui, args []string) {
 }
 
 type cmdTimeout struct {
-	metadata int
-	request  int
-	status   int
-	transfer int
+	metadata    int
+	request     int
+	status      int
+	statuscount int
+	transfer    int
 }
 
 // Ctimeout - timeouts for responses 0 means no timeout
@@ -802,6 +803,12 @@ func timeout(g *gocui.Gui, args []string) {
 			screen.Fprintln(g, "msg", "green_black", "status: No timeout")
 		} else {
 			screen.Fprintln(g, "msg", "green_black", "status:", Ctimeout.status, "seconds")
+		}
+		if Ctimeout.statuscount == 0 {
+			Ctimeout.statuscount = 100
+			screen.Fprintln(g, "msg", "green_black", "statuscount every 100 frames")
+		} else {
+			screen.Fprintln(g, "msg", "green_black", "statuscount:", Ctimeout.statuscount, "frames")
 		}
 		if Ctimeout.transfer == 0 {
 			screen.Fprintln(g, "msg", "green_black", "transfer: No timeout")
@@ -827,6 +834,13 @@ func timeout(g *gocui.Gui, args []string) {
 			} else {
 				screen.Fprintln(g, "msg", "green_black", "status:", Ctimeout.status, "seconds")
 			}
+		case "statuscount":
+			if Ctimeout.statuscount == 0 {
+				Ctimeout.statuscount = 100
+				screen.Fprintln(g, "msg", "green_black", "statuscount: Never")
+			} else {
+				screen.Fprintln(g, "msg", "green_black", "statuscount:", Ctimeout.statuscount, "frames")
+			}
 		case "transfer":
 			if Ctimeout.transfer == 0 {
 				screen.Fprintln(g, "msg", "green_black", "transfer: No timeout")
@@ -845,6 +859,11 @@ func timeout(g *gocui.Gui, args []string) {
 				Ctimeout.request = n
 			case "status":
 				Ctimeout.status = n
+			case "statuscount":
+				if n == 0 {
+					n = 100
+				}
+				Ctimeout.statuscount = n
 			case "transfer":
 				Ctimeout.transfer = n
 			}
@@ -856,6 +875,8 @@ func timeout(g *gocui.Gui, args []string) {
 				Ctimeout.request = 0
 			case "status":
 				Ctimeout.status = 0
+			case "statuscount":
+				Ctimeout.statuscount = 100
 			case "transfer":
 				Ctimeout.transfer = 0
 			}

@@ -221,14 +221,54 @@ func replaceflag(curflags string, newflag string) string {
 	return strings.TrimRight(fs, ",")
 }
 
+// Doclient -- Execute the command entered
+// Function pointer to the go routine for the transaction type
+// Spawns a go thread for the command to execute
+func Doclient(t *Transfer, g *gocui.Gui, errstr chan string) {
+	for _, i := range Ttypes {
+		if i == t.ttype {
+			fn, ok := clienthandler[i]
+			if ok {
+				errflag := make(chan string, 1) // The return channel holding the saratoga errflag
+				go fn(t, g, errflag)
+				retcode := <-errflag
+				errstr <- retcode
+				return
+			}
+		}
+	}
+	errstr <- "undefined"
+}
+
 /*
  *************************************************************************************************
  * CLIENT TRANSFER HANDLERS
  *************************************************************************************************
  */
 
-// ClientPut - put a file
-func (t *Transfer) ClientPut(g *gocui.Gui, errflag chan string) {
+type clientfunc func(*Transfer, *gocui.Gui, chan string)
+
+// Client Commands and function pointers to handle them
+var clienthandler = map[string]clientfunc{
+	// "get":	cget,
+	// "getrm":	cgetrm,
+	// "getdir":	cgetdir,
+	"put":      cput,
+	"putrm":    cputrm,
+	"putblind": cputblind,
+	// "rm":		crm,
+	// "rmdir":	crmdir,
+}
+
+// cput - put a file from client to server
+// Engine - Send Request, Send Metadata, Wait for Status
+// 		Loop Sending Data and receiving intermittant Status
+// 		Resend Metadata if Requested in Status
+// 		Status is requested in Data every status timer secs
+//		or statuscount Data frames sent, whichever comes first
+//		Abort with error if Rx Status errcode != "success"
+//
+func cput(t *Transfer, g *gocui.Gui, errflag chan string) {
 	var err error
 	var wframe []byte // The frame to write
 	var fp *os.File
@@ -345,51 +385,15 @@ func (t *Transfer) ClientPut(g *gocui.Gui, errflag chan string) {
 		   			return
 		   		}
 		   		// Process the received frame
-		   		switch sarflags.GetStr(header, "frametype") {
-		   		case "status":
-		   			errf := sarflags.GetStr(header, "errcode")
-		   			switch errf {
-		   			case "success": // All good process status
-
-		   			case "metadatarequired": // Flag to send a metadata all good process status
-		   				sendmetadata = true
-
-		   			case "badpacket": // Send warning to msg & Drop the frame (dont process the status)
-		   				break next
-
-		   			case "internaltimeout", // Kill the Transfer
-		   				"rxnotinterested",
-		   				"fileinuse",
-		   				"rxtimeout",
-		   				"filetobig",
-		   				"accessdenied",
-		   				"cantsend",
-		   				"cantreceive",
-		   				"filenotfound",
-		   				"unknownid",
-		   				"unspecified",
-						"badrequest",
-						"didnotdelete",
-						"badstatus",
-						"badoffset",
-		   				"baddataflag":
-		   				errflag <- errf
-		   				return
-
-		   			default: // Invlid code Send warning & Drop the frame (dont process status)
-		   				break next
-		   			}
-
-		   			if sarflags.GetStr(header, "metadatarecvd") == "no" || sendmetadata {
-		   				// No metadata has been received or it has been re-requested so send/resend it
-		   				sendmetadata = false
-		   				var met metadata.MetaData
-		   				m := &met
-		   				if err = m.New(mflags, t.session, t.filename); err != nil {
-		   					screen.Fprintln(g, "msg", "red_black", "Cannot create metadata", err.Error())
-		   					errflag <- "badrequest"
-		   					return
-		   				}
+		   		if sarflags.GetStr(header, "frametype") == "status" {
+					   errf := sarflags.GetStr(header, "errcode")
+					   if errf != "success" {
+						   errflag <- errf
+						   return
+					   }
+					// Process the status header
+		   			if sarflags.GetStr(header, "metadatarecvd") == "no" {
+		   				// No metadata has been received yet so send/resend it
 		   				if wframe, err = m.Put(); err != nil {
 		   					errflag <- "badrequest"
 		   					return
@@ -399,11 +403,10 @@ func (t *Transfer) ClientPut(g *gocui.Gui, errflag chan string) {
 		   					errflag <- "cantsend"
 		   					return
 		   				}
-		   			}
-
-		   		default:
-		   			errflag <- "badpacket"
-		   			return
+		   			} else {
+		   				errflag <- "badpacket"
+						   return
+					   }
 		   		}
 		   		// Send a data frame
 		   	}
@@ -411,7 +414,7 @@ func (t *Transfer) ClientPut(g *gocui.Gui, errflag chan string) {
 }
 
 // ClientBlindPut - blind put a file
-func (t *Transfer) ClientBlindPut(g *gocui.Gui, errflag chan string) {
+func cputblind(t *Transfer, g *gocui.Gui, errflag chan string) {
 	var err error
 	var wframe []byte // The frame to write
 	var fp *os.File
@@ -482,11 +485,11 @@ func (t *Transfer) ClientBlindPut(g *gocui.Gui, errflag chan string) {
 }
 
 // ClientPutrm - put a file then remove the local copy of that file
-func (t *Transfer) ClientPutrm(g *gocui.Gui, errflag chan string) {
+func cputrm(t *Transfer, g *gocui.Gui, errflag chan string) {
 	rmerrflag := make(chan string, 1) // The return channel holding the saratoga errflag
 	defer close(rmerrflag)
 
-	t.ClientPut(g, rmerrflag)
+	cput(t, g, rmerrflag)
 	errcode := <-rmerrflag
 	if errcode == "success" {
 		fname := strings.TrimRight(os.Getenv("SARDIR"), "/") + "/" + t.filename
@@ -497,6 +500,7 @@ func (t *Transfer) ClientPutrm(g *gocui.Gui, errflag chan string) {
 			errflag <- "didnotdelete"
 			return
 		}
+		screen.Fprintln(g, "msg", "red_black", "Local file", fname, "removed")
 	}
 	errflag <- errcode
 	return
