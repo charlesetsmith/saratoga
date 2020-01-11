@@ -84,7 +84,7 @@ func (s Status) Put() ([]byte, error) {
 	// Create the frame slice
 	framelen := 4 + 4 // Header + Session
 
-	if sarflags.GetStr(s.Header, "reqtstamp") == "yes" {
+	if sarflags.GetStr(s.Header, "reqtstamp") == "on" {
 		framelen += 16 // Timestamp
 	}
 
@@ -159,7 +159,7 @@ func (s *Status) Get(frame []byte) error {
 	s.Header = binary.BigEndian.Uint32(frame[:4])
 	s.Session = binary.BigEndian.Uint32(frame[4:8])
 	pos := 8
-	if sarflags.GetStr(s.Header, "reqtstamp") == "yes" {
+	if sarflags.GetStr(s.Header, "reqtstamp") == "on" {
 		var err error
 
 		if err = s.Tstamp.Get(frame[pos:24]); err != nil {
@@ -232,7 +232,7 @@ func (s Status) Print() string {
 		sflag += fmt.Sprintf("  %s:%s\n", sflags[f], n)
 	}
 	sflag += fmt.Sprintf("  session:%d\n", s.Session)
-	if sarflags.GetStr(s.Header, "reqtstamp") == "yes" {
+	if sarflags.GetStr(s.Header, "reqtstamp") == "on" {
 		sflag += fmt.Sprintf("  timestamp:%s\n", s.Tstamp.Print())
 	}
 	sflag += fmt.Sprintf("  progress:%d", s.Progress)

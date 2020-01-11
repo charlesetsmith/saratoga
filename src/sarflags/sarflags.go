@@ -227,8 +227,8 @@ var flagvals = map[string][]flaginfo{
 		flaginfo{name: "stream", val: 3},
 	},
 	"reqtstamp": []flaginfo{
-		flaginfo{name: "no", val: 0},
-		flaginfo{name: "yes", val: 1},
+		flaginfo{name: "off", val: 0},
+		flaginfo{name: "on", val: 1},
 	},
 	"progress": []flaginfo{
 		flaginfo{name: "inprogress", val: 0},
@@ -339,6 +339,12 @@ var Gmu sync.Mutex
 
 // Global - map of fields and flags
 var Global map[string]string
+
+// GTmu - Mutex for GLobal Timestamp changes
+var GTmu sync.Mutex
+
+// TGlobal - TImestamp type to use
+var TGlobal string
 
 // Valid - Check for valid flag and value
 func Valid(field string, info string) bool {
@@ -506,7 +512,6 @@ func Good(field string) bool {
 // Setglobal - Set the global flags applicable for the particular frame type
 // Dont set final descriptor here - Work it out in the transfer as it depends on file size
 func Setglobal(frametype string) string {
-	
 
 	fs := ""
 	for _, f := range Fields(frametype) {

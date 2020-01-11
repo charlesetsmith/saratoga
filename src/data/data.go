@@ -55,7 +55,7 @@ func (d *Data) New(flags string, session uint32, offset uint64, payload []byte) 
 			if err = d.Tstamp.Now(f[0]); err != nil { // Set the timestamp to right now
 				return err
 			}
-			d.Header, err = sarflags.Set(d.Header, "reqtstamp", "yes")
+			d.Header, err = sarflags.Set(d.Header, "reqtstamp", "on")
 		default:
 			e := "Invalid Flag " + f[0] + " for Data Frame"
 			return errors.New(e)
@@ -96,7 +96,7 @@ func (d *Data) Get(frame []byte) error {
 	}
 	d.Header = binary.BigEndian.Uint32(frame[:4])
 	d.Session = binary.BigEndian.Uint32(frame[4:8])
-	if sarflags.GetStr(d.Header, "reqtstamp") == "yes" {
+	if sarflags.GetStr(d.Header, "reqtstamp") == "on" {
 		if err := d.Tstamp.Get(frame[8:24]); err != nil {
 			return err
 		}
@@ -144,7 +144,7 @@ func (d *Data) Put() ([]byte, error) {
 
 	framelen := 4 + 4 // Header + Session
 
-	if sarflags.GetStr(d.Header, "reqtstamp") == "yes" {
+	if sarflags.GetStr(d.Header, "reqtstamp") == "on" {
 		framelen += 16 // Timestamp
 		havetstamp = true
 	}
@@ -195,7 +195,7 @@ func (d Data) Print() string {
 		n := sarflags.GetStr(d.Header, f)
 		sflag += fmt.Sprintf("  %s:%s\n", f, n)
 	}
-	if sarflags.GetStr(d.Header, "reqtstamp") == "yes" {
+	if sarflags.GetStr(d.Header, "reqtstamp") == "on" {
 		sflag += fmt.Sprintf("  timestamp:%s\n", d.Tstamp.Print())
 	}
 	sflag += fmt.Sprintf("  session:%d", d.Session)

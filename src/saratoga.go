@@ -417,9 +417,9 @@ func main() {
 	// Pid := os.Getpid()
 
 	// Global Flags set in cli
+
 	sarflags.Gmu.Lock()
 	sarflags.Global = make(map[string]string)
-
 	// Give them some defaults
 	// Find the maximum supported descriptor
 	if sarflags.MaxUint <= sarflags.MaxUint16 {
@@ -434,17 +434,20 @@ func main() {
 	sarflags.Global["txwilling"] = "yes"
 	sarflags.Global["rxwilling"] = "yes"
 	sarflags.Global["stream"] = "no"
-	sarflags.Global["reqtstamp"] = "no"
+	sarflags.Global["reqtstamp"] = "off"
 	sarflags.Global["reqstatus"] = "no"
 	sarflags.Global["udplite"] = "no"
-
-	for f := range sarflags.Global {
+	/* for f := range sarflags.Global {
 		if !sarflags.Valid(f, sarflags.Global[f]) {
 			ps := "Invalid Flag:" + f + "=" + sarflags.Global[f]
 			panic(ps)
 		}
-	}
+	} */
 	sarflags.Gmu.Unlock()
+
+	sarflags.GTmu.Lock()
+	sarflags.TGlobal = "posix64"
+	sarflags.GTmu.Unlock()
 
 	var sardir string
 

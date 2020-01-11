@@ -661,6 +661,36 @@ func putrm(g *gocui.Gui, args []string) {
 	screen.Fprintln(g, "msg", "red_black", cmd["putrm"][0])
 }
 
+func reqtstamp(g *gocui.Gui, args []string) {
+	if len(args) == 1 {
+		if sarflags.Global["reqtstamp"] == "yes" {
+			screen.Fprintln(g, "msg", "green_black", "Time stamps requested")
+		} else {
+			screen.Fprintln(g, "msg", "green_black", "Time stamps not requested")
+		}
+		return
+	}
+	if len(args) == 2 && args[1] == "?" { // usage
+		screen.Fprintln(g, "msg", "green_black", cmd["reqtstamp"][0])
+		screen.Fprintln(g, "msg", "green_black", cmd["reqtstamp"][1])
+		return
+	}
+	sarflags.Gmu.Lock()
+	defer sarflags.Gmu.Unlock()
+	if len(args) == 2 {
+		if args[1] == "yes" {
+			sarflags.Global["reqtstamp"] = "yes"
+			return
+		}
+		if args[1] == "no" {
+			sarflags.Global["reqtstamp"] = "no"
+			return
+		}
+		// screen.Fprintln(g, "msg", "red_black", "usage: ", cmd["reqtstamp][0]"])
+	}
+	screen.Fprintln(g, "msg", "red_black", "usage: ", cmd["reqtstamp"][0])
+}
+
 // remove a file from a remote destination
 func rm(g *gocui.Gui, args []string) {
 
@@ -896,30 +926,43 @@ func timeout(g *gocui.Gui, args []string) {
 	screen.Fprintln(g, "msg", "red_black", cmd["timeout"][0])
 }
 
-// Ctimestamp - What timestamp type are we using
-var Ctimestamp = "off"
-
 // set the timestamp type we are using
 func timestamp(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
-		screen.Fprintln(g, "msg", "green_black", "Timestamps type is", Ctimestamp)
+		screen.Fprintln(g, "msg", "green_black", "Timestamps are",
+			sarflags.Global["reqtstamp"], "and", sarflags.TGlobal)
 		return
 	}
+	sarflags.Gmu.Lock()
+	defer sarflags.Gmu.Unlock()
+	sarflags.GTmu.Lock()
+	defer sarflags.GTmu.Unlock()
 	if len(args) == 2 {
 		switch args[1] {
 		case "?":
 			screen.Fprintln(g, "msg", "green_black", cmd["timestamp"][0])
 			screen.Fprintln(g, "msg", "green_black", cmd["timestamp"][1])
 		case "off":
-			Ctimestamp = "off"
+			sarflags.Global["reqtstamp"] = "off"
+			// Don't change the TGlobal from what it was
 		case "32":
-			Ctimestamp = "32"
+			sarflags.Global["reqtstamp"] = "on"
+			sarflags.TGlobal = "posix32"
 		case "32_32":
-			Ctimestamp = "32_32"
+			sarflags.Global["reqtstamp"] = "on"
+			sarflags.TGlobal = "posix32_32"
+		case "64":
+			sarflags.Global["reqtstamp"] = "on"
+			sarflags.TGlobal = "posix64"
 		case "64_32":
-			Ctimestamp = "64_32"
+			sarflags.Global["reqtstamp"] = "on"
+			sarflags.TGlobal = "posix64_32"
 		case "32_y2k":
-			Ctimestamp = "32_y2k"
+			sarflags.Global["reqtstamp"] = "on"
+			sarflags.TGlobal = "epoch2000_32"
+		case "local":
+			sarflags.Global["reqtstamp"] = "on"
+			sarflags.TGlobal = "localinterp"
 		default:
 			screen.Fprintln(g, "msg", "red_black", cmd["timestamp"][0])
 		}
@@ -1043,6 +1086,7 @@ var cmdhandler = map[string]cmdfunc{
 	"putblind":   putblind,
 	"putrm":      putrm,
 	"quit":       exit,
+	"reqtstamp":  reqtstamp,
 	"rm":         rm,
 	"rmtran":     rmtran,
 	"rmdir":      rmdir,
@@ -1152,6 +1196,10 @@ var cmd = map[string][2]string{
 		"quit [0|1]",
 		"exit saratoga",
 	},
+	"reqtstamp": [2]string{
+		"reqtstamp [off|on]",
+		"request timestamps",
+	},
 	"rm": [2]string{
 		"rm <peer> <filename>",
 		"remove a file from a peer",
@@ -1165,7 +1213,7 @@ var cmd = map[string][2]string{
 		"remove a current transfer",
 	},
 	"rxwilling": [2]string{
-		"rxwilling [on|off|capable",
+		"rxwilling [on|off|capable]",
 		"current receive status or turn receive on/off/capable",
 	},
 	"stream": [2]string{

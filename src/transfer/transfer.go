@@ -360,6 +360,12 @@ func cput(t *Transfer, g *gocui.Gui, errflag chan string) {
 		return
 	}
 	errflag <- "success"
+	// Prime the data flags for the transfer
+	// during the transfer we only play with "eod" after this
+	dflags := "transfer=file,eod=no,"
+	dflags += sarflags.Setglobal("data")
+	dflags = replaceflag(dflags, tdesc)
+	screen.Fprintln(g, "msg", "magenta_black", "Data Flags <", dflags, ">")
 	return
 
 	/*
