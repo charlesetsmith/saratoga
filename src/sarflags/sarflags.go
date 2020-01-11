@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"strings"
+	"sync"
 )
 
 // Saratoga Sflag Header Field Format - 32 bit unsigned integer (uint32)
@@ -333,6 +334,9 @@ var flagvals = map[string][]flaginfo{
 	},
 }
 
+// Gmu - Mutex for Global flag changes
+var Gmu sync.Mutex
+
 // Global - map of fields and flags
 var Global map[string]string
 
@@ -502,6 +506,8 @@ func Good(field string) bool {
 // Setglobal - Set the global flags applicable for the particular frame type
 // Dont set final descriptor here - Work it out in the transfer as it depends on file size
 func Setglobal(frametype string) string {
+	
+
 	fs := ""
 	for _, f := range Fields(frametype) {
 		for g := range Global {

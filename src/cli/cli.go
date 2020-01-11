@@ -226,6 +226,8 @@ func checksum(g *gocui.Gui, args []string) {
 		screen.Fprintln(g, "msg", "green_black", cmd["checksum"][1])
 		return
 	}
+	sarflags.Gmu.Lock()
+	defer sarflags.Gmu.Unlock()
 	if len(args) == 2 {
 		switch args[1] {
 		case "off", "none":
@@ -281,6 +283,8 @@ func descriptor(g *gocui.Gui, args []string) {
 		screen.Fprintln(g, "msg", "green_black", cmd["descriptor"][1])
 		return
 	}
+	sarflags.Gmu.Lock()
+	defer sarflags.Gmu.Unlock()
 	if len(args) == 2 {
 		switch args[1] {
 		case "auto":
@@ -396,6 +400,8 @@ func freespace(g *gocui.Gui, args []string) {
 		screen.Fprintln(g, "msg", "green_black", cmd["freespace"][1])
 		return
 	}
+	sarflags.Gmu.Lock()
+	defer sarflags.Gmu.Unlock()
 	if len(args) == 2 {
 		if args[1] == "yes" {
 			sarflags.Global["freespace"] = "yes"
@@ -730,6 +736,8 @@ func rxwilling(g *gocui.Gui, args []string) {
 		screen.Fprintln(g, "msg", "green_black", cmd["rxwilling"][1])
 		return
 	}
+	sarflags.Gmu.Lock()
+	defer sarflags.Gmu.Unlock()
 	if len(args) == 2 {
 		if args[1] == "on" {
 			sarflags.Global["rxwilling"] = "yes"
@@ -763,6 +771,8 @@ func stream(g *gocui.Gui, args []string) {
 		screen.Fprintln(g, "msg", "green_black", cmd["stream"][1])
 		return
 	}
+	sarflags.Gmu.Lock()
+	defer sarflags.Gmu.Unlock()
 	if len(args) == 2 {
 		if args[1] == "yes" {
 			sarflags.Global["stream"] = "yes"
@@ -980,6 +990,8 @@ func txwilling(g *gocui.Gui, args []string) {
 		screen.Fprintln(g, "msg", "green_black", cmd["txwilling"][1])
 		return
 	}
+	sarflags.Gmu.Lock()
+	defer sarflags.Gmu.Unlock()
 	if len(args) == 2 {
 		if args[1] == "on" {
 			sarflags.Global["txwilling"] = "on"

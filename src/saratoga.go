@@ -417,6 +417,7 @@ func main() {
 	// Pid := os.Getpid()
 
 	// Global Flags set in cli
+	sarflags.Gmu.Lock()
 	sarflags.Global = make(map[string]string)
 
 	// Give them some defaults
@@ -443,6 +444,8 @@ func main() {
 			panic(ps)
 		}
 	}
+	sarflags.Gmu.Unlock()
+
 	var sardir string
 
 	// Get the default directory for sarotaga transfers from environment
