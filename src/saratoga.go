@@ -449,11 +449,19 @@ func main() {
 	sarflags.TGlobal = "posix64"
 	sarflags.GTmu.Unlock()
 
+	sarflags.GTOmu.Lock()
+	sarflags.GTimeout.Metadata = 60
+	sarflags.GTimeout.Request = 60
+	sarflags.GTimeout.Status = 60
+	sarflags.GTimeout.Statuscount = 100
+	sarflags.GTimeout.Transfer = 60
+	sarflags.GTOmu.Unlock()
+
 	var sardir string
 
 	// Get the default directory for sarotaga transfers from environment
 	if sardir = os.Getenv("SARDIR"); sardir == "" {
-		log.Fatal(errors.New("No Saratoga transfer directory SARDIR environment variabe set"))
+		log.Fatal(errors.New("No Saratoga transfer directory SARDIR environment variable set"))
 	}
 	// Move to it
 	if err := os.Chdir(sardir); err != nil {
@@ -495,7 +503,7 @@ func main() {
 	}
 	sarflags.MTU = uint64(iface.MTU)
 
-	// Listen to Unicast & Multicast
+	// Listen to Unicast & Multicast v6
 	v6mcastcon, err := net.ListenMulticastUDP("udp6", iface, &v6mcastaddr)
 	if err != nil {
 		fmt.Println("Saratoga Unable to Listen on IPv6 Multicast")
@@ -506,6 +514,7 @@ func main() {
 		fmt.Println("Saratoga IPv6 Multicast Server started on", sarnet.UDPinfo(&v6mcastaddr))
 	}
 
+	// Listen to Unicast & Multicast v4
 	v4mcastcon, err := net.ListenMulticastUDP("udp4", iface, &v4mcastaddr)
 	if err != nil {
 		fmt.Println("Saratoga Unable to Listen on IPv4 Multicast")
@@ -539,19 +548,26 @@ func main() {
 		}
 	}
 
-	fmt.Println("Sleeping for 7 seconds so you can check out the interfaces")
-	time.Sleep(7 * time.Second)
+	fmt.Println("Sleeping for 5 seconds so you can check out the interfaces")
+	time.Sleep(5 * time.Second)
 
+	// Set up the gocui interface and start the mainloop
 	g.Cursor = true
-
 	g.SetManagerFunc(layout)
-
 	if err := keybindings(g); err != nil {
 		log.Panicln(err)
 	}
-
 	// The Base calling functions for Saratoga live in cli.go so look there first!
-	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
-		log.Panicln(err)
+	errflag := make(chan error, 1)
+	go mainloop(g, errflag)
+	<-errflag
+}
+
+func mainloop(g *gocui.Gui, done chan error) {
+	var err error
+
+	if err = g.MainLoop(); err != nil && err != gocui.ErrQuit {
+		fmt.Printf("%s", err.Error())
 	}
+	done <- err
 }

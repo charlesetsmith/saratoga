@@ -479,9 +479,26 @@ func getrm(g *gocui.Gui, args []string) {
 }
 
 func help(g *gocui.Gui, args []string) {
-	for key, val := range cmd {
-		screen.Fprintln(g, "msg", "magenta_black", key, "-", val[1])
+	if len(args) == 1 {
+		for key, val := range cmd {
+			screen.Fprintln(g, "msg", "magenta_black", key, "-", val[1])
+		}
+		return
 	}
+	/* PROBLEM WITH ORDERING I NEED TO LOCK gocui screen somehow
+	if len(args) == 2 {
+		switch args[1] {
+		case "?":
+			for key := range cmd {
+				screen.Fprintln(g, "msg", "magenta_black", cmd[key][0])
+				screen.Fprintln(g, "msg", "magenta_black", "  ", cmd[key][1])
+			}
+		default:
+			screen.Fprintln(g, "msg", "red_black", cmd["help"][0])
+		}
+	}
+	*/
+	screen.Fprintln(g, "msg", "red_black", cmd["help"][0])
 }
 
 // Cinterval - seconds between beacon sends
@@ -516,15 +533,42 @@ func interval(g *gocui.Gui, args []string) {
 }
 
 func history(g *gocui.Gui, args []string) {
-	screen.Fprintln(g, "msg", "green_black", args)
+	if len(args) == 2 {
+		switch args[1] {
+		case "?":
+			screen.Fprintln(g, "msg", "green_black", cmd["history"][0])
+			screen.Fprintln(g, "msg", "green_black", cmd["history"][1])
+		default:
+			screen.Fprintln(g, "msg", "green_black", "History not implemented yet")
+		}
+	}
+	screen.Fprintln(g, "msg", "green_black", "History not implemented yet")
 }
 
 func home(g *gocui.Gui, args []string) {
-	screen.Fprintln(g, "msg", "green_black", args)
+	if len(args) == 2 {
+		switch args[1] {
+		case "?":
+			screen.Fprintln(g, "msg", "green_black", cmd["home"][0])
+			screen.Fprintln(g, "msg", "green_black", cmd["home"][1])
+		default:
+			screen.Fprintln(g, "msg", "green_black", "Home not implemented yet")
+		}
+	}
+	screen.Fprintln(g, "msg", "green_black", "Home not implemented yet")
 }
 
 func ls(g *gocui.Gui, args []string) {
-	screen.Fprintln(g, "msg", "green_black", args)
+	if len(args) == 2 {
+		switch args[1] {
+		case "?":
+			screen.Fprintln(g, "msg", "green_black", cmd["ls"][0])
+			screen.Fprintln(g, "msg", "green_black", cmd["ls"][1])
+		default:
+			screen.Fprintln(g, "msg", "green_black", "ls not implemented yet")
+		}
+	}
+	screen.Fprintln(g, "msg", "green_black", "ls not implemented yet")
 }
 
 // Display all of the peer information learned frm beacons
@@ -815,77 +859,74 @@ func stream(g *gocui.Gui, args []string) {
 	screen.Fprintln(g, "msg", "red_black", cmd["stream"][0])
 }
 
-type cmdTimeout struct {
-	metadata    int
-	request     int
-	status      int
-	statuscount int
-	transfer    int
-}
-
-// Ctimeout - timeouts for responses 0 means no timeout
-var Ctimeout = cmdTimeout{}
-
 // set timeouts for responses to request/status/transfer in seconds
 func timeout(g *gocui.Gui, args []string) {
+	sarflags.GTOmu.Lock()
+	defer sarflags.GTOmu.Unlock()
 	if len(args) == 1 {
-		if Ctimeout.metadata == 0 {
+		if sarflags.GTimeout.Metadata == 0 {
 			screen.Fprintln(g, "msg", "green_black", "metadata: No timeout")
 		} else {
-			screen.Fprintln(g, "msg", "green_black", "metadata:", Ctimeout.metadata, "seconds")
+			screen.Fprintln(g, "msg", "green_black", "metadata:", sarflags.GTimeout.Metadata, "seconds")
 		}
-		if Ctimeout.request == 0 {
+		if sarflags.GTimeout.Request == 0 {
 			screen.Fprintln(g, "msg", "green_black", "request: No timeout")
 		} else {
-			screen.Fprintln(g, "msg", "green_black", "request:", Ctimeout.request, "seconds")
+			screen.Fprintln(g, "msg", "green_black", "request:", sarflags.GTimeout.Request, "seconds")
 		}
-		if Ctimeout.status == 0 {
+		if sarflags.GTimeout.Status == 0 {
 			screen.Fprintln(g, "msg", "green_black", "status: No timeout")
 		} else {
-			screen.Fprintln(g, "msg", "green_black", "status:", Ctimeout.status, "seconds")
+			screen.Fprintln(g, "msg", "green_black", "status:", sarflags.GTimeout.Status, "seconds")
 		}
-		if Ctimeout.statuscount == 0 {
-			Ctimeout.statuscount = 100
+		if sarflags.GTimeout.Statuscount == 0 {
+			sarflags.GTimeout.Statuscount = 100
 			screen.Fprintln(g, "msg", "green_black", "statuscount every 100 frames")
 		} else {
-			screen.Fprintln(g, "msg", "green_black", "statuscount:", Ctimeout.statuscount, "frames")
+			screen.Fprintln(g, "msg", "green_black", "statuscount:", sarflags.GTimeout.Statuscount, "frames")
 		}
-		if Ctimeout.transfer == 0 {
+		if sarflags.GTimeout.Transfer == 0 {
 			screen.Fprintln(g, "msg", "green_black", "transfer: No timeout")
 		} else {
-			screen.Fprintln(g, "msg", "green_black", "transfer:", Ctimeout.transfer, "seconds")
+			screen.Fprintln(g, "msg", "green_black", "transfer:", sarflags.GTimeout.Transfer, "seconds")
 		}
 		return
 	}
 	if len(args) == 2 {
 		switch args[1] {
 		case "?":
-			screen.Fprintln(g, "msg", "green_black", cmd["stream"][0])
-			screen.Fprintln(g, "msg", "green_black", cmd["stream"][1])
+			screen.Fprintln(g, "msg", "green_black", cmd["timeout"][0])
+			screen.Fprintln(g, "msg", "green_black", cmd["timeout"][1])
 		case "request":
-			if Ctimeout.request == 0 {
+			if sarflags.GTimeout.Request == 0 {
 				screen.Fprintln(g, "msg", "green_black", "request: No timeout")
 			} else {
-				screen.Fprintln(g, "msg", "green_black", "request:", Ctimeout.request, "seconds")
+				screen.Fprintln(g, "msg", "green_black", "request:", sarflags.GTimeout.Request, "seconds")
+			}
+		case "metadata":
+			if sarflags.GTimeout.Request == 0 {
+				screen.Fprintln(g, "msg", "green_black", "metadata: No timeout")
+			} else {
+				screen.Fprintln(g, "msg", "green_black", "metadata:", sarflags.GTimeout.Metadata, "seconds")
 			}
 		case "status":
-			if Ctimeout.status == 0 {
+			if sarflags.GTimeout.Status == 0 {
 				screen.Fprintln(g, "msg", "green_black", "status: No timeout")
 			} else {
-				screen.Fprintln(g, "msg", "green_black", "status:", Ctimeout.status, "seconds")
+				screen.Fprintln(g, "msg", "green_black", "status:", sarflags.GTimeout.Status, "seconds")
 			}
 		case "statuscount":
-			if Ctimeout.statuscount == 0 {
-				Ctimeout.statuscount = 100
+			if sarflags.GTimeout.Statuscount == 0 {
+				sarflags.GTimeout.Statuscount = 100
 				screen.Fprintln(g, "msg", "green_black", "statuscount: Never")
 			} else {
-				screen.Fprintln(g, "msg", "green_black", "statuscount:", Ctimeout.statuscount, "frames")
+				screen.Fprintln(g, "msg", "green_black", "statuscount:", sarflags.GTimeout.Statuscount, "frames")
 			}
 		case "transfer":
-			if Ctimeout.transfer == 0 {
+			if sarflags.GTimeout.Transfer == 0 {
 				screen.Fprintln(g, "msg", "green_black", "transfer: No timeout")
 			} else {
-				screen.Fprintln(g, "msg", "green_black", "transfer:", Ctimeout.transfer, "seconds")
+				screen.Fprintln(g, "msg", "green_black", "transfer:", sarflags.GTimeout.Transfer, "seconds")
 			}
 		default:
 			screen.Fprintln(g, "msg", "red_black", cmd["stream"][0])
@@ -895,30 +936,34 @@ func timeout(g *gocui.Gui, args []string) {
 	if len(args) == 3 {
 		if n, err := strconv.Atoi(args[2]); err == nil && n >= 0 {
 			switch args[1] {
+			case "metadata":
+				sarflags.GTimeout.Metadata = n
 			case "request":
-				Ctimeout.request = n
+				sarflags.GTimeout.Request = n
 			case "status":
-				Ctimeout.status = n
+				sarflags.GTimeout.Status = n
 			case "statuscount":
 				if n == 0 {
 					n = 100
 				}
-				Ctimeout.statuscount = n
+				sarflags.GTimeout.Statuscount = n
 			case "transfer":
-				Ctimeout.transfer = n
+				sarflags.GTimeout.Transfer = n
 			}
 			return
 		}
 		if args[2] == "off" {
 			switch args[1] {
+			case "metadata":
+				sarflags.GTimeout.Metadata = 60
 			case "request":
-				Ctimeout.request = 0
+				sarflags.GTimeout.Request = 60
 			case "status":
-				Ctimeout.status = 0
+				sarflags.GTimeout.Status = 60
 			case "statuscount":
-				Ctimeout.statuscount = 100
+				sarflags.GTimeout.Statuscount = 100
 			case "transfer":
-				Ctimeout.transfer = 0
+				sarflags.GTimeout.Transfer = 60
 			}
 			return
 		}
@@ -1225,7 +1270,7 @@ var cmd = map[string][2]string{
 	// Timeout for status is how long I wait between receiving a status frame
 	"timeout": [2]string{
 		"timeout [metadata|request|transfer|status] <secs|off>",
-		"timeout in seconds for metadata,request frames, status receipts & transfer completion",
+		"timeout in seconds for metadata, request frames, status receipts & transfer completion",
 	},
 	"timestamp": [2]string{
 		"timestamp [off|32|64|32_32|64_32|32_y2k]",

@@ -343,8 +343,23 @@ var Global map[string]string
 // GTmu - Mutex for GLobal Timestamp changes
 var GTmu sync.Mutex
 
-// TGlobal - TImestamp type to use
+// TGlobal - Timestamp type to use
 var TGlobal string
+
+// GTOmu - Mutex for Global Timeout changes
+var GTOmu sync.Mutex
+
+// Timeout - Global Timeouts and counters
+type Timeout struct {
+	Metadata    int // Secs to wait
+	Request     int // Secs to wait
+	Status      int // Secs to wait
+	Statuscount int // Every statuscount data frames requst a status
+	Transfer    int // Secs to wait before cancelling transfer when nothing recieved
+}
+
+// GTimeout - timeouts for responses 0 means no timeout
+var GTimeout = Timeout{}
 
 // Valid - Check for valid flag and value
 func Valid(field string, info string) bool {
