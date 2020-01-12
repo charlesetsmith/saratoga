@@ -312,8 +312,8 @@ var flagvals = map[string][]flaginfo{
 		flaginfo{name: "sha1", val: 3},
 	},
 	"errcode": []flaginfo{
-		flaginfo{name: "success", val: 0x0},
-		flaginfo{name: "unspecified", val: 0x1},
+		flaginfo{name: "success", val: 0x0},     // Process the status and continue
+		flaginfo{name: "unspecified", val: 0x1}, // All others immediately kill the transfer
 		flaginfo{name: "cantsend", val: 0x2},
 		flaginfo{name: "cantreceive", val: 0x3},
 		flaginfo{name: "filenotfound", val: 0x4},
@@ -334,32 +334,32 @@ var flagvals = map[string][]flaginfo{
 	},
 }
 
-// Gmu - Mutex for Global flag changes
-var Gmu sync.Mutex
-
-// Global - map of fields and flags
-var Global map[string]string
-
-// GTmu - Mutex for GLobal Timestamp changes
-var GTmu sync.Mutex
-
-// TGlobal - Timestamp type to use
-var TGlobal string
-
-// GTOmu - Mutex for Global Timeout changes
-var GTOmu sync.Mutex
-
-// Timeout - Global Timeouts and counters
-type Timeout struct {
-	Metadata    int // Secs to wait
-	Request     int // Secs to wait
-	Status      int // Secs to wait
-	Statuscount int // Every statuscount data frames requst a status
-	Transfer    int // Secs to wait before cancelling transfer when nothing recieved
+// Timeouts - Global Timeouts and counters
+type Timeouts struct {
+	Metadata  int  // Secs to wait
+	Request   int  // Secs to wait
+	Status    int  // Secs to wait
+	Transfer  int  // Secs to wait before cancelling transfer when nothing recieved
+	Binterval uint // Secs between sending beacon frames
 }
 
 // GTimeout - timeouts for responses 0 means no timeout
-var GTimeout = Timeout{}
+var GTimeout = Timeouts{}
+
+// Cliflags - CLI Input flags
+type Cliflags struct {
+	Global    map[string]string // Global header flags set for frames
+	Timestamp string            // What timestamp to use
+	Timeout   Timeouts          // Various timeouts
+	Datacnt   int               // # data frames to send before a request flag is set
+	Timezone  string            // Timezone for logs utc or local time
+}
+
+// Cli - The CLI Flags that are entered in cli.go
+var Cli = Cliflags{}
+
+// Climu - Protect CLI input flags
+var Climu sync.Mutex
 
 // Valid - Check for valid flag and value
 func Valid(field string, info string) bool {
@@ -530,9 +530,9 @@ func Setglobal(frametype string) string {
 
 	fs := ""
 	for _, f := range Fields(frametype) {
-		for g := range Global {
+		for g := range Cli.Global {
 			if g == f {
-				fs += f + "=" + Global[f] + ","
+				fs += f + "=" + Cli.Global[f] + ","
 			}
 		}
 	}

@@ -417,45 +417,39 @@ func main() {
 	// Pid := os.Getpid()
 
 	// Global Flags set in cli
-
-	sarflags.Gmu.Lock()
-	sarflags.Global = make(map[string]string)
+	sarflags.Climu.Lock()
+	sarflags.Cli.Global = make(map[string]string)
 	// Give them some defaults
 	// Find the maximum supported descriptor
 	if sarflags.MaxUint <= sarflags.MaxUint16 {
-		sarflags.Global["descriptor"] = "d16"
+		sarflags.Cli.Global["descriptor"] = "d16"
 	} else if sarflags.MaxUint <= sarflags.MaxUint32 {
-		sarflags.Global["descriptor"] = "d32"
+		sarflags.Cli.Global["descriptor"] = "d32"
 	} else {
-		sarflags.Global["descriptor"] = "d64"
+		sarflags.Cli.Global["descriptor"] = "d64"
 	}
-	sarflags.Global["csumtype"] = "none"
-	sarflags.Global["freespace"] = "no"
-	sarflags.Global["txwilling"] = "yes"
-	sarflags.Global["rxwilling"] = "yes"
-	sarflags.Global["stream"] = "no"
-	sarflags.Global["reqtstamp"] = "off"
-	sarflags.Global["reqstatus"] = "no"
-	sarflags.Global["udplite"] = "no"
-	/* for f := range sarflags.Global {
+	sarflags.Cli.Global["csumtype"] = "none"
+	sarflags.Cli.Global["freespace"] = "no"
+	sarflags.Cli.Global["txwilling"] = "yes"
+	sarflags.Cli.Global["rxwilling"] = "yes"
+	sarflags.Cli.Global["stream"] = "no"
+	sarflags.Cli.Global["reqtstamp"] = "off"
+	sarflags.Cli.Global["reqstatus"] = "no"
+	sarflags.Cli.Global["udplite"] = "no"
+	/* for f := range sarflags.Cli.Global {
 		if !sarflags.Valid(f, sarflags.Global[f]) {
 			ps := "Invalid Flag:" + f + "=" + sarflags.Global[f]
 			panic(ps)
 		}
 	} */
-	sarflags.Gmu.Unlock()
-
-	sarflags.GTmu.Lock()
-	sarflags.TGlobal = "posix64"
-	sarflags.GTmu.Unlock()
-
-	sarflags.GTOmu.Lock()
-	sarflags.GTimeout.Metadata = 60
-	sarflags.GTimeout.Request = 60
-	sarflags.GTimeout.Status = 60
-	sarflags.GTimeout.Statuscount = 100
-	sarflags.GTimeout.Transfer = 60
-	sarflags.GTOmu.Unlock()
+	sarflags.Cli.Timestamp = "posix64"
+	sarflags.Cli.Timeout.Metadata = 60 // Seconds
+	sarflags.Cli.Timeout.Request = 60  // Seconds
+	sarflags.Cli.Timeout.Status = 60   // Seconds
+	sarflags.Cli.Timeout.Transfer = 60 // Seconds
+	sarflags.Cli.Datacnt = 100
+	sarflags.Cli.Timezone = "utc"
+	sarflags.Climu.Unlock()
 
 	var sardir string
 

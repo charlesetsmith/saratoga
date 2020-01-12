@@ -95,8 +95,8 @@ func cmdbeacon(g *gocui.Gui, args []string) {
 
 	// var bmu sync.Mutex // Protects beacon.Beacon structure (EID)
 
-	clibeacon.flags = sarflags.Setglobal("beacon") // Initialise Global Beacon flags
-	clibeacon.interval = Cinterval                 // Set up the correct interval
+	clibeacon.flags = sarflags.Setglobal("beacon")      // Initialise Global Beacon flags
+	clibeacon.interval = sarflags.Cli.Timeout.Binterval // Set up the correct interval
 
 	// Show current Cbeacon flags and lists - beacon
 	if len(args) == 1 {
@@ -134,7 +134,7 @@ func cmdbeacon(g *gocui.Gui, args []string) {
 		case "off": // remove and disable all beacons
 			clibeacon.flags = sarflags.Setglobal("beacon")
 			clibeacon.count = 0
-			clibeacon.interval = Cinterval
+			clibeacon.interval = sarflags.Cli.Timeout.Binterval
 			clibeacon.host = nil
 			screen.Fprintln(g, "msg", "green_black", "Beacons Disabled")
 			return
@@ -218,7 +218,7 @@ func cancel(g *gocui.Gui, args []string) {
 
 func checksum(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
-		screen.Fprintln(g, "msg", "green_black", "Checksum", sarflags.Global["csumtype"])
+		screen.Fprintln(g, "msg", "green_black", "Checksum", sarflags.Cli.Global["csumtype"])
 		return
 	}
 	if len(args) == 2 && args[1] == "?" { // usage
@@ -226,18 +226,18 @@ func checksum(g *gocui.Gui, args []string) {
 		screen.Fprintln(g, "msg", "green_black", cmd["checksum"][1])
 		return
 	}
-	sarflags.Gmu.Lock()
-	defer sarflags.Gmu.Unlock()
+	sarflags.Climu.Lock()
+	defer sarflags.Climu.Unlock()
 	if len(args) == 2 {
 		switch args[1] {
 		case "off", "none":
-			sarflags.Global["csumtype"] = "none"
+			sarflags.Cli.Global["csumtype"] = "none"
 		case "crc32":
-			sarflags.Global["csumtype"] = "crc32"
+			sarflags.Cli.Global["csumtype"] = "crc32"
 		case "md5":
-			sarflags.Global["csumtype"] = "md5"
+			sarflags.Cli.Global["csumtype"] = "md5"
 		case "sha1":
-			sarflags.Global["csumtype"] = "sha1"
+			sarflags.Cli.Global["csumtype"] = "sha1"
 		default:
 			screen.Fprintln(g, "cmd", "green_red", cmd["checksum"][0])
 		}
@@ -246,36 +246,9 @@ func checksum(g *gocui.Gui, args []string) {
 	screen.Fprintln(g, "cmd", "green_red", cmd["checksum"][0])
 }
 
-// Cdebug - Debug level 0 is off
-var Cdebug = 0
-
-func debug(g *gocui.Gui, args []string) {
-	if len(args) == 1 {
-		screen.Fprintln(g, "msg", "green_black", "Debug level", Cdebug)
-		return
-	}
-	if len(args) == 2 && args[1] == "?" { // usage
-		screen.Fprintln(g, "msg", "green_black", cmd["debug"][0])
-		screen.Fprintln(g, "msg", "green_black", cmd["debug"][1])
-		return
-	}
-	if len(args) == 2 {
-		switch args[1] {
-		case "off":
-			Cdebug = 0
-		case "0", "1", "2", "3", "4", "5", "6", "7", "8", "9":
-			Cdebug, _ = strconv.Atoi(args[1])
-		default:
-			screen.Fprintln(g, "msg", "green_red", cmd["debug"][0])
-		}
-		return
-	}
-	screen.Fprintln(g, "msg", "green_red", cmd["debug"][0])
-}
-
 func descriptor(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
-		screen.Fprintln(g, "msg", "green_black", "Descriptor", sarflags.Global["descriptor"])
+		screen.Fprintln(g, "msg", "green_black", "Descriptor", sarflags.Cli.Global["descriptor"])
 		return
 	}
 	if len(args) == 2 && args[1] == "?" { // usage
@@ -283,40 +256,40 @@ func descriptor(g *gocui.Gui, args []string) {
 		screen.Fprintln(g, "msg", "green_black", cmd["descriptor"][1])
 		return
 	}
-	sarflags.Gmu.Lock()
-	defer sarflags.Gmu.Unlock()
+	sarflags.Climu.Lock()
+	defer sarflags.Climu.Unlock()
 	if len(args) == 2 {
 		switch args[1] {
 		case "auto":
 			if sarflags.MaxUint <= sarflags.MaxUint16 {
-				sarflags.Global["descriptor"] = "d16"
+				sarflags.Cli.Global["descriptor"] = "d16"
 				break
 			}
 			if sarflags.MaxUint <= sarflags.MaxUint32 {
-				sarflags.Global["descriptor"] = "d32"
+				sarflags.Cli.Global["descriptor"] = "d32"
 				break
 			}
 			if sarflags.MaxUint <= sarflags.MaxUint64 {
-				sarflags.Global["descriptor"] = "d64"
+				sarflags.Cli.Global["descriptor"] = "d64"
 				break
 			}
 			screen.Fprintln(g, "msg", "red_black", "128 bit descriptors not supported on this platform")
 			break
 		case "d16":
 			if sarflags.MaxUint > sarflags.MaxUint16 {
-				sarflags.Global["descriptor"] = "d16"
+				sarflags.Cli.Global["descriptor"] = "d16"
 			} else {
 				screen.Fprintln(g, "msg", "red_black", "16 bit descriptors not supported on this platform")
 			}
 		case "d32":
 			if sarflags.MaxUint > sarflags.MaxUint32 {
-				sarflags.Global["descriptor"] = "d32"
+				sarflags.Cli.Global["descriptor"] = "d32"
 			} else {
 				screen.Fprintln(g, "msg", "red_black", "32 bit descriptors not supported on this platform")
 			}
 		case "d64":
 			if sarflags.MaxUint <= sarflags.MaxUint64 {
-				sarflags.Global["descriptor"] = "d64"
+				sarflags.Cli.Global["descriptor"] = "d64"
 			} else {
 				screen.Fprintln(g, "msg", "red_black", "64 bit descriptors not supported on this platform")
 			}
@@ -325,7 +298,7 @@ func descriptor(g *gocui.Gui, args []string) {
 		default:
 			screen.Fprintln(g, "msg", "red_black", "usage: ", cmd["descriptor"][0])
 		}
-		screen.Fprintln(g, "msg", "green_black", "Descriptor size is", sarflags.Global["descriptor"])
+		screen.Fprintln(g, "msg", "green_black", "Descriptor size is", sarflags.Cli.Global["descriptor"])
 		return
 	}
 	screen.Fprintln(g, "msg", "red_black", "usage: ", cmd["descriptor"][0])
@@ -364,16 +337,16 @@ func exit(g *gocui.Gui, args []string) {
 	screen.Fprintln(g, "msg", "red_black", cmd["exit"][0])
 }
 
-// Cfiles - Currently open file list
-var Cfiles []string
-
+// MORE WORK TO DO HERE!!!!! USE TRANSFERS LIST
 func files(g *gocui.Gui, args []string) {
+	var flist []string
+
 	if len(args) == 1 {
-		if len(Cfiles) == 0 {
+		if len(flist) == 0 {
 			screen.Fprintln(g, "msg", "green_black", "No currently open files")
 			return
 		}
-		for _, i := range Cfiles {
+		for _, i := range flist {
 			screen.Fprintln(g, "msg", "green_black", i)
 		}
 		return
@@ -388,7 +361,7 @@ func files(g *gocui.Gui, args []string) {
 
 func freespace(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
-		if sarflags.Global["freespace"] == "yes" {
+		if sarflags.Cli.Global["freespace"] == "yes" {
 			screen.Fprintln(g, "msg", "green_black", "Free space advertised")
 		} else {
 			screen.Fprintln(g, "msg", "green_black", "Free space not advertised")
@@ -400,15 +373,15 @@ func freespace(g *gocui.Gui, args []string) {
 		screen.Fprintln(g, "msg", "green_black", cmd["freespace"][1])
 		return
 	}
-	sarflags.Gmu.Lock()
-	defer sarflags.Gmu.Unlock()
+	sarflags.Climu.Lock()
+	defer sarflags.Climu.Unlock()
 	if len(args) == 2 {
 		if args[1] == "yes" {
-			sarflags.Global["freespace"] = "yes"
+			sarflags.Cli.Global["freespace"] = "yes"
 			return
 		}
 		if args[1] == "no" {
-			sarflags.Global["freespace"] = "no"
+			sarflags.Cli.Global["freespace"] = "no"
 			return
 		}
 		// screen.Fprintln(g, "msg", "red_black", "usage: ", cmd["freespace][0]"])
@@ -417,7 +390,6 @@ func freespace(g *gocui.Gui, args []string) {
 }
 
 func get(g *gocui.Gui, args []string) {
-
 	if len(args) == 1 {
 		transfer.Info(g, "get")
 		return
@@ -438,7 +410,6 @@ func get(g *gocui.Gui, args []string) {
 }
 
 func getdir(g *gocui.Gui, args []string) {
-
 	if len(args) == 1 {
 		transfer.Info(g, "getdir")
 		return
@@ -501,29 +472,29 @@ func help(g *gocui.Gui, args []string) {
 	screen.Fprintln(g, "msg", "red_black", cmd["help"][0])
 }
 
-// Cinterval - seconds between beacon sends
-var Cinterval uint
-
 func interval(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
-		if Cinterval == 0 {
+		if sarflags.Cli.Timeout.Binterval == 0 {
 			screen.Fprintln(g, "msg", "green_black", "Single Beacon Interation")
 		} else {
-			screen.Fprintln(g, "msg", "green_black", "Beacons sent every", Cinterval, "seconds")
+			screen.Fprintln(g, "msg", "green_black", "Beacons sent every",
+				sarflags.Cli.Timeout.Binterval, "seconds")
 		}
 		return
 	}
+	sarflags.Climu.Lock()
+	defer sarflags.Climu.Unlock()
 	if len(args) == 2 {
 		switch args[1] {
 		case "?":
 			screen.Fprintln(g, "msg", "green_black", cmd["interval"][0])
 			screen.Fprintln(g, "msg", "green_black", cmd["interval"][1])
 		case "off":
-			Cinterval = 0
+			sarflags.Cli.Timeout.Binterval = 0
 
 		default:
 			if n, err := strconv.Atoi(args[1]); err == nil && n >= 0 {
-				Cinterval = uint(n)
+				sarflags.Cli.Timeout.Binterval = uint(n)
 				return
 			}
 		}
@@ -707,7 +678,7 @@ func putrm(g *gocui.Gui, args []string) {
 
 func reqtstamp(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
-		if sarflags.Global["reqtstamp"] == "yes" {
+		if sarflags.Cli.Global["reqtstamp"] == "yes" {
 			screen.Fprintln(g, "msg", "green_black", "Time stamps requested")
 		} else {
 			screen.Fprintln(g, "msg", "green_black", "Time stamps not requested")
@@ -719,15 +690,15 @@ func reqtstamp(g *gocui.Gui, args []string) {
 		screen.Fprintln(g, "msg", "green_black", cmd["reqtstamp"][1])
 		return
 	}
-	sarflags.Gmu.Lock()
-	defer sarflags.Gmu.Unlock()
+	sarflags.Climu.Lock()
+	defer sarflags.Climu.Unlock()
 	if len(args) == 2 {
 		if args[1] == "yes" {
-			sarflags.Global["reqtstamp"] = "yes"
+			sarflags.Cli.Global["reqtstamp"] = "yes"
 			return
 		}
 		if args[1] == "no" {
-			sarflags.Global["reqtstamp"] = "no"
+			sarflags.Cli.Global["reqtstamp"] = "no"
 			return
 		}
 		// screen.Fprintln(g, "msg", "red_black", "usage: ", cmd["reqtstamp][0]"])
@@ -802,7 +773,7 @@ func rmtran(g *gocui.Gui, args []string) {
 // Are we willing to transmit files
 func rxwilling(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
-		screen.Fprintln(g, "msg", "green_black", "Receive Files", sarflags.Global["rxwilling"])
+		screen.Fprintln(g, "msg", "green_black", "Receive Files", sarflags.Cli.Global["rxwilling"])
 		return
 	}
 	if len(args) == 2 && args[1] == "?" {
@@ -810,30 +781,27 @@ func rxwilling(g *gocui.Gui, args []string) {
 		screen.Fprintln(g, "msg", "green_black", cmd["rxwilling"][1])
 		return
 	}
-	sarflags.Gmu.Lock()
-	defer sarflags.Gmu.Unlock()
+	sarflags.Climu.Lock()
+	defer sarflags.Climu.Unlock()
 	if len(args) == 2 {
 		if args[1] == "on" {
-			sarflags.Global["rxwilling"] = "yes"
+			sarflags.Cli.Global["rxwilling"] = "yes"
 		}
 		if args[1] == "off" {
-			sarflags.Global["rxwilling"] = "no"
+			sarflags.Cli.Global["rxwilling"] = "no"
 		}
 		if args[1] == "capable" {
-			sarflags.Global["rxwilling"] = "capable"
+			sarflags.Cli.Global["rxwilling"] = "capable"
 		}
 		return
 	}
 	screen.Fprintln(g, "msg", "red_black", cmd["rxwilling"][0])
 }
 
-// Cstream - Can the transfer be a stream (ie not a file)
-var Cstream = "off"
-
 // source is a named pipe not a file
 func stream(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
-		if sarflags.Global["stream"] == "yes" {
+		if sarflags.Cli.Global["stream"] == "yes" {
 			screen.Fprintln(g, "msg", "green_black", "Can stream")
 		} else {
 			screen.Fprintln(g, "msg", "green_black", "Cannot stream")
@@ -845,88 +813,88 @@ func stream(g *gocui.Gui, args []string) {
 		screen.Fprintln(g, "msg", "green_black", cmd["stream"][1])
 		return
 	}
-	sarflags.Gmu.Lock()
-	defer sarflags.Gmu.Unlock()
+	sarflags.Climu.Lock()
+	defer sarflags.Climu.Unlock()
 	if len(args) == 2 {
 		if args[1] == "yes" {
-			sarflags.Global["stream"] = "yes"
+			sarflags.Cli.Global["stream"] = "yes"
 		}
 		if args[1] == "no" {
-			sarflags.Global["stream"] = "no"
+			sarflags.Cli.Global["stream"] = "no"
 		}
 		return
 	}
 	screen.Fprintln(g, "msg", "red_black", cmd["stream"][0])
 }
 
-// set timeouts for responses to request/status/transfer in seconds
-func timeout(g *gocui.Gui, args []string) {
-	sarflags.GTOmu.Lock()
-	defer sarflags.GTOmu.Unlock()
+// Timeout - set timeouts for responses to request/status/transfer in seconds
+func Timeout(g *gocui.Gui, args []string) {
+	sarflags.Climu.Lock()
+	defer sarflags.Climu.Unlock()
 	if len(args) == 1 {
-		if sarflags.GTimeout.Metadata == 0 {
-			screen.Fprintln(g, "msg", "green_black", "metadata: No timeout")
+		if sarflags.Cli.Timeout.Metadata == 0 {
+			screen.Fprintln(g, "msg", "green_black", "metadata: No Timeout")
 		} else {
-			screen.Fprintln(g, "msg", "green_black", "metadata:", sarflags.GTimeout.Metadata, "seconds")
+			screen.Fprintln(g, "msg", "green_black", "metadata:", sarflags.Cli.Timeout.Metadata, "seconds")
 		}
-		if sarflags.GTimeout.Request == 0 {
-			screen.Fprintln(g, "msg", "green_black", "request: No timeout")
+		if sarflags.Cli.Timeout.Request == 0 {
+			screen.Fprintln(g, "msg", "green_black", "request: No Timeout")
 		} else {
-			screen.Fprintln(g, "msg", "green_black", "request:", sarflags.GTimeout.Request, "seconds")
+			screen.Fprintln(g, "msg", "green_black", "request:", sarflags.Cli.Timeout.Request, "seconds")
 		}
-		if sarflags.GTimeout.Status == 0 {
-			screen.Fprintln(g, "msg", "green_black", "status: No timeout")
+		if sarflags.Cli.Timeout.Status == 0 {
+			screen.Fprintln(g, "msg", "green_black", "status: No Timeout")
 		} else {
-			screen.Fprintln(g, "msg", "green_black", "status:", sarflags.GTimeout.Status, "seconds")
+			screen.Fprintln(g, "msg", "green_black", "status:", sarflags.Cli.Timeout.Status, "seconds")
 		}
-		if sarflags.GTimeout.Statuscount == 0 {
-			sarflags.GTimeout.Statuscount = 100
-			screen.Fprintln(g, "msg", "green_black", "statuscount every 100 frames")
+		if sarflags.Cli.Datacnt == 0 {
+			sarflags.Cli.Datacnt = 100
+			screen.Fprintln(g, "msg", "green_black", "Datacnt every 100 frames")
 		} else {
-			screen.Fprintln(g, "msg", "green_black", "statuscount:", sarflags.GTimeout.Statuscount, "frames")
+			screen.Fprintln(g, "msg", "green_black", "Datacnt:", sarflags.Cli.Datacnt, "frames")
 		}
-		if sarflags.GTimeout.Transfer == 0 {
-			screen.Fprintln(g, "msg", "green_black", "transfer: No timeout")
+		if sarflags.Cli.Timeout.Transfer == 0 {
+			screen.Fprintln(g, "msg", "green_black", "transfer: No Timeout")
 		} else {
-			screen.Fprintln(g, "msg", "green_black", "transfer:", sarflags.GTimeout.Transfer, "seconds")
+			screen.Fprintln(g, "msg", "green_black", "transfer:", sarflags.Cli.Timeout.Transfer, "seconds")
 		}
 		return
 	}
 	if len(args) == 2 {
 		switch args[1] {
 		case "?":
-			screen.Fprintln(g, "msg", "green_black", cmd["timeout"][0])
-			screen.Fprintln(g, "msg", "green_black", cmd["timeout"][1])
+			screen.Fprintln(g, "msg", "green_black", cmd["Timeout"][0])
+			screen.Fprintln(g, "msg", "green_black", cmd["Timeout"][1])
 		case "request":
-			if sarflags.GTimeout.Request == 0 {
-				screen.Fprintln(g, "msg", "green_black", "request: No timeout")
+			if sarflags.Cli.Timeout.Request == 0 {
+				screen.Fprintln(g, "msg", "green_black", "request: No Timeout")
 			} else {
-				screen.Fprintln(g, "msg", "green_black", "request:", sarflags.GTimeout.Request, "seconds")
+				screen.Fprintln(g, "msg", "green_black", "request:", sarflags.Cli.Timeout.Request, "seconds")
 			}
 		case "metadata":
-			if sarflags.GTimeout.Request == 0 {
-				screen.Fprintln(g, "msg", "green_black", "metadata: No timeout")
+			if sarflags.Cli.Timeout.Request == 0 {
+				screen.Fprintln(g, "msg", "green_black", "metadata: No Timeout")
 			} else {
-				screen.Fprintln(g, "msg", "green_black", "metadata:", sarflags.GTimeout.Metadata, "seconds")
+				screen.Fprintln(g, "msg", "green_black", "metadata:", sarflags.Cli.Timeout.Metadata, "seconds")
 			}
 		case "status":
-			if sarflags.GTimeout.Status == 0 {
-				screen.Fprintln(g, "msg", "green_black", "status: No timeout")
+			if sarflags.Cli.Timeout.Status == 0 {
+				screen.Fprintln(g, "msg", "green_black", "status: No Timeout")
 			} else {
-				screen.Fprintln(g, "msg", "green_black", "status:", sarflags.GTimeout.Status, "seconds")
+				screen.Fprintln(g, "msg", "green_black", "status:", sarflags.Cli.Timeout.Status, "seconds")
 			}
-		case "statuscount":
-			if sarflags.GTimeout.Statuscount == 0 {
-				sarflags.GTimeout.Statuscount = 100
-				screen.Fprintln(g, "msg", "green_black", "statuscount: Never")
+		case "Datacnt":
+			if sarflags.Cli.Datacnt == 0 {
+				sarflags.Cli.Datacnt = 100
+				screen.Fprintln(g, "msg", "green_black", "Datacnt: Never")
 			} else {
-				screen.Fprintln(g, "msg", "green_black", "statuscount:", sarflags.GTimeout.Statuscount, "frames")
+				screen.Fprintln(g, "msg", "green_black", "Datacnt:", sarflags.Cli.Datacnt, "frames")
 			}
 		case "transfer":
-			if sarflags.GTimeout.Transfer == 0 {
-				screen.Fprintln(g, "msg", "green_black", "transfer: No timeout")
+			if sarflags.Cli.Timeout.Transfer == 0 {
+				screen.Fprintln(g, "msg", "green_black", "transfer: No Timeout")
 			} else {
-				screen.Fprintln(g, "msg", "green_black", "transfer:", sarflags.GTimeout.Transfer, "seconds")
+				screen.Fprintln(g, "msg", "green_black", "transfer:", sarflags.Cli.Timeout.Transfer, "seconds")
 			}
 		default:
 			screen.Fprintln(g, "msg", "red_black", cmd["stream"][0])
@@ -937,77 +905,77 @@ func timeout(g *gocui.Gui, args []string) {
 		if n, err := strconv.Atoi(args[2]); err == nil && n >= 0 {
 			switch args[1] {
 			case "metadata":
-				sarflags.GTimeout.Metadata = n
+				sarflags.Cli.Timeout.Metadata = n
 			case "request":
-				sarflags.GTimeout.Request = n
+				sarflags.Cli.Timeout.Request = n
 			case "status":
-				sarflags.GTimeout.Status = n
-			case "statuscount":
+				sarflags.Cli.Timeout.Status = n
+			case "Datacnt":
 				if n == 0 {
 					n = 100
 				}
-				sarflags.GTimeout.Statuscount = n
+				sarflags.Cli.Datacnt = n
 			case "transfer":
-				sarflags.GTimeout.Transfer = n
+				sarflags.Cli.Timeout.Transfer = n
 			}
 			return
 		}
 		if args[2] == "off" {
 			switch args[1] {
 			case "metadata":
-				sarflags.GTimeout.Metadata = 60
+				sarflags.Cli.Timeout.Metadata = 60
 			case "request":
-				sarflags.GTimeout.Request = 60
+				sarflags.Cli.Timeout.Request = 60
 			case "status":
-				sarflags.GTimeout.Status = 60
-			case "statuscount":
-				sarflags.GTimeout.Statuscount = 100
+				sarflags.Cli.Timeout.Status = 60
+			case "Datacnt":
+				sarflags.Cli.Datacnt = 100
 			case "transfer":
-				sarflags.GTimeout.Transfer = 60
+				sarflags.Cli.Timeout.Transfer = 60
 			}
 			return
 		}
 	}
-	screen.Fprintln(g, "msg", "red_black", cmd["timeout"][0])
+	screen.Fprintln(g, "msg", "red_black", cmd["Timeout"][0])
 }
 
 // set the timestamp type we are using
 func timestamp(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
 		screen.Fprintln(g, "msg", "green_black", "Timestamps are",
-			sarflags.Global["reqtstamp"], "and", sarflags.TGlobal)
+			sarflags.Cli.Global["reqtstamp"], "and", sarflags.Cli.Timestamp)
 		return
 	}
-	sarflags.Gmu.Lock()
-	defer sarflags.Gmu.Unlock()
-	sarflags.GTmu.Lock()
-	defer sarflags.GTmu.Unlock()
+	sarflags.Climu.Lock()
+	defer sarflags.Climu.Unlock()
+	sarflags.Climu.Lock()
+	defer sarflags.Climu.Unlock()
 	if len(args) == 2 {
 		switch args[1] {
 		case "?":
 			screen.Fprintln(g, "msg", "green_black", cmd["timestamp"][0])
 			screen.Fprintln(g, "msg", "green_black", cmd["timestamp"][1])
 		case "off":
-			sarflags.Global["reqtstamp"] = "off"
+			sarflags.Cli.Global["reqtstamp"] = "off"
 			// Don't change the TGlobal from what it was
 		case "32":
-			sarflags.Global["reqtstamp"] = "on"
-			sarflags.TGlobal = "posix32"
+			sarflags.Cli.Global["reqtstamp"] = "on"
+			sarflags.Cli.Timestamp = "posix32"
 		case "32_32":
-			sarflags.Global["reqtstamp"] = "on"
-			sarflags.TGlobal = "posix32_32"
+			sarflags.Cli.Global["reqtstamp"] = "on"
+			sarflags.Cli.Timestamp = "posix32_32"
 		case "64":
-			sarflags.Global["reqtstamp"] = "on"
-			sarflags.TGlobal = "posix64"
+			sarflags.Cli.Global["reqtstamp"] = "on"
+			sarflags.Cli.Timestamp = "posix64"
 		case "64_32":
-			sarflags.Global["reqtstamp"] = "on"
-			sarflags.TGlobal = "posix64_32"
+			sarflags.Cli.Global["reqtstamp"] = "on"
+			sarflags.Cli.Timestamp = "posix64_32"
 		case "32_y2k":
-			sarflags.Global["reqtstamp"] = "on"
-			sarflags.TGlobal = "epoch2000_32"
+			sarflags.Cli.Global["reqtstamp"] = "on"
+			sarflags.Cli.Timestamp = "epoch2000_32"
 		case "local":
-			sarflags.Global["reqtstamp"] = "on"
-			sarflags.TGlobal = "localinterp"
+			sarflags.Cli.Global["reqtstamp"] = "on"
+			sarflags.Cli.Timestamp = "localinterp"
 		default:
 			screen.Fprintln(g, "msg", "red_black", cmd["timestamp"][0])
 		}
@@ -1016,24 +984,23 @@ func timestamp(g *gocui.Gui, args []string) {
 	screen.Fprintln(g, "msg", "red_black", cmd["timestamp"][0])
 }
 
-// Ctimezone - What timezone to use for log - local or utc
-var Ctimezone = "local"
-
 // set the timezone we use for logs local or utc
 func timezone(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
-		screen.Fprintln(g, "msg", "green_black", "Timezone is", Ctimezone)
+		screen.Fprintln(g, "msg", "green_black", "Timezone is", sarflags.Cli.Timezone)
 		return
 	}
+	sarflags.Climu.Lock()
+	defer sarflags.Climu.Unlock()
 	if len(args) == 2 {
 		switch args[1] {
 		case "?":
 			screen.Fprintln(g, "msg", "green_black", cmd["timezone"][0])
 			screen.Fprintln(g, "msg", "green_black", cmd["timezone"][1])
 		case "local":
-			Ctimezone = "local"
+			sarflags.Cli.Timezone = "local"
 		case "utc":
-			Ctimezone = "utc"
+			sarflags.Cli.Timezone = "utc"
 		default:
 			screen.Fprintln(g, "msg", "red_black", cmd["timezone"][0])
 		}
@@ -1070,7 +1037,7 @@ func tran(g *gocui.Gui, args []string) {
 // we are willing to transmit files
 func txwilling(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
-		screen.Fprintln(g, "msg", "green_black", "Transmit Files", sarflags.Global["txwilling"])
+		screen.Fprintln(g, "msg", "green_black", "Transmit Files", sarflags.Cli.Global["txwilling"])
 		return
 	}
 	if len(args) == 2 && args[1] == "?" {
@@ -1078,17 +1045,17 @@ func txwilling(g *gocui.Gui, args []string) {
 		screen.Fprintln(g, "msg", "green_black", cmd["txwilling"][1])
 		return
 	}
-	sarflags.Gmu.Lock()
-	defer sarflags.Gmu.Unlock()
+	sarflags.Climu.Lock()
+	defer sarflags.Climu.Unlock()
 	if len(args) == 2 {
 		if args[1] == "on" {
-			sarflags.Global["txwilling"] = "on"
+			sarflags.Cli.Global["txwilling"] = "on"
 		}
 		if args[1] == "off" {
-			sarflags.Global["txwilling"] = "off"
+			sarflags.Cli.Global["txwilling"] = "off"
 		}
 		if args[1] == "capable" {
-			sarflags.Global["txwilling"] = "capable"
+			sarflags.Cli.Global["txwilling"] = "capable"
 		}
 		return
 	}
@@ -1112,7 +1079,6 @@ var cmdhandler = map[string]cmdfunc{
 	"beacon":     cmdbeacon,
 	"cancel":     cancel,
 	"checksum":   checksum,
-	"debug":      debug,
 	"descriptor": descriptor,
 	"exit":       exit,
 	"files":      files,
@@ -1137,7 +1103,7 @@ var cmdhandler = map[string]cmdfunc{
 	"rmdir":      rmdir,
 	"rxwilling":  rxwilling,
 	"stream":     stream,
-	"timeout":    timeout,
+	"Timeout":    Timeout,
 	"timestamp":  timestamp,
 	"timezone":   timezone,
 	"tran":       tran,
@@ -1168,10 +1134,6 @@ var cmd = map[string][2]string{
 	"checksum": [2]string{
 		"checksum [off|none|crc32|md5|sha1]",
 		"set checksums required and type",
-	},
-	"debug": [2]string{
-		"debug [off|0..9]",
-		"set debug level 0..9",
 	},
 	"descriptor": [2]string{
 		"descriptor [auto|d16|d32|d64|d128",
@@ -1268,9 +1230,9 @@ var cmd = map[string][2]string{
 	// Timeout for a request is how long I wait after I send a request before I cancel it
 	// Timout for transfer is how long I wait before I receive next frame in a transfer
 	// Timeout for status is how long I wait between receiving a status frame
-	"timeout": [2]string{
-		"timeout [metadata|request|transfer|status] <secs|off>",
-		"timeout in seconds for metadata, request frames, status receipts & transfer completion",
+	"Timeout": [2]string{
+		"Timeout [metadata|request|transfer|status] <secs|off>",
+		"Timeout in seconds for metadata, request frames, status receipts & transfer completion",
 	},
 	"timestamp": [2]string{
 		"timestamp [off|32|64|32_32|64_32|32_y2k]",

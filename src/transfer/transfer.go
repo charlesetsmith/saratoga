@@ -265,7 +265,7 @@ var clienthandler = map[string]clientfunc{
 // 		Loop Sending Data and receiving intermittant Status
 // 		Resend Metadata if Requested in Status
 // 		Status is requested in Data every status timer secs
-//		or statuscount Data frames sent, whichever comes first
+//		or Datacnt Data frames sent, whichever comes first
 //		Abort with error if Rx Status errcode != "success"
 //
 func cput(t *Transfer, g *gocui.Gui, errflag chan string) {
