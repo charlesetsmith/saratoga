@@ -559,16 +559,57 @@ func peers(g *gocui.Gui, args []string) {
 		screen.Fprintln(g, "msg", "purple_black", "No Peers")
 		return
 	}
-	screen.Fprintf(g, "msg", "green_black", "Address | Freespace | EID | Max Desc Size | Created | Modified\n")
+	// Table format
+	// Work out the max length of each field
+	var addrlen, eidlen, dcrelen, dmodlen int
 	for p := range beacon.Peers {
-		screen.Fprintf(g, "msg", "green_black", "%s | %dMB | %s | %s | %s | %s\n",
-			beacon.Peers[p].Addr,
-			beacon.Peers[p].Freespace/1024,
-			beacon.Peers[p].Eid,
-			beacon.Peers[p].Maxdesc,
-			beacon.Peers[p].Created.Print(),
-			beacon.Peers[p].Updated.Print())
+		if len(beacon.Peers[p].Addr) > addrlen {
+			addrlen = len(beacon.Peers[p].Addr)
+		}
+		if len(beacon.Peers[p].Eid) > eidlen {
+			eidlen = len(beacon.Peers[p].Eid)
+		}
+		if len(beacon.Peers[p].Created.Print()) > dcrelen {
+			dcrelen = len(beacon.Peers[p].Created.Print())
+		}
+		if len(beacon.Peers[p].Created.Print()) > dmodlen {
+			dmodlen = len(beacon.Peers[p].Updated.Print())
+		}
 	}
+	if eidlen < 3 {
+		eidlen = 3
+	}
+
+	sfmt := fmt.Sprintf("|%%%ds|%%6s|%%%ds|%%3s|%%%ds|%%%ds|\n",
+		addrlen, eidlen, dcrelen, dmodlen)
+	sborder := fmt.Sprintf(sfmt,
+		strings.Repeat("-", addrlen),
+		strings.Repeat("-", 6),
+		strings.Repeat("-", eidlen),
+		strings.Repeat("-", 3),
+		strings.Repeat("-", dcrelen),
+		strings.Repeat("-", dmodlen))
+
+	var sslice sort.StringSlice
+	for key := range beacon.Peers {
+		pinfo := fmt.Sprintf(sfmt, beacon.Peers[key].Addr,
+			strconv.Itoa(int(beacon.Peers[key].Freespace/1024/1024)),
+			beacon.Peers[key].Eid,
+			beacon.Peers[key].Maxdesc,
+			beacon.Peers[key].Created.Print(),
+			beacon.Peers[key].Updated.Print())
+		sslice = append(sslice, fmt.Sprintf("%s", pinfo))
+	}
+	sort.Sort(sslice)
+
+	sbuf := sborder
+	sbuf += fmt.Sprintf(sfmt, "IP", "GB", "EID", "Des", "Date Created", "Date Modified")
+	sbuf += sborder
+	for key := 0; key < len(sslice); key++ {
+		sbuf += fmt.Sprintf("%s", sslice[key])
+	}
+	sbuf += sborder
+	screen.Fprintln(g, "msg", "magenta_black", sbuf)
 }
 
 // Cprompt - Command line prompt
