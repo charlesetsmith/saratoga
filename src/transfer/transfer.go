@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -139,9 +140,17 @@ func (t *Transfer) Remove() error {
 	return errors.New(emsg)
 }
 
+// FmtPrint - String of relevant transfer info
+func (t *Transfer) FmtPrint(sfmt string) string {
+	return fmt.Sprintf(sfmt, t.direction,
+		t.ttype,
+		t.peer.String(),
+		t.filename)
+}
+
 // Print - String of relevant transfer info
 func (t *Transfer) Print() string {
-	return fmt.Sprintf("%s %s %s %s", t.direction,
+	return fmt.Sprintf("%s|%s|%s|%s", t.direction,
 		t.ttype,
 		t.peer.String(),
 		t.filename)
@@ -151,27 +160,42 @@ func (t *Transfer) Print() string {
 func Info(g *gocui.Gui, ttype string) {
 	var tinfo []Transfer
 
-	for _, i := range Transfers {
+	for i := range Transfers {
 		if ttype == "" {
-			tinfo = append(tinfo, i)
-		} else {
-			for _, t := range Ttypes {
-				if t == ttype {
-					tinfo = append(tinfo, i)
-				}
-			}
+			tinfo = append(tinfo, Transfers[i])
+		} else if Transfers[i].ttype == ttype {
+			tinfo = append(tinfo, Transfers[i])
 		}
 	}
 	if len(tinfo) > 0 {
-		var colour string
-		for _, i := range tinfo {
-			if i.direction == "client" {
-				colour = "green_black"
-			} else {
-				colour = "yellow_black"
+		var maxaddrlen, maxfname int // Work out the width for the table
+		for key := range tinfo {
+			if len(tinfo[key].peer.String()) > maxaddrlen {
+				maxaddrlen = len(tinfo[key].peer.String())
 			}
-			screen.Fprintln(g, "msg", colour, i.Print())
+			if len(tinfo[key].filename) > maxfname {
+				maxfname = len(tinfo[key].peer.String())
+			}
 		}
+		// Table format
+		sfmt := fmt.Sprintf("|%%6s|%%8s|%%%ds|%%%ds|\n", maxaddrlen, maxfname)
+		sborder := fmt.Sprintf(sfmt, strings.Repeat("-", 6), strings.Repeat("-", 8),
+			strings.Repeat("-", maxaddrlen), strings.Repeat("-", maxfname))
+
+		var sslice sort.StringSlice
+		for key := range tinfo {
+			sslice = append(sslice, fmt.Sprintf("%s", tinfo[key].FmtPrint(sfmt)))
+		}
+		sort.Sort(sslice)
+
+		sbuf := sborder
+		sbuf += fmt.Sprintf(sfmt, "Direct", "Tran Typ", "IP", "Fname")
+		sbuf += sborder
+		for key := 0; key < len(sslice); key++ {
+			sbuf += fmt.Sprintf("%s", sslice[key])
+		}
+		sbuf += sborder
+		screen.Fprintln(g, "msg", "magenta_black", sbuf)
 	} else {
 		msg := fmt.Sprintf("No %s transfers currently in progress", ttype)
 		screen.Fprintln(g, "msg", "green_black", msg)

@@ -636,8 +636,8 @@ func putblind(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 2 && args[1] == "?" {
-		screen.Fprintln(g, "msg", "green_black", cmd["blindput"][0])
-		screen.Fprintln(g, "msg", "green_black", cmd["blindput"][1])
+		screen.Fprintln(g, "msg", "green_black", cmd["putblind"][0])
+		screen.Fprintln(g, "msg", "green_black", cmd["putblind"][1])
 		return
 	}
 	if len(args) == 3 {
@@ -653,7 +653,7 @@ func putblind(g *gocui.Gui, args []string) {
 		}
 		return
 	}
-	screen.Fprintln(g, "msg", "red_black", cmd["blindput"][0])
+	screen.Fprintln(g, "msg", "red_black", cmd["putblind"][0])
 }
 
 // put/send a file file to a remote destination then remove it from the origin
@@ -1029,8 +1029,8 @@ func tran(g *gocui.Gui, args []string) {
 	if len(args) == 2 {
 		switch args[1] {
 		case "?":
-			screen.Fprintln(g, "msg", "green_black", cmd["tran"][0])
-			screen.Fprintln(g, "msg", "green_black", cmd["tran"][1])
+			screen.Fprintf(g, "msg", "green_black", "%s\n  %s\n",
+				cmd["tran"][0], cmd["tran"][1])
 		default:
 			for _, tt := range transfer.Ttypes {
 				if args[1] == tt {
@@ -1143,10 +1143,6 @@ var cmd = map[string][2]string{
 		"beacon [off] [v4|v6|<ip>...] [secs]",
 		"send a beacon every n secs",
 	},
-	"blindput": [2]string{
-		"blindput <peer> <filename>",
-		"send a file to a peer with no initial request/status exchange",
-	},
 	"cancel": [2]string{
 		"cancel <transfer>",
 		"cancel a current transfer in progress",
@@ -1214,6 +1210,10 @@ var cmd = map[string][2]string{
 	"put": [2]string{
 		"put <peer> <filename>",
 		"send a file to a peer",
+	},
+	"putblind": [2]string{
+		"putblind <peer> <filename>",
+		"send a file to a peer with no initial request/status exchange",
 	},
 	"putrm": [2]string{
 		"putrm <peer> <filename>",
