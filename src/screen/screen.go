@@ -38,6 +38,7 @@ var colours = map[string]string{
 // Fprintf out in ANSII escape sequenace colour
 // If colour is undefined then still print it out but in bright red to show there is an issue
 func Fprintf(g *gocui.Gui, vname string, colour string, format string, args ...interface{}) {
+
 	g.Update(func(g *gocui.Gui) error {
 		v, err := g.View(vname)
 		if err != nil {

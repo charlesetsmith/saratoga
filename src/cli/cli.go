@@ -2,7 +2,9 @@ package cli
 
 import (
 	"errors"
+	"fmt"
 	"net"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -451,24 +453,33 @@ func getrm(g *gocui.Gui, args []string) {
 
 func help(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
+		var sslice sort.StringSlice
 		for key, val := range cmd {
-			screen.Fprintln(g, "msg", "magenta_black", key, "-", val[1])
+			sslice = append(sslice, fmt.Sprintf("%s - %s", key, val[1]))
 		}
+		sort.Sort(sslice)
+		var sbuf string
+		for key := 0; key < len(sslice); key++ {
+			sbuf += fmt.Sprintf("%s\n", sslice[key])
+		}
+		screen.Fprintln(g, "msg", "magenta_black", sbuf)
 		return
 	}
-	/* PROBLEM WITH ORDERING I NEED TO LOCK gocui screen somehow
 	if len(args) == 2 {
-		switch args[1] {
-		case "?":
-			for key := range cmd {
-				screen.Fprintln(g, "msg", "magenta_black", cmd[key][0])
-				screen.Fprintln(g, "msg", "magenta_black", "  ", cmd[key][1])
+		if args[1] == "?" {
+			var sslice sort.StringSlice
+			for key, val := range cmd {
+				sslice = append(sslice, fmt.Sprintf("%s - %s\n  %s", key, val[0], val[1]))
 			}
-		default:
-			screen.Fprintln(g, "msg", "red_black", cmd["help"][0])
+			sort.Sort(sslice)
+			var sbuf string
+			for key := 0; key < len(sslice); key++ {
+				sbuf += fmt.Sprintf("%s\n", sslice[key])
+			}
+			screen.Fprintln(g, "msg", "magenta_black", sbuf)
+			return
 		}
 	}
-	*/
 	screen.Fprintln(g, "msg", "red_black", cmd["help"][0])
 }
 
@@ -828,7 +839,7 @@ func stream(g *gocui.Gui, args []string) {
 }
 
 // Timeout - set timeouts for responses to request/status/transfer in seconds
-func Timeout(g *gocui.Gui, args []string) {
+func timeout(g *gocui.Gui, args []string) {
 	sarflags.Climu.Lock()
 	defer sarflags.Climu.Unlock()
 	if len(args) == 1 {
@@ -1064,9 +1075,18 @@ func txwilling(g *gocui.Gui, args []string) {
 
 // Show all commands usage
 func usage(g *gocui.Gui, args []string) {
-	for _, val := range cmd {
-		screen.Fprintln(g, "msg", "cyan_black", val[0])
+	var sslice sort.StringSlice
+
+	for key, val := range cmd {
+		sslice = append(sslice, fmt.Sprintf("%s - %s", key, val[0]))
 	}
+	sort.Sort(sslice)
+	var sbuf string
+	for key := 0; key < len(sslice); key++ {
+		sbuf += fmt.Sprintf("%s\n", sslice[key])
+	}
+	screen.Fprintln(g, "msg", "magenta_black", sbuf)
+	return
 }
 
 /* ************************************************************************** */
@@ -1103,7 +1123,7 @@ var cmdhandler = map[string]cmdfunc{
 	"rmdir":      rmdir,
 	"rxwilling":  rxwilling,
 	"stream":     stream,
-	"Timeout":    Timeout,
+	"timeout":    timeout,
 	"timestamp":  timestamp,
 	"timezone":   timezone,
 	"tran":       tran,
@@ -1230,9 +1250,9 @@ var cmd = map[string][2]string{
 	// Timeout for a request is how long I wait after I send a request before I cancel it
 	// Timout for transfer is how long I wait before I receive next frame in a transfer
 	// Timeout for status is how long I wait between receiving a status frame
-	"Timeout": [2]string{
-		"Timeout [metadata|request|transfer|status] <secs|off>",
-		"Timeout in seconds for metadata, request frames, status receipts & transfer completion",
+	"timeout": [2]string{
+		"timeout [metadata|request|transfer|status] <secs|off>",
+		"timeout in seconds for metadata, request frames, status receipts & transfer completion",
 	},
 	"timestamp": [2]string{
 		"timestamp [off|32|64|32_32|64_32|32_y2k]",

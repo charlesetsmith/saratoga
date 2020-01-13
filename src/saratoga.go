@@ -447,8 +447,8 @@ func main() {
 	sarflags.Cli.Timeout.Request = 60  // Seconds
 	sarflags.Cli.Timeout.Status = 60   // Seconds
 	sarflags.Cli.Timeout.Transfer = 60 // Seconds
-	sarflags.Cli.Datacnt = 100
-	sarflags.Cli.Timezone = "utc"
+	sarflags.Cli.Datacnt = 100         // # Data frames between request for status
+	sarflags.Cli.Timezone = "utc"      // TImezone to use for logs
 	sarflags.Climu.Unlock()
 
 	var sardir string
@@ -557,6 +557,7 @@ func main() {
 	<-errflag
 }
 
+// Go routine for command line loop
 func mainloop(g *gocui.Gui, done chan error) {
 	var err error
 
