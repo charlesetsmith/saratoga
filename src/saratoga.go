@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -109,6 +110,9 @@ func cursorUp(g *gocui.Gui, v *gocui.View) error {
 // Commands - cli commands entered
 var Commands []string
 
+// Sarwg - Wait group for commands to run/finish - We dont quit till this is 0
+var Sarwg sync.WaitGroup
+
 // This is where we process command line inputs after a CR entered
 func getLine(g *gocui.Gui, v *gocui.View) error {
 
@@ -125,10 +129,16 @@ func getLine(g *gocui.Gui, v *gocui.View) error {
 		return nil
 	}
 
-	if err := cli.Docmd(g, command[1]); err != nil {
-		screen.Fprintln(g, "msg", "red_black", "Invalid Command: ", command[1])
-	}
+	Sarwg.Add(1)
+	go func(*gocui.Gui, string) {
+		defer Sarwg.Done()
+		cli.Docmd(g, command[1])
+	}(g, command[1])
+	// if err := cli.Docmd(g, command[1]); err != nil {
+	// 	screen.Fprintln(g, "msg", "red_black", "Invalid Command: ", command[1])
+	// }
 	if command[1] == "exit" || command[1] == "quit" {
+		Sarwg.Wait()
 		return quit(g, v)
 	}
 	Commands = append(Commands, command[1])

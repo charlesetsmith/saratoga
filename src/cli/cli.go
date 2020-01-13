@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"sort"
@@ -1318,24 +1317,26 @@ var cmd = map[string][2]string{
 }
 
 // Docmd -- Execute the command entered
-func Docmd(g *gocui.Gui, s string) error {
+func Docmd(g *gocui.Gui, s string) {
 	if s == "" { // Handle just return
-		return nil
+		return
 	}
 
 	// Get rid of leading and trailing whitespace
 	s = strings.TrimSpace(s)
 	vals := strings.Fields(s)
-	// Look for the command and do it
+	// Lookup the command and execute it
 	for c := range cmd {
 		if c == vals[0] {
 			fn, ok := cmdhandler[c]
 			if ok {
 				fn(g, vals)
-				return nil
+				return
 			}
+			screen.Fprintln(g, "msg", "red_black", "Cannot execute:", vals[0])
+			return
 		}
 	}
 	screen.Fprintln(g, "msg", "red_black", "Invalid command:", vals[0])
-	return errors.New("Invalid command")
+	return
 }
