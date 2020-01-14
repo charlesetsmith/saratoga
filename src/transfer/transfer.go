@@ -1,6 +1,7 @@
 package transfer
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/charlesetsmith/saratoga/src/metadata"
 	"github.com/charlesetsmith/saratoga/src/request"
@@ -264,6 +266,67 @@ func Doclient(t *Transfer, g *gocui.Gui, errstr chan string) {
 	errstr <- "undefined"
 }
 
+// read and process status frames
+func readstatus(g *gocui.Gui, t *Transfer, conn *net.UDPConn, m *metadata.MetaData, errflag chan string) {
+	// Allocate a recieve buffer for a frame
+	rbuf := make([]byte, sarflags.MaxBuff)
+
+	timeout := time.Duration(sarflags.Cli.Timeout.Status) * time.Second
+	for {
+		screen.Fprintln(g, "msg", "blue_black", "Waiting to Read a Status Frame on",
+			conn.LocalAddr().String())
+		conn.SetReadDeadline(time.Now().Add(timeout))
+		rlen, err := conn.Read(rbuf)
+		if err != nil {
+			screen.Fprintln(g, "msg", "blue_black", "Timeout on Status Read",
+				":", err.Error())
+			errflag <- "cantreceive"
+			return
+		}
+		// We have a status so process it
+		screen.Fprintln(g, "msg", "blue_black", "Read a Frame len", rlen, "bytes")
+		rframe := make([]byte, rlen)
+		copy(rframe, rbuf[:rlen])
+		header := binary.BigEndian.Uint32(rframe[:4])
+		if sarflags.GetStr(header, "version") != "v1" { // Make sure we are Version 1
+			screen.Fprintln(g, "msg", "red_black", "Not Saratoga Version 1 Frame from ",
+				t.peer.String())
+			errflag <- "badpacket"
+			return
+		}
+		// Process the received frame and make sure it is a status
+		if sarflags.GetStr(header, "frametype") == "status" {
+			errf := sarflags.GetStr(header, "errcode")
+			if errf != "success" { // We have a error from the server
+				errflag <- errf
+				return
+			}
+		} else {
+			errflag <- "badpacket"
+			return
+		}
+
+		// Process the status header
+		if sarflags.GetStr(header, "metadatarecvd") == "no" {
+			// No metadata has been received yet so send/resend it
+			var wframe []byte
+			var err error
+			if wframe, err = m.Put(); err != nil {
+				errflag <- "badrequest"
+				return
+			}
+			_, err = conn.Write(wframe)
+			if err != nil {
+				errflag <- "cantsend"
+				return
+			}
+		}
+		errflag <- "success"
+		return
+		// Process the holes here!
+	}
+}
+
 /*
  *************************************************************************************************
  * CLIENT TRANSFER HANDLERS
@@ -316,21 +379,25 @@ func cput(t *Transfer, g *gocui.Gui, errflag chan string) {
 		return
 	}
 
-	screen.Fprintln(g, "msg", "red_black", "ping 1")
 	// Set up the connection
 	var udpad string
+	var udpaddr *net.UDPAddr
+
 	if t.peer.To4() == nil { // IPv6
 		udpad = "[" + t.peer.String() + "]" + ":" + strconv.Itoa(sarnet.Port())
 	} else { // IPv4
 		udpad = t.peer.String() + ":" + strconv.Itoa(sarnet.Port())
 	}
-	conn, err := net.Dial("udp", udpad)
-	defer conn.Close()
+	if udpaddr, err = net.ResolveUDPAddr("udp", udpad); err != nil {
+		errflag <- "cantsend"
+		return
+	}
+	conn, err := net.DialUDP("udp", nil, udpaddr)
+	// defer conn.Close()
 	if err != nil {
 		errflag <- "cantsend"
 		return
 	}
-	screen.Fprintln(g, "msg", "red_black", "ping 2")
 
 	// Create the request & make a frame for normal request/status exchange startup
 	var req request.Request
@@ -348,10 +415,8 @@ func cput(t *Transfer, g *gocui.Gui, errflag chan string) {
 		errflag <- "badrequest"
 		return
 	}
-	screen.Fprintln(g, "msg", "red_black", "ping 3")
 	// Send the request frame
 	_, err = conn.Write(wframe)
-	screen.Fprintln(g, "msg", "red_black", "ping 4")
 	if err != nil {
 		errflag <- "cantsend"
 		return
@@ -378,69 +443,29 @@ func cput(t *Transfer, g *gocui.Gui, errflag chan string) {
 	}
 	// Send the initial metadata frame
 	_, err = conn.Write(wframe)
-	screen.Fprintln(g, "msg", "red_black", "ping 4")
 	if err != nil {
 		errflag <- "cantsend"
 		return
 	}
-	errflag <- "success"
-	// Prime the data flags for the transfer
+
+	// Prime the data header flags for the transfer
 	// during the transfer we only play with "eod" after this
 	dflags := "transfer=file,eod=no,"
 	dflags += sarflags.Setglobal("data")
 	dflags = replaceflag(dflags, tdesc)
 	screen.Fprintln(g, "msg", "magenta_black", "Data Flags <", dflags, ">")
+
+	var errstr string
+	statuserr := make(chan string, 1) // The return channel holding the saratoga errflag
+	// dataerr := make(chan string, 1)   // The return channel holding the
+	go readstatus(g, t, conn, m, statuserr)
+	// go writedata(g, conn, m, dataerr)
+	errstr = <-statuserr
+	if errstr != "success" {
+		errflag <- errstr
+	}
+	errflag <- "success"
 	return
-
-	/*
-		rbuf := make([]byte, sarflags.MaxBuff)
-		sendmetadata := false
-
-		   next:
-		   	for { // Sit in a loop reading status and writing data and maybe metadata frames
-		   		screen.Fprintln(g, "msg", "yellow_black", "Waiting to Read a Frame")
-		   		rlen, err := conn.Read(rbuf)
-		   		if err != nil {
-		   			errflag <- "cantreceive"
-		   			return
-		   		}
-		   		screen.Fprintln(g, "msg", "yellow_black", "Read a Frame len", rlen, "bytes")
-		   		rframe := make([]byte, rlen)
-		   		copy(rframe, rbuf[:rlen])
-		   		header := binary.BigEndian.Uint32(rframe[:4])
-		   		if sarflags.GetStr(header, "version") != "v1" { // Make sure we are Version 1
-		   			screen.Fprintln(g, "msg", "red_black", "Not Saratoga Version 1 Frame from ",
-		   				t.peer.String())
-		   			errflag <- "badpacket"
-		   			return
-		   		}
-		   		// Process the received frame
-		   		if sarflags.GetStr(header, "frametype") == "status" {
-					   errf := sarflags.GetStr(header, "errcode")
-					   if errf != "success" {
-						   errflag <- errf
-						   return
-					   }
-					// Process the status header
-		   			if sarflags.GetStr(header, "metadatarecvd") == "no" {
-		   				// No metadata has been received yet so send/resend it
-		   				if wframe, err = m.Put(); err != nil {
-		   					errflag <- "badrequest"
-		   					return
-		   				}
-		   				_, err = conn.Write(wframe)
-		   				if err != nil {
-		   					errflag <- "cantsend"
-		   					return
-		   				}
-		   			} else {
-		   				errflag <- "badpacket"
-						   return
-					   }
-		   		}
-		   		// Send a data frame
-		   	}
-	*/
 }
 
 // ClientBlindPut - blind put a file
@@ -468,7 +493,6 @@ func cputblind(t *Transfer, g *gocui.Gui, errflag chan string) {
 		return
 	}
 
-	screen.Fprintln(g, "msg", "red_black", "ping 1")
 	// Set up the connection
 	var udpad string
 	if t.peer.To4() == nil { // IPv6
@@ -482,7 +506,6 @@ func cputblind(t *Transfer, g *gocui.Gui, errflag chan string) {
 		errflag <- "cantsend"
 		return
 	}
-	screen.Fprintln(g, "msg", "red_black", "ping 2")
 
 	// Create the request & make a frame for normal request/status exchange startup
 	var met metadata.MetaData
@@ -502,7 +525,6 @@ func cputblind(t *Transfer, g *gocui.Gui, errflag chan string) {
 
 	// Send the initial metadata frame
 	_, err = conn.Write(wframe)
-	screen.Fprintln(g, "msg", "red_black", "ping 4")
 	if err != nil {
 		errflag <- "cantsend"
 		return

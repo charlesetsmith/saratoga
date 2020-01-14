@@ -633,8 +633,6 @@ func prompt(g *gocui.Gui, args []string) {
 // put/send a file to a destination
 func put(g *gocui.Gui, args []string) {
 
-	// errflag := make(chan string, 1) // The return channel holding the saratoga errflag
-
 	if len(args) == 1 {
 		transfer.Info(g, "put")
 		return
