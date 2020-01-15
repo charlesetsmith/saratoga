@@ -13,6 +13,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/charlesetsmith/saratoga/src/data"
+	"github.com/charlesetsmith/saratoga/src/status"
+
 	"github.com/charlesetsmith/saratoga/src/metadata"
 	"github.com/charlesetsmith/saratoga/src/request"
 	"github.com/charlesetsmith/saratoga/src/sarflags"
@@ -266,9 +269,49 @@ func Doclient(t *Transfer, g *gocui.Gui, errstr chan string) {
 	errstr <- "undefined"
 }
 
+// Work out the maximum payload in data.Data frame given flags
+func maxpayload(flags string) uint64 {
+
+	plen := sarflags.MaxBuff
+	plen -= 8 // Header + Offset
+
+	flags = strings.Replace(flags, " ", "", -1) // Get rid of extra spaces in flags
+	// Grab the flags and set the frame header
+	flag := strings.Split(flags, ",") // The name=val of the flag
+	for fl := range flag {
+		f := strings.Split(flag[fl], "=") // f[0]=name f[1]=val
+		switch f[0] {
+		case "descriptor":
+			switch f[1] {
+			case "d16":
+				plen -= 2
+			case "d32":
+				plen -= 4
+			case "d64":
+				plen -= 8
+			default:
+				return 0
+			}
+		case "reqstamp":
+			if f[1] == "on" {
+				plen -= 16
+			}
+		default:
+		}
+	}
+	return plen
+}
+
 // read and process status frames
-func readstatus(g *gocui.Gui, t *Transfer, conn *net.UDPConn, m *metadata.MetaData, errflag chan string) {
-	// Allocate a recieve buffer for a frame
+// We read from and seek within fp
+// Our connection to the server is conn
+// We assemble Data using dflags
+// We transmit metadata as required
+// We send back a string holding the status error code "success" keeps transfer alive
+func readstatus(g *gocui.Gui, t *Transfer, fp *os.File, dflags string, conn *net.UDPConn,
+	m *metadata.MetaData, errflag chan string) {
+
+	// Allocate a recieve buffer for a status frame
 	rbuf := make([]byte, sarflags.MaxBuff)
 
 	timeout := time.Duration(sarflags.Cli.Timeout.Status) * time.Second
@@ -283,7 +326,7 @@ func readstatus(g *gocui.Gui, t *Transfer, conn *net.UDPConn, m *metadata.MetaDa
 			errflag <- "cantreceive"
 			return
 		}
-		// We have a status so process it
+		// We have a status so grab it
 		screen.Fprintln(g, "msg", "blue_black", "Read a Frame len", rlen, "bytes")
 		rframe := make([]byte, rlen)
 		copy(rframe, rbuf[:rlen])
@@ -301,7 +344,7 @@ func readstatus(g *gocui.Gui, t *Transfer, conn *net.UDPConn, m *metadata.MetaDa
 				errflag <- errf
 				return
 			}
-		} else {
+		} else { // Not a status frame
 			errflag <- "badpacket"
 			return
 		}
@@ -321,9 +364,52 @@ func readstatus(g *gocui.Gui, t *Transfer, conn *net.UDPConn, m *metadata.MetaDa
 				return
 			}
 		}
+		// We have "success" so Decode into a Status
+		var st status.Status
+		if st.Get(rframe) != nil {
+			errflag <- "badstatus"
+			return
+		}
+
+		// Send back the current progress & inrespto over the channel so we can process
+		// then in the transfer
+		errflag <- fmt.Sprintf("%d %d", st.Progress, st.Inrespto)
+		// Handle Holes
+		for _, h := range st.Holes {
+			// We re-read in from fp all of the holes
+			//Allocate a buffer to hold all of the hole data
+			buf := make([]byte, h.End-h.Start)
+			var rlen int
+			var err error
+			// Seek to the hole start and read it all into buf
+			if rlen, err = fp.ReadAt(buf, int64(h.Start)); err != nil {
+				errflag <- "badoffset"
+				return
+			}
+			var plen, dframes, fc, pstart, pend uint64
+			plen = maxpayload(dflags)     // Work out maximum payload for data frame
+			dframes = uint64(rlen) / plen // Work out how many frames we need to re-send
+			// Loop around sending data frames for the hole
+			for fc = 0; fc < dframes; fc++ { // Bump frame counter
+				var df data.Data
+				pstart = uint64(rlen) - (fc * plen)
+				if pstart+plen > h.End {
+					pend = h.End // Last frame may be shorter
+				} else {
+					pend = pstart + plen
+				}
+				df.New(dflags, t.session, pstart, buf[pstart:pend]) // Create the Data
+				if wframe, err := df.Put(); err != nil {
+					errflag <- "badoffset"
+					return
+				} else if _, err = conn.Write(wframe); err != nil { // And send it
+					errflag <- "cantsend"
+					return
+				}
+			}
+		}
 		errflag <- "success"
 		return
-		// Process the holes here!
 	}
 }
 
@@ -347,7 +433,13 @@ var clienthandler = map[string]clientfunc{
 	// "rmdir":	crmdir,
 }
 
-// cput - put a file from client to server
+/*
+ *************************************************************************************************
+ * CLIENT PUT HANDLERS put, putrm, putblind, rm & rmdir
+ *************************************************************************************************
+ */
+
+// client put a file to server
 // Engine - Send Request, Send Metadata, Wait for Status
 // 		Loop Sending Data and receiving intermittant Status
 // 		Resend Metadata if Requested in Status
@@ -393,8 +485,8 @@ func cput(t *Transfer, g *gocui.Gui, errflag chan string) {
 		return
 	}
 	conn, err := net.DialUDP("udp", nil, udpaddr)
-	// defer conn.Close()
 	if err != nil {
+		conn.Close()
 		errflag <- "cantsend"
 		return
 	}
@@ -408,16 +500,19 @@ func cput(t *Transfer, g *gocui.Gui, errflag chan string) {
 	screen.Fprintln(g, "msg", "magenta_black", "Request Flags <", rflags, ">")
 	if err = r.New(rflags, t.session, t.filename, nil); err != nil {
 		screen.Fprintln(g, "msg", "red_black", "Cannot create request", err.Error())
+		conn.Close()
 		errflag <- "badrequest"
 		return
 	}
 	if wframe, err = r.Put(); err != nil {
+		conn.Close()
 		errflag <- "badrequest"
 		return
 	}
 	// Send the request frame
 	_, err = conn.Write(wframe)
 	if err != nil {
+		conn.Close()
 		errflag <- "cantsend"
 		return
 	}
@@ -434,41 +529,60 @@ func cput(t *Transfer, g *gocui.Gui, errflag chan string) {
 	screen.Fprintln(g, "msg", "magenta_black", "Metadata Flags <", mflags, ">")
 	if err = m.New(mflags, t.session, t.filename); err != nil {
 		screen.Fprintln(g, "msg", "red_black", "Cannot create metadata", err.Error())
+		conn.Close()
 		errflag <- "badrequest"
 		return
 	}
 	if wframe, err = m.Put(); err != nil {
+		conn.Close()
 		errflag <- "badrequest"
 		return
 	}
 	// Send the initial metadata frame
 	_, err = conn.Write(wframe)
 	if err != nil {
+		conn.Close()
 		errflag <- "cantsend"
 		return
 	}
 
 	// Prime the data header flags for the transfer
 	// during the transfer we only play with "eod" after this
+	// For retransmitting holes we also need to know the data flags to use
 	dflags := "transfer=file,eod=no,"
 	dflags += sarflags.Setglobal("data")
 	dflags = replaceflag(dflags, tdesc)
 	screen.Fprintln(g, "msg", "magenta_black", "Data Flags <", dflags, ">")
 
-	var errstr string
 	statuserr := make(chan string, 1) // The return channel holding the saratoga errflag
-	// dataerr := make(chan string, 1)   // The return channel holding the
-	go readstatus(g, t, conn, m, statuserr)
+	dataerr := make(chan string, 1)   // The return channel holding the
+
+	// This is the guts of handling status. It sits in a loop reading away and processing
+	// the status when received. It sends metadata & data (to fill holes) as required
+	go readstatus(g, t, fp, dflags, conn, m, statuserr)
 	// go writedata(g, conn, m, dataerr)
-	errstr = <-statuserr
-	if errstr != "success" {
-		errflag <- errstr
+	for { // Multiplex between writing data & reading status when we have messages coming back
+		select {
+		case serr := <-statuserr:
+			var progress, inrespto uint64
+			if n, _ := fmt.Sscanf(serr, "%d %d", &progress, &inrespto); n == 2 {
+				screen.Fprintln(g, "msg", "magenta_black", "Progress=", progress, "Inrespto=", inrespto)
+			} else if serr != "success" {
+				conn.Close()
+				errflag <- serr
+				return
+			}
+		case derr := <-dataerr:
+			if derr != "success" {
+				conn.Close()
+				errflag <- derr
+				return
+			}
+		}
 	}
-	errflag <- "success"
-	return
 }
 
-// ClientBlindPut - blind put a file
+// client blind put a file
 func cputblind(t *Transfer, g *gocui.Gui, errflag chan string) {
 	var err error
 	var wframe []byte // The frame to write
@@ -536,7 +650,7 @@ func cputblind(t *Transfer, g *gocui.Gui, errflag chan string) {
 	return
 }
 
-// ClientPutrm - put a file then remove the local copy of that file
+// client put a file then remove the local copy of that file
 func cputrm(t *Transfer, g *gocui.Gui, errflag chan string) {
 	rmerrflag := make(chan string, 1) // The return channel holding the saratoga errflag
 	defer close(rmerrflag)
