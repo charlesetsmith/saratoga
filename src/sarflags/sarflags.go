@@ -227,8 +227,8 @@ var flagvals = map[string][]flaginfo{
 		flaginfo{name: "stream", val: 3},
 	},
 	"reqtstamp": []flaginfo{
-		flaginfo{name: "off", val: 0},
-		flaginfo{name: "on", val: 1},
+		flaginfo{name: "no", val: 0},
+		flaginfo{name: "yes", val: 1},
 	},
 	"progress": []flaginfo{
 		flaginfo{name: "inprogress", val: 0},
@@ -801,7 +801,7 @@ func GetTStr(curflag uint8) string {
 	var len, msb, shiftbits, maskbits, setbits, val uint8
 
 	len = tflagbits["timestamp"][fieldlen]
-	msb = tflagbits["timetamp"][fieldmsb]
+	msb = tflagbits["timestamp"][fieldmsb]
 	shiftbits = tflagsize - len - msb
 	maskbits = (1 << len) - 1
 	setbits = maskbits << shiftbits

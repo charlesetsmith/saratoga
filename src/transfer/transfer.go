@@ -55,6 +55,7 @@ type Hole struct {
 type Transfer struct {
 	direction string   // "client|server"
 	ttype     string   // Transfer type "get,getrm,put,putrm,blindput,rm"
+	tstamp    string   // TImestamp type used in transfer
 	session   uint32   // Session ID - This is the unique key
 	peer      net.IP   // Remote Host
 	filename  string   // File name to get from remote host
@@ -86,6 +87,7 @@ func (t *Transfer) New(g *gocui.Gui, ttype string, ip string, fname string) erro
 		defer trmu.Unlock()
 		t.direction = "client"
 		t.ttype = ttype
+		t.tstamp = sarflags.Cli.Timestamp
 		t.session = newsession()
 		t.peer = addr
 		t.filename = fname
@@ -269,11 +271,26 @@ func Doclient(t *Transfer, g *gocui.Gui, errstr chan string) {
 	errstr <- "undefined"
 }
 
+// Look for and return value of a particular flag in flags
+// e.g flags:descriptor=d32,timestamp=off flag:timeatamp return:off
+func flagvalue(flags, flag string) string {
+	flags = strings.Replace(flags, " ", "", -1) // Get rid of extra spaces in flags
+	// Grab the flags and set the frame header
+	flagslice := strings.Split(flags, ",") // The name=val of the flag
+	for fl := range flagslice {
+		f := strings.Split(flagslice[fl], "=") // f[0]=name f[1]=val
+		if f[0] == flag {
+			return f[1]
+		}
+	}
+	return ""
+}
+
 // Work out the maximum payload in data.Data frame given flags
 func maxpayload(flags string) uint64 {
 
-	plen := sarflags.MaxBuff
-	plen -= 8 // Header + Offset
+	plen := sarflags.MTU - 60 - 8 // 60 for IP header, 8 for UDP header
+	plen -= 8                     // Saratoga Header + Offset
 
 	flags = strings.Replace(flags, " ", "", -1) // Get rid of extra spaces in flags
 	// Grab the flags and set the frame header
@@ -292,8 +309,8 @@ func maxpayload(flags string) uint64 {
 			default:
 				return 0
 			}
-		case "reqstamp":
-			if f[1] == "on" {
+		case "reqtstamp":
+			if f[1] == "yes" {
 				plen -= 16
 			}
 		default:
@@ -411,6 +428,65 @@ func readstatus(g *gocui.Gui, t *Transfer, fp *os.File, dflags string, conn *net
 		errflag <- "success"
 		return
 	}
+}
+
+// senddata - Read from fp and send the data to the server
+// Handle datapos as recieved from the channel - THIS NOT DONE IN THIS SIMPLE VERSION YET!!!
+// Send out errflag on its channel if failure or success (done)
+func senddata(g *gocui.Gui, t *Transfer, fp *os.File, dflags string, conn *net.UDPConn,
+	datapos chan [2]uint64, errflag chan string) {
+
+	// Allocate a read buffer for a data frame
+	var curpos uint64
+
+	fcount := 0
+	eod := false
+	flags := replaceflag(dflags, "eod=no")
+	if fv := flagvalue(dflags, "reqtstamp"); fv != "no" && fv != "" {
+		timetype := "reqtstamp=" + fv // Set it to the appropriate timestamp type to use
+		flags = replaceflag(flags, timetype)
+	}
+
+	rbuf := make([]byte, maxpayload(dflags))
+	screen.Fprintln(g, "msg", "yellow_black", "Data Maxpayload=", maxpayload(dflags))
+	for { // Just blast away and send the complete file asking for a status every 100 frames sent
+		nread, err := fp.ReadAt(rbuf, int64(curpos))
+		if err != nil && err != io.EOF {
+			errflag <- "accessdenied"
+			return
+		}
+		if err == io.EOF { // We have read in the file
+			flags = replaceflag(flags, "eod=yes")
+			eod = true
+		}
+		fcount++
+		if fcount == 100 || eod { // We want a status back after every 100 frames sent and at the end
+			flags = replaceflag(flags, "reqstatus=yes")
+			fcount = 0
+		} else {
+			flags = replaceflag(flags, "reqstatus=no")
+		}
+
+		// OK so create the data frame and send it
+		var d data.Data
+
+		if d.New(flags, t.session, curpos, rbuf[:nread]) != nil {
+			errflag <- "badpacket"
+			return
+		}
+		if wframe, err := d.Put(); err != nil {
+			errflag <- "badpacket"
+			return
+		} else if _, err = conn.Write(wframe); err != nil { // And send it
+			errflag <- "cantsend"
+			return
+		}
+		curpos += uint64(nread)
+		if eod { // All done
+			break
+		}
+	}
+	errflag <- "success"
 }
 
 /*
@@ -554,19 +630,25 @@ func cput(t *Transfer, g *gocui.Gui, errflag chan string) {
 	dflags = replaceflag(dflags, tdesc)
 	screen.Fprintln(g, "msg", "magenta_black", "Data Flags <", dflags, ">")
 
-	statuserr := make(chan string, 1) // The return channel holding the saratoga errflag
-	dataerr := make(chan string, 1)   // The return channel holding the
+	statuserr := make(chan string, 1)  // The return channel holding the saratoga errflag
+	dataerr := make(chan string, 1)    // The return channel holding the saratoga errflag
+	datapos := make(chan [2]uint64, 1) // input channel from readstatus with progress & inrespto
 
 	// This is the guts of handling status. It sits in a loop reading away and processing
 	// the status when received. It sends metadata & data (to fill holes) as required
 	go readstatus(g, t, fp, dflags, conn, m, statuserr)
-	// go writedata(g, conn, m, dataerr)
+	go senddata(g, t, fp, dflags, conn, datapos, dataerr)
 	for { // Multiplex between writing data & reading status when we have messages coming back
 		select {
 		case serr := <-statuserr:
 			var progress, inrespto uint64
 			if n, _ := fmt.Sscanf(serr, "%d %d", &progress, &inrespto); n == 2 {
 				screen.Fprintln(g, "msg", "magenta_black", "Progress=", progress, "Inrespto=", inrespto)
+				var dpos [2]uint64
+				// Send on datapos channel to senddata the latest progress & inrespto indicators
+				dpos[0] = progress
+				dpos[1] = inrespto
+				datapos <- dpos
 			} else if serr != "success" {
 				conn.Close()
 				errflag <- serr

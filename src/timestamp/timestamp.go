@@ -75,6 +75,8 @@ func (t *Timestamp) New(flag string, ts time.Time) error {
 		t.nsecs = 0
 		t.local = nil
 	default: // Dont know this timestamp type
+		e := "Invalid timestamp type " + flag
+		return errors.New(e)
 	}
 	return nil
 }

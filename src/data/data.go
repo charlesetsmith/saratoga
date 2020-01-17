@@ -43,7 +43,7 @@ func (d *Data) New(flags string, session uint32, offset uint64, payload []byte) 
 	for fl := range flag {
 		f := strings.Split(flag[fl], "=") // f[0]=name f[1]=val
 		switch f[0] {
-		case "descriptor", "reqtstamp", "reqstatus", "eod":
+		case "descriptor", "reqstatus", "eod":
 			if d.Header, err = sarflags.Set(d.Header, f[0], f[1]); err != nil {
 				return err
 			}
@@ -51,11 +51,25 @@ func (d *Data) New(flags string, session uint32, offset uint64, payload []byte) 
 			if f[1] == "bundle" {
 				return errors.New("Bundle Transfers not supported")
 			}
-		case "localinterp", "posix32", "posix64", "posix32_32", "posix64_32":
-			if err = d.Tstamp.Now(f[0]); err != nil { // Set the timestamp to right now
-				return err
+		case "reqtstamp":
+			switch f[1] {
+			case "no":
+				if d.Header, err = sarflags.Set(d.Header, f[0], f[1]); err != nil {
+					return err
+				}
+			case "localinterp", "posix32", "posix64", "posix32_32", "posix64_32", "epoch2000_32":
+				if d.Header, err = sarflags.Set(d.Header, f[0], "yes"); err != nil {
+					return err
+				}
+				if err = d.Tstamp.Now(f[1]); err != nil { // Set the timestamp to right now
+					return err
+				}
+			case "yes":
+				d.Header, err = sarflags.Set(d.Header, f[0], "yes")
+				if err = d.Tstamp.Now("posix32"); err != nil { // Set the timestamp to right now
+					return err
+				}
 			}
-			d.Header, err = sarflags.Set(d.Header, "reqtstamp", "on")
 		default:
 			e := "Invalid Flag " + f[0] + " for Data Frame"
 			return errors.New(e)
@@ -96,7 +110,7 @@ func (d *Data) Get(frame []byte) error {
 	}
 	d.Header = binary.BigEndian.Uint32(frame[:4])
 	d.Session = binary.BigEndian.Uint32(frame[4:8])
-	if sarflags.GetStr(d.Header, "reqtstamp") == "on" {
+	if sarflags.GetStr(d.Header, "reqtstamp") == "yes" {
 		if err := d.Tstamp.Get(frame[8:24]); err != nil {
 			return err
 		}
@@ -144,7 +158,7 @@ func (d *Data) Put() ([]byte, error) {
 
 	framelen := 4 + 4 // Header + Session
 
-	if sarflags.GetStr(d.Header, "reqtstamp") == "on" {
+	if sarflags.GetStr(d.Header, "reqtstamp") == "yes" {
 		framelen += 16 // Timestamp
 		havetstamp = true
 	}
@@ -195,7 +209,7 @@ func (d Data) Print() string {
 		n := sarflags.GetStr(d.Header, f)
 		sflag += fmt.Sprintf("  %s:%s\n", f, n)
 	}
-	if sarflags.GetStr(d.Header, "reqtstamp") == "on" {
+	if sarflags.GetStr(d.Header, "reqtstamp") == "yes" {
 		sflag += fmt.Sprintf("  timestamp:%s\n", d.Tstamp.Print())
 	}
 	sflag += fmt.Sprintf("  session:%d", d.Session)
@@ -204,10 +218,27 @@ func (d Data) Print() string {
 	return sflag
 }
 
+// ShortPrint - Print out details of Beacon struct
+func (d Data) ShortPrint() string {
+	sflag := fmt.Sprintf("Data: 0x%x ", d.Header)
+	dflags := sarflags.Values("data")
+	for _, f := range dflags {
+		n := sarflags.GetStr(d.Header, f)
+		sflag += fmt.Sprintf("%s:%s,", f, n)
+	}
+	if sarflags.GetStr(d.Header, "reqtstamp") == "yes" {
+		sflag += fmt.Sprintf("\ntimestamp:%s,", d.Tstamp.Print())
+	}
+	sflag += fmt.Sprintf("session:%d,", d.Session)
+	sflag += fmt.Sprintf("offset:%d,", d.Offset)
+	sflag += fmt.Sprintf("Payload:%d\n", len(d.Payload))
+	return sflag
+}
+
 // Handler - We have some incoming data for a session. Add the data to the session
 // For this implementation of saratoga if no session exists then just dump the data
 func (d *Data) Handler(g *gocui.Gui, from *net.UDPAddr, session uint32) string {
-	screen.Fprintln(g, "msg", "yellow_black", d.Print())
+	screen.Fprintln(g, "msg", "yellow_black", d.ShortPrint())
 	// Return an errcode string
 	return "success"
 }

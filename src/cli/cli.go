@@ -912,8 +912,8 @@ func timeout(g *gocui.Gui, args []string) {
 	if len(args) == 2 {
 		switch args[1] {
 		case "?":
-			screen.Fprintln(g, "msg", "green_black", cmd["Timeout"][0])
-			screen.Fprintln(g, "msg", "green_black", cmd["Timeout"][1])
+			screen.Fprintln(g, "msg", "green_black", cmd["timeout"][0])
+			screen.Fprintln(g, "msg", "green_black", cmd["timeout"][1])
 		case "request":
 			if sarflags.Cli.Timeout.Request == 0 {
 				screen.Fprintln(g, "msg", "green_black", "request: No Timeout")
@@ -985,7 +985,7 @@ func timeout(g *gocui.Gui, args []string) {
 			return
 		}
 	}
-	screen.Fprintln(g, "msg", "red_black", cmd["Timeout"][0])
+	screen.Fprintln(g, "msg", "red_black", cmd["timeout"][0])
 }
 
 // set the timestamp type we are using
@@ -995,35 +995,34 @@ func timestamp(g *gocui.Gui, args []string) {
 			sarflags.Cli.Global["reqtstamp"], "and", sarflags.Cli.Timestamp)
 		return
 	}
-	sarflags.Climu.Lock()
-	defer sarflags.Climu.Unlock()
-	sarflags.Climu.Lock()
-	defer sarflags.Climu.Unlock()
+
 	if len(args) == 2 {
+		sarflags.Climu.Lock()
+		defer sarflags.Climu.Unlock()
 		switch args[1] {
 		case "?":
 			screen.Fprintln(g, "msg", "green_black", cmd["timestamp"][0])
 			screen.Fprintln(g, "msg", "green_black", cmd["timestamp"][1])
 		case "off":
-			sarflags.Cli.Global["reqtstamp"] = "off"
+			sarflags.Cli.Global["reqtstamp"] = "no"
 			// Don't change the TGlobal from what it was
 		case "32":
-			sarflags.Cli.Global["reqtstamp"] = "on"
+			sarflags.Cli.Global["reqtstamp"] = "yes"
 			sarflags.Cli.Timestamp = "posix32"
 		case "32_32":
-			sarflags.Cli.Global["reqtstamp"] = "on"
+			sarflags.Cli.Global["reqtstamp"] = "yes"
 			sarflags.Cli.Timestamp = "posix32_32"
 		case "64":
-			sarflags.Cli.Global["reqtstamp"] = "on"
+			sarflags.Cli.Global["reqtstamp"] = "yes"
 			sarflags.Cli.Timestamp = "posix64"
 		case "64_32":
-			sarflags.Cli.Global["reqtstamp"] = "on"
+			sarflags.Cli.Global["reqtstamp"] = "yes"
 			sarflags.Cli.Timestamp = "posix64_32"
 		case "32_y2k":
-			sarflags.Cli.Global["reqtstamp"] = "on"
+			sarflags.Cli.Global["reqtstamp"] = "yes"
 			sarflags.Cli.Timestamp = "epoch2000_32"
 		case "local":
-			sarflags.Cli.Global["reqtstamp"] = "on"
+			sarflags.Cli.Global["reqtstamp"] = "yes"
 			sarflags.Cli.Timestamp = "localinterp"
 		default:
 			screen.Fprintln(g, "msg", "red_black", cmd["timestamp"][0])
@@ -1262,7 +1261,7 @@ var cmd = map[string][2]string{
 		"exit saratoga",
 	},
 	"reqtstamp": [2]string{
-		"reqtstamp [off|on]",
+		"reqtstamp [no|yes]",
 		"request timestamps",
 	},
 	"rm": [2]string{

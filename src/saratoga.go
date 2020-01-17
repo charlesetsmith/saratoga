@@ -303,8 +303,8 @@ next:
 			var se status.Status
 			// We can't even know the session # so use 0
 			_ = se.New("errcode=badpacket", 0, 0, 0, nil)
-			screen.Fprintln(g, "msg", "red_black", "Rx Saratoga Frame too long from ",
-				sarnet.UDPinfo(remoteAddr))
+			screen.Fprintln(g, "msg", "red_black", "Rx Saratoga Frame too long", framelen,
+				"from", sarnet.UDPinfo(remoteAddr))
 			goto next
 		}
 
@@ -443,9 +443,11 @@ func main() {
 	sarflags.Cli.Global["txwilling"] = "yes"
 	sarflags.Cli.Global["rxwilling"] = "yes"
 	sarflags.Cli.Global["stream"] = "no"
-	sarflags.Cli.Global["reqtstamp"] = "off"
+	sarflags.Cli.Global["reqtstamp"] = "no"
 	sarflags.Cli.Global["reqstatus"] = "no"
 	sarflags.Cli.Global["udplite"] = "no"
+	sarflags.Cli.Timestamp = "posix64" // Default timestamp type to use
+
 	/* for f := range sarflags.Cli.Global {
 		if !sarflags.Valid(f, sarflags.Global[f]) {
 			ps := "Invalid Flag:" + f + "=" + sarflags.Global[f]
