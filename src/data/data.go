@@ -227,11 +227,13 @@ func (d Data) ShortPrint() string {
 		sflag += fmt.Sprintf("%s:%s,", f, n)
 	}
 	if sarflags.GetStr(d.Header, "reqtstamp") == "yes" {
-		sflag += fmt.Sprintf("\ntimestamp:%s,", d.Tstamp.Print())
+		sflag += fmt.Sprintf("\n  timestamp:%s,", d.Tstamp.Print())
+	} else {
+		sflag += fmt.Sprintf("\n  ")
 	}
 	sflag += fmt.Sprintf("session:%d,", d.Session)
 	sflag += fmt.Sprintf("offset:%d,", d.Offset)
-	sflag += fmt.Sprintf("Payload:%d\n", len(d.Payload))
+	sflag += fmt.Sprintf("Payloadlen:%d", len(d.Payload))
 	return sflag
 }
 

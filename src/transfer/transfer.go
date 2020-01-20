@@ -53,12 +53,13 @@ type Hole struct {
 
 // Transfer Information
 type Transfer struct {
-	direction string   // "client|server"
-	ttype     string   // Transfer type "get,getrm,put,putrm,blindput,rm"
-	tstamp    string   // TImestamp type used in transfer
-	session   uint32   // Session ID - This is the unique key
-	peer      net.IP   // Remote Host
-	filename  string   // File name to get from remote host
+	direction string // "client|server"
+	ttype     string // Transfer type "get,getrm,put,putrm,blindput,rm"
+	tstamp    string // TImestamp type used in transfer
+	session   uint32 // Session ID - This is the unique key
+	peer      net.IP // Remote Host
+	filename  string // File name to get from remote host
+	fp        *os.File
 	frames    [][]byte // Frame queue
 	holes     []Hole   // Holes
 }
@@ -325,8 +326,19 @@ func maxpayload(flags string) uint64 {
 // We assemble Data using dflags
 // We transmit metadata as required
 // We send back a string holding the status error code "success" keeps transfer alive
-func readstatus(g *gocui.Gui, t *Transfer, fp *os.File, dflags string, conn *net.UDPConn,
+func readstatus(g *gocui.Gui, t *Transfer, dflags string, conn *net.UDPConn,
 	m *metadata.MetaData, errflag chan string) {
+
+	var filelen uint64
+	var fi os.FileInfo
+	var err error
+
+	// Grab the file informaion
+	if fi, err = t.fp.Stat(); err != nil {
+		errflag <- "filenotfound"
+		return
+	}
+	filelen = uint64(fi.Size())
 
 	// Allocate a recieve buffer for a status frame
 	rbuf := make([]byte, sarflags.MaxBuff)
@@ -391,6 +403,11 @@ func readstatus(g *gocui.Gui, t *Transfer, fp *os.File, dflags string, conn *net
 		// Send back the current progress & inrespto over the channel so we can process
 		// then in the transfer
 		errflag <- fmt.Sprintf("%d %d", st.Progress, st.Inrespto)
+		if st.Progress == filelen {
+			screen.Fprintln(g, "msg", "blue_black", "File",
+				t.filename, "length", filelen, "successfully transferred")
+			errflag <- "success"
+		}
 		// Handle Holes
 		for _, h := range st.Holes {
 			// We re-read in from fp all of the holes
@@ -399,7 +416,7 @@ func readstatus(g *gocui.Gui, t *Transfer, fp *os.File, dflags string, conn *net
 			var rlen int
 			var err error
 			// Seek to the hole start and read it all into buf
-			if rlen, err = fp.ReadAt(buf, int64(h.Start)); err != nil {
+			if rlen, err = t.fp.ReadAt(buf, int64(h.Start)); err != nil {
 				errflag <- "badoffset"
 				return
 			}
@@ -433,10 +450,9 @@ func readstatus(g *gocui.Gui, t *Transfer, fp *os.File, dflags string, conn *net
 // senddata - Read from fp and send the data to the server
 // Handle datapos as recieved from the channel - THIS NOT DONE IN THIS SIMPLE VERSION YET!!!
 // Send out errflag on its channel if failure or success (done)
-func senddata(g *gocui.Gui, t *Transfer, fp *os.File, dflags string, conn *net.UDPConn,
+func senddata(g *gocui.Gui, t *Transfer, dflags string, conn *net.UDPConn,
 	datapos chan [2]uint64, errflag chan string) {
 
-	// Allocate a read buffer for a data frame
 	var curpos uint64
 
 	fcount := 0
@@ -447,15 +463,16 @@ func senddata(g *gocui.Gui, t *Transfer, fp *os.File, dflags string, conn *net.U
 		flags = replaceflag(flags, timetype)
 	}
 
+	// Allocate a read buffer for a data frame
 	rbuf := make([]byte, maxpayload(dflags))
 	screen.Fprintln(g, "msg", "yellow_black", "Data Maxpayload=", maxpayload(dflags))
 	for { // Just blast away and send the complete file asking for a status every 100 frames sent
-		nread, err := fp.ReadAt(rbuf, int64(curpos))
+		nread, err := t.fp.ReadAt(rbuf, int64(curpos))
 		if err != nil && err != io.EOF {
 			errflag <- "accessdenied"
 			return
 		}
-		if err == io.EOF { // We have read in the file
+		if err == io.EOF { // We have read in the whole file
 			flags = replaceflag(flags, "eod=yes")
 			eod = true
 		}
@@ -482,7 +499,7 @@ func senddata(g *gocui.Gui, t *Transfer, fp *os.File, dflags string, conn *net.U
 			return
 		}
 		curpos += uint64(nread)
-		if eod { // All done
+		if eod { // All read and sent so we are done with the senddata loop
 			break
 		}
 	}
@@ -533,15 +550,16 @@ func cput(t *Transfer, g *gocui.Gui, errflag chan string) {
 	fname := os.Getenv("SARDIR") +
 		string(os.PathSeparator) +
 		strings.TrimLeft(t.filename, string(os.PathSeparator))
-	if fp, err = os.Open(fname); err != nil {
+	if t.fp, err = os.Open(fname); err != nil {
+		t.fp = fp
 		screen.Fprintln(g, "msg", "red_black", "Cannot open", fname)
 		errflag <- "filenotfound"
 		return
 	}
-	defer fp.Close()
+	defer t.fp.Close()
 	tdesc := filedescriptor(fname) // Transfer descriptor to be used
 
-	if pos, err = fp.Seek(0, io.SeekStart); err != nil {
+	if pos, err = t.fp.Seek(0, io.SeekStart); err != nil {
 		screen.Fprintln(g, "msg", "red_black", "Cannot seek to", pos)
 		errflag <- "badoffset"
 		return
@@ -636,8 +654,8 @@ func cput(t *Transfer, g *gocui.Gui, errflag chan string) {
 
 	// This is the guts of handling status. It sits in a loop reading away and processing
 	// the status when received. It sends metadata & data (to fill holes) as required
-	go readstatus(g, t, fp, dflags, conn, m, statuserr)
-	go senddata(g, t, fp, dflags, conn, datapos, dataerr)
+	go readstatus(g, t, dflags, conn, m, statuserr)
+	go senddata(g, t, dflags, conn, datapos, dataerr)
 	for { // Multiplex between writing data & reading status when we have messages coming back
 		select {
 		case serr := <-statuserr:
@@ -668,22 +686,21 @@ func cput(t *Transfer, g *gocui.Gui, errflag chan string) {
 func cputblind(t *Transfer, g *gocui.Gui, errflag chan string) {
 	var err error
 	var wframe []byte // The frame to write
-	var fp *os.File
 	var pos int64
 
 	// Open the local data file for reading only
 	fname := os.Getenv("SARDIR") +
 		string(os.PathSeparator) +
 		strings.TrimLeft(t.filename, string(os.PathSeparator))
-	if fp, err = os.Open(fname); err != nil {
+	if t.fp, err = os.Open(fname); err != nil {
 		screen.Fprintln(g, "msg", "red_black", "Cannot open", fname)
 		errflag <- "filenotfound"
 		return
 	}
-	defer fp.Close()
+	defer t.fp.Close()
 	tdesc := filedescriptor(fname) // Transfer descriptor to be used
 
-	if pos, err = fp.Seek(0, io.SeekStart); err != nil {
+	if pos, err = t.fp.Seek(0, io.SeekStart); err != nil {
 		screen.Fprintln(g, "msg", "red_black", "Cannot seek to", pos)
 		errflag <- "badoffset"
 		return
