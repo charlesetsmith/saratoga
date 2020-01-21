@@ -7,7 +7,6 @@ import (
 	"io"
 	"net"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -23,33 +22,6 @@ import (
 	"github.com/charlesetsmith/saratoga/src/screen"
 	"github.com/jroimartin/gocui"
 )
-
-// Ttypes - Transfer types
-var Ttypes = []string{"get", "getrm", "getdir", "put", "putblind", "putrm", "rm", "rmdir"}
-
-// current protected session number
-var smu sync.Mutex
-var sessionid uint32
-
-// Create new Session number
-func newsession() uint32 {
-
-	smu.Lock()
-	defer smu.Unlock()
-
-	if sessionid == 0 {
-		sessionid = uint32(os.Getpid()) + 1
-	} else {
-		sessionid++
-	}
-	return sessionid
-}
-
-// Hole - Beginning and end of a Hole
-type Hole struct {
-	start uint64
-	end   uint64
-}
 
 // Transfer Information
 type Transfer struct {
@@ -69,255 +41,18 @@ var trmu sync.Mutex
 // Transfers - Get list used in get,getrm,getdir,put,putrm & delete
 var Transfers = []Transfer{}
 
-// New - Add a new transfer to the Transfers list
-func (t *Transfer) New(g *gocui.Gui, ttype string, ip string, fname string) error {
+// Create new Session number
+func newsession() uint32 {
 
-	// screen.Fprintln(g, "msg", "red_black", "Addtran for", ip, fname, flags)
-	if addr := net.ParseIP(ip); addr != nil { // We have a valid IP Address
-		for _, i := range Transfers { // Don't add duplicates
-			if addr.Equal(i.peer) && fname == i.filename {
-				emsg := fmt.Sprintf("Transfer for %s to %s is currently in progress, cannnot add transfer",
-					fname, i.peer.String())
-				screen.Fprintln(g, "msg", "red_black", emsg)
-				return errors.New(emsg)
-			}
-		}
+	smu.Lock()
+	defer smu.Unlock()
 
-		// Lock it as we are going to add a new transfer slice
-		trmu.Lock()
-		defer trmu.Unlock()
-		t.direction = "client"
-		t.ttype = ttype
-		t.tstamp = sarflags.Cli.Timestamp
-		t.session = newsession()
-		t.peer = addr
-		t.filename = fname
-		var msg string
-
-		msg = fmt.Sprintf("Added %s Transfer to %s %s",
-			t.ttype, t.peer.String(), t.filename)
-		Transfers = append(Transfers, *t)
-		screen.Fprintln(g, "msg", "green_black", msg)
-		return nil
-	}
-	screen.Fprintln(g, "msg", "red_black", "Transfer not added, invalid IP address", ip)
-	return errors.New("Invalid IP Address")
-}
-
-// Match - Return a pointer to the transfer if we find it, nil otherwise
-func Match(ttype string, ip string, fname string) *Transfer {
-	ttypeok := false
-	addrok := false
-
-	// Check that transfer type is valid
-	for _, tt := range Ttypes {
-		if tt == ttype {
-			ttypeok = true
-			break
-		}
-	}
-	// Check that ip address is valid
-	var addr net.IP
-	if addr = net.ParseIP(ip); addr != nil { // We have a valid IP Address
-		addrok = true
-	}
-	if !ttypeok || !addrok {
-		return nil
-	}
-
-	for _, i := range Transfers {
-		if ttype == i.ttype && addr.Equal(i.peer) && fname == i.filename {
-			return &i
-		}
-	}
-	return nil
-}
-
-// Remove - Remove a Transfer from the Transfers
-func (t *Transfer) Remove() error {
-	trmu.Lock()
-	defer trmu.Unlock()
-	for i := len(Transfers) - 1; i >= 0; i-- {
-		if t.peer.Equal(Transfers[i].peer) && t.filename == Transfers[i].filename {
-			Transfers = append(Transfers[:i], Transfers[i+1:]...)
-			return nil
-		}
-	}
-	emsg := fmt.Sprintf("Cannot remove %s Transfer for %s to %s",
-		t.ttype, t.filename, t.peer.String())
-	return errors.New(emsg)
-}
-
-// FmtPrint - String of relevant transfer info
-func (t *Transfer) FmtPrint(sfmt string) string {
-	return fmt.Sprintf(sfmt, t.direction,
-		t.ttype,
-		t.peer.String(),
-		t.filename)
-}
-
-// Print - String of relevant transfer info
-func (t *Transfer) Print() string {
-	return fmt.Sprintf("%s|%s|%s|%s", t.direction,
-		t.ttype,
-		t.peer.String(),
-		t.filename)
-}
-
-// Info - List transfers in progress to msg window matching ttype or all if ""
-func Info(g *gocui.Gui, ttype string) {
-	var tinfo []Transfer
-
-	for i := range Transfers {
-		if ttype == "" {
-			tinfo = append(tinfo, Transfers[i])
-		} else if Transfers[i].ttype == ttype {
-			tinfo = append(tinfo, Transfers[i])
-		}
-	}
-	if len(tinfo) > 0 {
-		var maxaddrlen, maxfname int // Work out the width for the table
-		for key := range tinfo {
-			if len(tinfo[key].peer.String()) > maxaddrlen {
-				maxaddrlen = len(tinfo[key].peer.String())
-			}
-			if len(tinfo[key].filename) > maxfname {
-				maxfname = len(tinfo[key].peer.String())
-			}
-		}
-		// Table format
-		sfmt := fmt.Sprintf("|%%6s|%%8s|%%%ds|%%%ds|\n", maxaddrlen, maxfname)
-		sborder := fmt.Sprintf(sfmt, strings.Repeat("-", 6), strings.Repeat("-", 8),
-			strings.Repeat("-", maxaddrlen), strings.Repeat("-", maxfname))
-
-		var sslice sort.StringSlice
-		for key := range tinfo {
-			sslice = append(sslice, fmt.Sprintf("%s", tinfo[key].FmtPrint(sfmt)))
-		}
-		sort.Sort(sslice)
-
-		sbuf := sborder
-		sbuf += fmt.Sprintf(sfmt, "Direct", "Tran Typ", "IP", "Fname")
-		sbuf += sborder
-		for key := 0; key < len(sslice); key++ {
-			sbuf += fmt.Sprintf("%s", sslice[key])
-		}
-		sbuf += sborder
-		screen.Fprintln(g, "msg", "magenta_black", sbuf)
+	if sessionid == 0 {
+		sessionid = uint32(os.Getpid()) + 1
 	} else {
-		msg := fmt.Sprintf("No %s transfers currently in progress", ttype)
-		screen.Fprintln(g, "msg", "green_black", msg)
+		sessionid++
 	}
-}
-
-// FileDescriptor - Get the appropriate descriptor flag size based on file length
-func filedescriptor(fname string) string {
-	if fi, err := os.Stat(fname); err == nil {
-		size := uint64(fi.Size())
-		if size <= sarflags.MaxUint16 {
-			return "descriptor=d16"
-		}
-		if size <= sarflags.MaxUint32 {
-			return "descriptor=d32"
-		}
-		if size <= sarflags.MaxUint64 {
-			return "descriptor=d64"
-		}
-	}
-	// Just send back the maximum supported descriptor
-	if sarflags.MaxUint <= sarflags.MaxUint16 {
-		return "descriptor=d16"
-	}
-	if sarflags.MaxUint <= sarflags.MaxUint32 {
-		return "descriptor=d32"
-	}
-	return "descriptor=d64"
-}
-
-// Replace an existing flag or add it
-func replaceflag(curflags string, newflag string) string {
-	var fs string
-	var replaced bool
-
-	for _, curflag := range strings.Split(curflags, ",") {
-		if strings.Split(curflag, "=")[0] == strings.Split(newflag, "=")[0] {
-			replaced = true
-			fs += newflag + ","
-		} else {
-			fs += curflag + ","
-		}
-	}
-	if !replaced {
-		fs += newflag
-	}
-	return strings.TrimRight(fs, ",")
-}
-
-// Doclient -- Execute the command entered
-// Function pointer to the go routine for the transaction type
-// Spawns a go thread for the command to execute
-func Doclient(t *Transfer, g *gocui.Gui, errstr chan string) {
-	for _, i := range Ttypes {
-		if i == t.ttype {
-			fn, ok := clienthandler[i]
-			if ok {
-				errflag := make(chan string, 1) // The return channel holding the saratoga errflag
-				go fn(t, g, errflag)
-				retcode := <-errflag
-				errstr <- retcode
-				return
-			}
-		}
-	}
-	errstr <- "undefined"
-}
-
-// Look for and return value of a particular flag in flags
-// e.g flags:descriptor=d32,timestamp=off flag:timeatamp return:off
-func flagvalue(flags, flag string) string {
-	flags = strings.Replace(flags, " ", "", -1) // Get rid of extra spaces in flags
-	// Grab the flags and set the frame header
-	flagslice := strings.Split(flags, ",") // The name=val of the flag
-	for fl := range flagslice {
-		f := strings.Split(flagslice[fl], "=") // f[0]=name f[1]=val
-		if f[0] == flag {
-			return f[1]
-		}
-	}
-	return ""
-}
-
-// Work out the maximum payload in data.Data frame given flags
-func maxpayload(flags string) uint64 {
-
-	plen := sarflags.MTU - 60 - 8 // 60 for IP header, 8 for UDP header
-	plen -= 8                     // Saratoga Header + Offset
-
-	flags = strings.Replace(flags, " ", "", -1) // Get rid of extra spaces in flags
-	// Grab the flags and set the frame header
-	flag := strings.Split(flags, ",") // The name=val of the flag
-	for fl := range flag {
-		f := strings.Split(flag[fl], "=") // f[0]=name f[1]=val
-		switch f[0] {
-		case "descriptor":
-			switch f[1] {
-			case "d16":
-				plen -= 2
-			case "d32":
-				plen -= 4
-			case "d64":
-				plen -= 8
-			default:
-				return 0
-			}
-		case "reqtstamp":
-			if f[1] == "yes" {
-				plen -= 16
-			}
-		default:
-		}
-	}
-	return plen
+	return sessionid
 }
 
 // read and process status frames
@@ -504,6 +239,120 @@ func senddata(g *gocui.Gui, t *Transfer, dflags string, conn *net.UDPConn,
 		}
 	}
 	errflag <- "success"
+}
+
+// Doclient -- Execute the command entered
+// Function pointer to the go routine for the transaction type
+// Spawns a go thread for the command to execute
+func Doclient(t *Transfer, g *gocui.Gui, errstr chan string) {
+	for _, i := range Ttypes {
+		if i == t.ttype {
+			fn, ok := clienthandler[i]
+			if ok {
+				errflag := make(chan string, 1) // The return channel holding the saratoga errflag
+				go fn(t, g, errflag)
+				retcode := <-errflag
+				errstr <- retcode
+				return
+			}
+		}
+	}
+	errstr <- "undefined"
+}
+
+// New - Add a new transfer to the Transfers list
+func (t *Transfer) New(g *gocui.Gui, ttype string, ip string, fname string) error {
+
+	// screen.Fprintln(g, "msg", "red_black", "Addtran for", ip, fname, flags)
+	if addr := net.ParseIP(ip); addr != nil { // We have a valid IP Address
+		for _, i := range Transfers { // Don't add duplicates
+			if addr.Equal(i.peer) && fname == i.filename {
+				emsg := fmt.Sprintf("Transfer for %s to %s is currently in progress, cannnot add transfer",
+					fname, i.peer.String())
+				screen.Fprintln(g, "msg", "red_black", emsg)
+				return errors.New(emsg)
+			}
+		}
+
+		// Lock it as we are going to add a new transfer slice
+		trmu.Lock()
+		defer trmu.Unlock()
+		t.direction = "client"
+		t.ttype = ttype
+		t.tstamp = sarflags.Cli.Timestamp
+		t.session = newsession()
+		t.peer = addr
+		t.filename = fname
+		var msg string
+
+		msg = fmt.Sprintf("Added %s Transfer to %s %s",
+			t.ttype, t.peer.String(), t.filename)
+		Transfers = append(Transfers, *t)
+		screen.Fprintln(g, "msg", "green_black", msg)
+		return nil
+	}
+	screen.Fprintln(g, "msg", "red_black", "Transfer not added, invalid IP address", ip)
+	return errors.New("Invalid IP Address")
+}
+
+// Match - Return a pointer to the transfer if we find it, nil otherwise
+func Match(ttype string, ip string, fname string) *Transfer {
+	ttypeok := false
+	addrok := false
+
+	// Check that transfer type is valid
+	for _, tt := range Ttypes {
+		if tt == ttype {
+			ttypeok = true
+			break
+		}
+	}
+	// Check that ip address is valid
+	var addr net.IP
+	if addr = net.ParseIP(ip); addr != nil { // We have a valid IP Address
+		addrok = true
+	}
+	if !ttypeok || !addrok {
+		return nil
+	}
+
+	for _, i := range Transfers {
+		if ttype == i.ttype && addr.Equal(i.peer) && fname == i.filename {
+			return &i
+		}
+	}
+	return nil
+}
+
+// Remove - Remove a Transfer from the Transfers
+func (t *Transfer) Remove() error {
+	trmu.Lock()
+	defer trmu.Unlock()
+	for i := len(Transfers) - 1; i >= 0; i-- {
+		if t.peer.Equal(Transfers[i].peer) && t.filename == Transfers[i].filename {
+			Transfers = append(Transfers[:i], Transfers[i+1:]...)
+			return nil
+		}
+	}
+	emsg := fmt.Sprintf("Cannot remove %s Transfer for %s to %s",
+		t.ttype, t.filename, t.peer.String())
+	return errors.New(emsg)
+}
+
+// FmtPrint - String of relevant transfer info
+func (t *Transfer) FmtPrint(sfmt string) string {
+	return fmt.Sprintf(sfmt, t.direction,
+		t.ttype,
+		t.peer.String(),
+		t.filename)
+}
+
+// Print - String of relevant transfer info
+func (t *Transfer) Print() string {
+	return fmt.Sprintf("%s|%s|%s|%s", t.direction,
+		t.ttype,
+		t.peer.String(),
+		t.filename)
 }
 
 /*
