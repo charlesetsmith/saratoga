@@ -13,20 +13,19 @@ import (
 	"time"
 
 	"github.com/charlesetsmith/saratoga/src/data"
-	"github.com/charlesetsmith/saratoga/src/status"
-
 	"github.com/charlesetsmith/saratoga/src/metadata"
 	"github.com/charlesetsmith/saratoga/src/request"
 	"github.com/charlesetsmith/saratoga/src/sarflags"
 	"github.com/charlesetsmith/saratoga/src/sarnet"
 	"github.com/charlesetsmith/saratoga/src/screen"
+	"github.com/charlesetsmith/saratoga/src/status"
 	"github.com/jroimartin/gocui"
 )
 
-// Transfer Information
-type Transfer struct {
+// CTransfer Information
+type CTransfer struct {
 	direction string // "client|server"
-	ttype     string // Transfer type "get,getrm,put,putrm,blindput,rm"
+	ttype     string // CTransfer type "get,getrm,put,putrm,blindput,rm"
 	tstamp    string // TImestamp type used in transfer
 	session   uint32 // Session ID - This is the unique key
 	peer      net.IP // Remote Host
@@ -36,24 +35,10 @@ type Transfer struct {
 	holes     []Hole   // Holes
 }
 
-var trmu sync.Mutex
+var ctrmu sync.Mutex
 
-// Transfers - Get list used in get,getrm,getdir,put,putrm & delete
-var Transfers = []Transfer{}
-
-// Create new Session number
-func newsession() uint32 {
-
-	smu.Lock()
-	defer smu.Unlock()
-
-	if sessionid == 0 {
-		sessionid = uint32(os.Getpid()) + 1
-	} else {
-		sessionid++
-	}
-	return sessionid
-}
+// CTransfers - Get list used in get,getrm,getdir,put,putrm & delete
+var CTransfers = []CTransfer{}
 
 // read and process status frames
 // We read from and seek within fp
@@ -61,7 +46,7 @@ func newsession() uint32 {
 // We assemble Data using dflags
 // We transmit metadata as required
 // We send back a string holding the status error code "success" keeps transfer alive
-func readstatus(g *gocui.Gui, t *Transfer, dflags string, conn *net.UDPConn,
+func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 	m *metadata.MetaData, errflag chan string) {
 
 	var filelen uint64
@@ -156,7 +141,7 @@ func readstatus(g *gocui.Gui, t *Transfer, dflags string, conn *net.UDPConn,
 				return
 			}
 			var plen, dframes, fc, pstart, pend uint64
-			plen = maxpayload(dflags)     // Work out maximum payload for data frame
+			plen = dpaylen(dflags)        // Work out maximum payload for data frame
 			dframes = uint64(rlen) / plen // Work out how many frames we need to re-send
 			// Loop around sending data frames for the hole
 			for fc = 0; fc < dframes; fc++ { // Bump frame counter
@@ -185,7 +170,7 @@ func readstatus(g *gocui.Gui, t *Transfer, dflags string, conn *net.UDPConn,
 // senddata - Read from fp and send the data to the server
 // Handle datapos as recieved from the channel - THIS NOT DONE IN THIS SIMPLE VERSION YET!!!
 // Send out errflag on its channel if failure or success (done)
-func senddata(g *gocui.Gui, t *Transfer, dflags string, conn *net.UDPConn,
+func senddata(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 	datapos chan [2]uint64, errflag chan string) {
 
 	var curpos uint64
@@ -199,8 +184,8 @@ func senddata(g *gocui.Gui, t *Transfer, dflags string, conn *net.UDPConn,
 	}
 
 	// Allocate a read buffer for a data frame
-	rbuf := make([]byte, maxpayload(dflags))
-	screen.Fprintln(g, "msg", "yellow_black", "Data Maxpayload=", maxpayload(dflags))
+	rbuf := make([]byte, dpaylen(dflags))
+	screen.Fprintln(g, "msg", "yellow_black", "Data Maxpayload=", dpaylen(dflags))
 	for { // Just blast away and send the complete file asking for a status every 100 frames sent
 		nread, err := t.fp.ReadAt(rbuf, int64(curpos))
 		if err != nil && err != io.EOF {
@@ -241,62 +226,8 @@ func senddata(g *gocui.Gui, t *Transfer, dflags string, conn *net.UDPConn,
 	errflag <- "success"
 }
 
-// Doclient -- Execute the command entered
-// Function pointer to the go routine for the transaction type
-// Spawns a go thread for the command to execute
-func Doclient(t *Transfer, g *gocui.Gui, errstr chan string) {
-	for _, i := range Ttypes {
-		if i == t.ttype {
-			fn, ok := clienthandler[i]
-			if ok {
-				errflag := make(chan string, 1) // The return channel holding the saratoga errflag
-				go fn(t, g, errflag)
-				retcode := <-errflag
-				errstr <- retcode
-				return
-			}
-		}
-	}
-	errstr <- "undefined"
-}
-
-// New - Add a new transfer to the Transfers list
-func (t *Transfer) New(g *gocui.Gui, ttype string, ip string, fname string) error {
-
-	// screen.Fprintln(g, "msg", "red_black", "Addtran for", ip, fname, flags)
-	if addr := net.ParseIP(ip); addr != nil { // We have a valid IP Address
-		for _, i := range Transfers { // Don't add duplicates
-			if addr.Equal(i.peer) && fname == i.filename {
-				emsg := fmt.Sprintf("Transfer for %s to %s is currently in progress, cannnot add transfer",
-					fname, i.peer.String())
-				screen.Fprintln(g, "msg", "red_black", emsg)
-				return errors.New(emsg)
-			}
-		}
-
-		// Lock it as we are going to add a new transfer slice
-		trmu.Lock()
-		defer trmu.Unlock()
-		t.direction = "client"
-		t.ttype = ttype
-		t.tstamp = sarflags.Cli.Timestamp
-		t.session = newsession()
-		t.peer = addr
-		t.filename = fname
-		var msg string
-
-		msg = fmt.Sprintf("Added %s Transfer to %s %s",
-			t.ttype, t.peer.String(), t.filename)
-		Transfers = append(Transfers, *t)
-		screen.Fprintln(g, "msg", "green_black", msg)
-		return nil
-	}
-	screen.Fprintln(g, "msg", "red_black", "Transfer not added, invalid IP address", ip)
-	return errors.New("Invalid IP Address")
-}
-
-// Match - Return a pointer to the transfer if we find it, nil otherwise
-func Match(ttype string, ip string, fname string) *Transfer {
+// CMatch - Return a pointer to the transfer if we find it, nil otherwise
+func CMatch(ttype string, ip string, fname string) *CTransfer {
 	ttypeok := false
 	addrok := false
 
@@ -316,7 +247,7 @@ func Match(ttype string, ip string, fname string) *Transfer {
 		return nil
 	}
 
-	for _, i := range Transfers {
+	for _, i := range CTransfers {
 		if ttype == i.ttype && addr.Equal(i.peer) && fname == i.filename {
 			return &i
 		}
@@ -324,23 +255,77 @@ func Match(ttype string, ip string, fname string) *Transfer {
 	return nil
 }
 
-// Remove - Remove a Transfer from the Transfers
-func (t *Transfer) Remove() error {
-	trmu.Lock()
-	defer trmu.Unlock()
-	for i := len(Transfers) - 1; i >= 0; i-- {
-		if t.peer.Equal(Transfers[i].peer) && t.filename == Transfers[i].filename {
-			Transfers = append(Transfers[:i], Transfers[i+1:]...)
+// Doclient -- Execute the command entered
+// Function pointer to the go routine for the transaction type
+// Spawns a go thread for the command to execute
+func Doclient(t *CTransfer, g *gocui.Gui, errstr chan string) {
+	for _, i := range Ttypes {
+		if i == t.ttype {
+			fn, ok := clienthandler[i]
+			if ok {
+				errflag := make(chan string, 1) // The return channel holding the saratoga errflag
+				go fn(t, g, errflag)
+				retcode := <-errflag
+				errstr <- retcode
+				return
+			}
+		}
+	}
+	errstr <- "undefined"
+}
+
+// New - Add a new transfer to the CTransfers list
+func (t *CTransfer) New(g *gocui.Gui, ttype string, ip string, fname string) error {
+
+	// screen.Fprintln(g, "msg", "red_black", "Addtran for", ip, fname, flags)
+	if addr := net.ParseIP(ip); addr != nil { // We have a valid IP Address
+		for _, i := range CTransfers { // Don't add duplicates
+			if addr.Equal(i.peer) && fname == i.filename {
+				emsg := fmt.Sprintf("CTransfer for %s to %s is currently in progress, cannnot add transfer",
+					fname, i.peer.String())
+				screen.Fprintln(g, "msg", "red_black", emsg)
+				return errors.New(emsg)
+			}
+		}
+
+		// Lock it as we are going to add a new transfer slice
+		ctrmu.Lock()
+		defer ctrmu.Unlock()
+		t.direction = "client"
+		t.ttype = ttype
+		t.tstamp = sarflags.Cli.Timestamp
+		t.session = newsession()
+		t.peer = addr
+		t.filename = fname
+		var msg string
+
+		msg = fmt.Sprintf("Added %s CTransfer to %s %s",
+			t.ttype, t.peer.String(), t.filename)
+		CTransfers = append(CTransfers, *t)
+		screen.Fprintln(g, "msg", "green_black", msg)
+		return nil
+	}
+	screen.Fprintln(g, "msg", "red_black", "CTransfer not added, invalid IP address", ip)
+	return errors.New("Invalid IP Address")
+}
+
+// Remove - Remove a CTransfer from the CTransfers
+func (t *CTransfer) Remove() error {
+	ctrmu.Lock()
+	defer ctrmu.Unlock()
+	for i := len(CTransfers) - 1; i >= 0; i-- {
+		if t.peer.Equal(CTransfers[i].peer) && t.filename == CTransfers[i].filename {
+			CTransfers = append(CTransfers[:i], CTransfers[i+1:]...)
 			return nil
 		}
 	}
-	emsg := fmt.Sprintf("Cannot remove %s Transfer for %s to %s",
+	emsg := fmt.Sprintf("Cannot remove %s CTransfer for %s to %s",
 		t.ttype, t.filename, t.peer.String())
 	return errors.New(emsg)
 }
 
 // FmtPrint - String of relevant transfer info
-func (t *Transfer) FmtPrint(sfmt string) string {
+func (t *CTransfer) FmtPrint(sfmt string) string {
 	return fmt.Sprintf(sfmt, t.direction,
 		t.ttype,
 		t.peer.String(),
@@ -348,7 +333,7 @@ func (t *Transfer) FmtPrint(sfmt string) string {
 }
 
 // Print - String of relevant transfer info
-func (t *Transfer) Print() string {
+func (t *CTransfer) Print() string {
 	return fmt.Sprintf("%s|%s|%s|%s", t.direction,
 		t.ttype,
 		t.peer.String(),
@@ -361,7 +346,7 @@ func (t *Transfer) Print() string {
  *************************************************************************************************
  */
 
-type clientfunc func(*Transfer, *gocui.Gui, chan string)
+type clientfunc func(*CTransfer, *gocui.Gui, chan string)
 
 // Client Commands and function pointers to handle them
 var clienthandler = map[string]clientfunc{
@@ -389,7 +374,7 @@ var clienthandler = map[string]clientfunc{
 //		or Datacnt Data frames sent, whichever comes first
 //		Abort with error if Rx Status errcode != "success"
 //
-func cput(t *Transfer, g *gocui.Gui, errflag chan string) {
+func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	var err error
 	var wframe []byte // The frame to write
 	var fp *os.File
@@ -406,7 +391,7 @@ func cput(t *Transfer, g *gocui.Gui, errflag chan string) {
 		return
 	}
 	defer t.fp.Close()
-	tdesc := filedescriptor(fname) // Transfer descriptor to be used
+	tdesc := filedescriptor(fname) // CTransfer descriptor to be used
 
 	if pos, err = t.fp.Seek(0, io.SeekStart); err != nil {
 		screen.Fprintln(g, "msg", "red_black", "Cannot seek to", pos)
@@ -460,7 +445,7 @@ func cput(t *Transfer, g *gocui.Gui, errflag chan string) {
 		return
 	}
 	screen.Fprintln(g, "msg", "green_black", "Sent:", t.Print())
-	screen.Fprintln(g, "msg", "green_black", "Transfer Request Sent to",
+	screen.Fprintln(g, "msg", "green_black", "CTransfer Request Sent to",
 		t.peer.String())
 
 	// Create the metadata & send
@@ -532,7 +517,7 @@ func cput(t *Transfer, g *gocui.Gui, errflag chan string) {
 }
 
 // client blind put a file
-func cputblind(t *Transfer, g *gocui.Gui, errflag chan string) {
+func cputblind(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	var err error
 	var wframe []byte // The frame to write
 	var pos int64
@@ -547,7 +532,7 @@ func cputblind(t *Transfer, g *gocui.Gui, errflag chan string) {
 		return
 	}
 	defer t.fp.Close()
-	tdesc := filedescriptor(fname) // Transfer descriptor to be used
+	tdesc := filedescriptor(fname) // CTransfer descriptor to be used
 
 	if pos, err = t.fp.Seek(0, io.SeekStart); err != nil {
 		screen.Fprintln(g, "msg", "red_black", "Cannot seek to", pos)
@@ -592,14 +577,14 @@ func cputblind(t *Transfer, g *gocui.Gui, errflag chan string) {
 		return
 	}
 	screen.Fprintln(g, "msg", "green_black", "Sent:", t.Print())
-	screen.Fprintln(g, "msg", "green_black", "Transfer Metadata Sent for blind put to",
+	screen.Fprintln(g, "msg", "green_black", "CTransfer Metadata Sent for blind put to",
 		t.peer.String())
 	errflag <- "success"
 	return
 }
 
 // client put a file then remove the local copy of that file
-func cputrm(t *Transfer, g *gocui.Gui, errflag chan string) {
+func cputrm(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	rmerrflag := make(chan string, 1) // The return channel holding the saratoga errflag
 	defer close(rmerrflag)
 

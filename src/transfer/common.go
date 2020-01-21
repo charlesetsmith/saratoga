@@ -25,15 +25,15 @@ type Hole struct {
 	end   uint64
 }
 
-// Info - List transfers in progress to msg window matching ttype or all if ""
+// Info - List client & server transfers in progress to msg window matching ttype or all if ""
 func Info(g *gocui.Gui, ttype string) {
-	var tinfo []Transfer
+	var tinfo []CTransfer
 
-	for i := range Transfers {
+	for i := range CTransfers {
 		if ttype == "" {
-			tinfo = append(tinfo, Transfers[i])
-		} else if Transfers[i].ttype == ttype {
-			tinfo = append(tinfo, Transfers[i])
+			tinfo = append(tinfo, CTransfers[i])
+		} else if CTransfers[i].ttype == ttype {
+			tinfo = append(tinfo, CTransfers[i])
 		}
 	}
 	if len(tinfo) > 0 {
@@ -69,6 +69,20 @@ func Info(g *gocui.Gui, ttype string) {
 		msg := fmt.Sprintf("No %s transfers currently in progress", ttype)
 		screen.Fprintln(g, "msg", "green_black", msg)
 	}
+}
+
+// Create new Session number
+func newsession() uint32 {
+
+	smu.Lock()
+	defer smu.Unlock()
+
+	if sessionid == 0 {
+		sessionid = uint32(os.Getpid()) + 1
+	} else {
+		sessionid++
+	}
+	return sessionid
 }
 
 // FileDescriptor - Get the appropriate descriptor flag size based on file length
@@ -130,7 +144,7 @@ func flagvalue(flags, flag string) string {
 }
 
 // Work out the maximum payload in data.Data frame given flags
-func maxpayload(flags string) uint64 {
+func dpaylen(flags string) uint64 {
 
 	plen := sarflags.MTU - 60 - 8 // 60 for IP header, 8 for UDP header
 	plen -= 8                     // Saratoga Header + Offset
