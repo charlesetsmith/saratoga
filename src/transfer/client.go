@@ -37,7 +37,7 @@ type CTransfer struct {
 
 var ctrmu sync.Mutex
 
-// CTransfers - Get list used in get,getrm,getdir,put,putrm & delete
+// CTransfers - Client transfers in progress
 var CTransfers = []CTransfer{}
 
 // read and process status frames
@@ -140,19 +140,21 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 				errflag <- "badoffset"
 				return
 			}
-			var plen, dframes, fc, pstart, pend uint64
-			plen = dpaylen(dflags)        // Work out maximum payload for data frame
-			dframes = uint64(rlen) / plen // Work out how many frames we need to re-send
-			// Loop around sending data frames for the hole
-			for fc = 0; fc < dframes; fc++ { // Bump frame counter
+			var pend int
+
+			plen := dpaylen(dflags) // Work out maximum payload for data frame
+			dframes := rlen / plen  // Work out how many frames we need to re-send
+			// Loop around re-sending data frames for the hole
+			for fc := 0; fc < dframes; fc++ { // Bump frame counter
 				var df data.Data
-				pstart = uint64(rlen) - (fc * plen)
-				if pstart+plen > h.End {
-					pend = h.End // Last frame may be shorter
+				pstart := rlen - (fc * plen)
+				if pstart+plen > int(h.End) {
+					pend = int(h.End) // Last frame may be shorter
 				} else {
 					pend = pstart + plen
 				}
-				df.New(dflags, t.session, pstart, buf[pstart:pend]) // Create the Data
+
+				df.New(dflags, t.session, uint64(pstart), buf[pstart:pend]) // Create the Data
 				if wframe, err := df.Put(); err != nil {
 					errflag <- "badoffset"
 					return

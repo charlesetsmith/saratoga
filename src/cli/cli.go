@@ -401,7 +401,7 @@ func get(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 3 {
-		var t transfer.Transfer
+		var t transfer.CTransfer
 		if err := t.New(g, "get", args[1], args[2]); err != nil {
 
 		}
@@ -421,7 +421,7 @@ func getdir(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 3 {
-		var t transfer.Transfer
+		var t transfer.CTransfer
 		if err := t.New(g, "getdir", args[1], args[2]); err != nil {
 
 		}
@@ -441,7 +441,7 @@ func getrm(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 3 {
-		var t transfer.Transfer
+		var t transfer.CTransfer
 		if err := t.New(g, "getrm", args[1], args[2]); err != nil {
 
 		}
@@ -643,7 +643,7 @@ func put(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 3 {
-		t := new(transfer.Transfer)
+		t := new(transfer.CTransfer)
 		if err := t.New(g, "put", args[1], args[2]); err == nil {
 			errflag := make(chan string, 1) // The return channel holding the saratoga errflag
 			defer close(errflag)
@@ -679,7 +679,7 @@ func putblind(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 3 {
-		t := new(transfer.Transfer)
+		t := new(transfer.CTransfer)
 		// We send the Metadata and do not bother with request/status exchange
 		if err := t.New(g, "putblind", args[1], args[2]); err != nil {
 			go transfer.Doclient(t, g, errflag)
@@ -709,7 +709,7 @@ func putrm(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 3 {
-		t := new(transfer.Transfer)
+		t := new(transfer.CTransfer)
 		if err := t.New(g, "putrm", args[1], args[2]); err != nil {
 			go transfer.Doclient(t, g, errflag)
 			errcode := <-errflag
@@ -768,7 +768,7 @@ func rm(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 3 {
-		var t transfer.Transfer
+		var t transfer.CTransfer
 		if err := t.New(g, "rm", args[1], args[2]); err != nil {
 
 		}
@@ -790,7 +790,7 @@ func rmdir(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 3 {
-		var t transfer.Transfer
+		var t transfer.CTransfer
 		if err := t.New(g, "rmdir", args[1], args[2]); err != nil {
 
 		}
@@ -809,7 +809,7 @@ func rmtran(g *gocui.Gui, args []string) {
 	ttype := args[1]
 	addr := args[2]
 	fname := args[3]
-	if t := transfer.Match(ttype, addr, fname); t != nil {
+	if t := transfer.CMatch(ttype, addr, fname); t != nil {
 		if err := t.Remove(); err != nil {
 			screen.Fprintln(g, "msg", "red_black", err.Error())
 		}

@@ -129,7 +129,7 @@ const flagsize uint32 = 32
 const MaxBuff = uint64(9000)
 
 // MTU -- Maximum write []byte buffer, set to interface MTU
-var MTU uint64
+var MTU int
 
 // Index for length and msb values in flagfield map
 const fieldlen = 0

@@ -507,7 +507,7 @@ func main() {
 		fmt.Println("Saratoga Unable to lookup interfacebyname:", os.Args[1])
 		log.Fatal(err)
 	}
-	sarflags.MTU = uint64(iface.MTU)
+	sarflags.MTU = iface.MTU
 
 	// Listen to Unicast & Multicast v6
 	v6mcastcon, err := net.ListenMulticastUDP("udp6", iface, &v6mcastaddr)

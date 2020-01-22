@@ -144,7 +144,7 @@ func flagvalue(flags, flag string) string {
 }
 
 // Work out the maximum payload in data.Data frame given flags
-func dpaylen(flags string) uint64 {
+func dpaylen(flags string) int {
 
 	plen := sarflags.MTU - 60 - 8 // 60 for IP header, 8 for UDP header
 	plen -= 8                     // Saratoga Header + Offset
@@ -174,4 +174,40 @@ func dpaylen(flags string) uint64 {
 		}
 	}
 	return plen
+}
+
+// Work out the maximum payload in status.Status frame given flags
+func stpaylen(flags string) int {
+	var hsize int
+	var plen int
+
+	plen = sarflags.MTU - 60 - 8 // 60 for IP header, 8 for UDP header
+	plen -= 8                    // Saratoga Header + Session
+
+	flags = strings.Replace(flags, " ", "", -1) // Get rid of extra spaces in flags
+	// Grab the flags and set the frame header
+	flag := strings.Split(flags, ",") // The name=val of the flag
+	for fl := range flag {
+		f := strings.Split(flag[fl], "=") // f[0]=name f[1]=val
+		switch f[0] {
+		case "descriptor":
+			switch f[1] {
+			case "d16":
+				hsize = 4
+			case "d32":
+				hsize = 8
+			case "d64":
+				hsize = 16
+			default:
+				return 0
+			}
+		case "reqtstamp":
+			if f[1] == "yes" {
+				plen -= 16
+			}
+		default:
+		}
+	}
+	plen -= hsize       // For Progress & Inrespto
+	return plen / hsize // Max holes we can now have in the frame
 }
