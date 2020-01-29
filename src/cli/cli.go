@@ -402,7 +402,7 @@ func get(g *gocui.Gui, args []string) {
 	}
 	if len(args) == 3 {
 		var t transfer.CTransfer
-		if err := t.New(g, "get", args[1], args[2]); err != nil {
+		if err := t.CNew(g, "get", args[1], args[2]); err != nil {
 
 		}
 		return
@@ -422,7 +422,7 @@ func getdir(g *gocui.Gui, args []string) {
 	}
 	if len(args) == 3 {
 		var t transfer.CTransfer
-		if err := t.New(g, "getdir", args[1], args[2]); err != nil {
+		if err := t.CNew(g, "getdir", args[1], args[2]); err != nil {
 
 		}
 		return
@@ -442,7 +442,7 @@ func getrm(g *gocui.Gui, args []string) {
 	}
 	if len(args) == 3 {
 		var t transfer.CTransfer
-		if err := t.New(g, "getrm", args[1], args[2]); err != nil {
+		if err := t.CNew(g, "getrm", args[1], args[2]); err != nil {
 
 		}
 		return
@@ -644,7 +644,7 @@ func put(g *gocui.Gui, args []string) {
 	}
 	if len(args) == 3 {
 		t := new(transfer.CTransfer)
-		if err := t.New(g, "put", args[1], args[2]); err == nil {
+		if err := t.CNew(g, "put", args[1], args[2]); err == nil {
 			errflag := make(chan string, 1) // The return channel holding the saratoga errflag
 			defer close(errflag)
 			go transfer.Doclient(t, g, errflag) // Actually do the transfer
@@ -681,7 +681,7 @@ func putblind(g *gocui.Gui, args []string) {
 	if len(args) == 3 {
 		t := new(transfer.CTransfer)
 		// We send the Metadata and do not bother with request/status exchange
-		if err := t.New(g, "putblind", args[1], args[2]); err != nil {
+		if err := t.CNew(g, "putblind", args[1], args[2]); err != nil {
 			go transfer.Doclient(t, g, errflag)
 			errcode := <-errflag
 			if errcode != "success" {
@@ -710,7 +710,7 @@ func putrm(g *gocui.Gui, args []string) {
 	}
 	if len(args) == 3 {
 		t := new(transfer.CTransfer)
-		if err := t.New(g, "putrm", args[1], args[2]); err != nil {
+		if err := t.CNew(g, "putrm", args[1], args[2]); err != nil {
 			go transfer.Doclient(t, g, errflag)
 			errcode := <-errflag
 			if errcode != "success" {
@@ -769,7 +769,7 @@ func rm(g *gocui.Gui, args []string) {
 	}
 	if len(args) == 3 {
 		var t transfer.CTransfer
-		if err := t.New(g, "rm", args[1], args[2]); err != nil {
+		if err := t.CNew(g, "rm", args[1], args[2]); err != nil {
 
 		}
 		return
@@ -791,7 +791,7 @@ func rmdir(g *gocui.Gui, args []string) {
 	}
 	if len(args) == 3 {
 		var t transfer.CTransfer
-		if err := t.New(g, "rmdir", args[1], args[2]); err != nil {
+		if err := t.CNew(g, "rmdir", args[1], args[2]); err != nil {
 
 		}
 		return

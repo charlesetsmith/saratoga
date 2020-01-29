@@ -24,6 +24,7 @@ import (
 	"github.com/charlesetsmith/saratoga/src/sarnet"
 	"github.com/charlesetsmith/saratoga/src/screen"
 	"github.com/charlesetsmith/saratoga/src/status"
+	"github.com/charlesetsmith/saratoga/src/transfer"
 	"github.com/jroimartin/gocui"
 )
 
@@ -272,6 +273,55 @@ func layout(g *gocui.Gui) error {
 	return nil
 }
 
+// Request Handler for Server
+func reqhandler(g *gocui.Gui, frame []byte, remoteAddr *net.UDPAddr) string {
+
+	var session uint32
+	var r request.Request
+
+	if rxerr := r.Get(frame); rxerr != nil {
+		session = binary.BigEndian.Uint32(frame[4:8])
+		screen.Fprintln(g, "msg", "red_black", "Bad Request:", rxerr, " from ",
+			sarnet.UDPinfo(remoteAddr), " session ", session)
+		// Send back a Status to the client
+		return "errcode=badpacket"
+	}
+	// Handle the request
+	session = binary.BigEndian.Uint32(frame[4:8])
+	// screen.Fprintln(g, "msg", "green_black", r.Print())
+
+	reqtype := sarflags.GetStr(r.Header, "reqtype")
+	switch reqtype {
+	case "noaction", "get", "put", "getdelete", "delete", "getdir":
+		var t *transfer.STransfer
+		if t = transfer.SMatch(reqtype, remoteAddr.IP.String(), session); t == nil {
+			// No matching request so add one
+			var err error
+			if err = transfer.SNew(g, reqtype, r, remoteAddr.IP.String(), session); err == nil {
+				screen.Fprintln(g, "msg", "yellow_black", "Created Request", reqtype, "from",
+					sarnet.UDPinfo(remoteAddr),
+					"session", session)
+				return "errcode=success"
+			}
+			screen.Fprintln(g, "msg", "red_black", "Cannot create Request", reqtype, "from",
+				sarnet.UDPinfo(remoteAddr),
+				"session", session, err)
+			return "errcode=badrequest"
+		}
+		// Request is currently in progress
+		screen.Fprintln(g, "msg", "red_black", "Request", reqtype, "from",
+			sarnet.UDPinfo(remoteAddr),
+			"for session", session, "already in progress")
+		return "errcode=badrequest"
+
+	default:
+		screen.Fprintln(g, "msg", "red_black", "Invalid Request from",
+			sarnet.UDPinfo(remoteAddr),
+			"session", session)
+		return "errcode=badrequest"
+	}
+}
+
 // Listen -- IPv4 & IPv6 for an incoming frames and shunt them off to the
 // correct frame handlers
 func listen(g *gocui.Gui, conn *net.UDPConn, quit chan struct{}) {
@@ -343,27 +393,46 @@ next:
 			}
 
 		case "request":
-			var r request.Request
-			if rxerr := r.Get(frame); rxerr != nil {
-				session := binary.BigEndian.Uint32(frame[4:8])
-				var se status.Status
-				// Send back a Status to the client
-				_ = se.New("errcode=badpacket", session, 0, 0, nil)
+			// Handle the request
+			var req request.Request
+			if rxerr := req.Get(frame); rxerr != nil {
+				// We just drop bad requests
 				screen.Fprintln(g, "msg", "red_black", "Bad Request:", rxerr, " from ",
-					sarnet.UDPinfo(remoteAddr), " session ", session)
+					sarnet.UDPinfo(remoteAddr))
 				goto next
-			} // Handle the request
-			session := binary.BigEndian.Uint32(frame[4:8])
-			if errcode := r.Handler(g, remoteAddr, session); errcode != "success" {
-
 			}
+
+			// Create & Send back a status to the client to tell it the error or that we have accepted the transfer
+			session := binary.BigEndian.Uint32(frame[4:8])
+			errcode := reqhandler(g, frame, remoteAddr)
+			stheader := "descriptor=" + sarflags.GetStr(header, "descriptor")
+			stheader += ",metadatarecvd=no,allholes=yes,reqholes=requested,"
+			stheader += errcode
+
+			// Send back a status to the client to tell it the error or that we have accepted the transfer
+			var st status.Status
+			_ = st.New(stheader, session, 0, 0, nil)
+			var wframe []byte
+			var txerr error
+			if wframe, txerr = st.Put(); txerr == nil {
+				_, err := conn.WriteToUDP(wframe, remoteAddr)
+				if err != nil || txerr != nil {
+					// conn.Close()
+					// errflag <- "cantsend"
+				}
+			}
+			goto next
+
 		case "data":
 			var d data.Data
 			if rxerr := d.Get(frame); rxerr != nil {
 				session := binary.BigEndian.Uint32(frame[4:8])
 				var se status.Status
 				// Bad Packet send back a Status to the client
-				_ = se.New("errcode=badpacket", session, 0, 0, nil)
+				stheader := "descriptor=" + sarflags.GetStr(header, "descriptor")
+				stheader += ",metadatarecvd=no,allholes=yes,reqholes=requested,"
+				stheader += "errcode=badpacket"
+				_ = se.New(stheader, session, 0, 0, nil)
 				screen.Fprintln(g, "msg", "red_black", "Bad Data:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr), " session ", session)
 				goto next
@@ -378,11 +447,14 @@ next:
 				session := binary.BigEndian.Uint32(frame[4:8])
 				var se status.Status
 				// Bad Packet send back a Status to the client
-				_ = se.New("errcode=badpacket", session, 0, 0, nil)
+				stheader := "descriptor=" + sarflags.GetStr(header, "descriptor")
+				stheader += ",metadatarecvd=no,allholes=yes,reqholes=requested,"
+				stheader += "errcode=badpacket"
+				_ = se.New(stheader, session, 0, 0, nil)
 				screen.Fprintln(g, "msg", "red_black", "Bad MetaData:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr), " session ", session)
 				goto next
-			} // Handle the data
+			} // Handle the metadata
 			session := binary.BigEndian.Uint32(frame[4:8])
 			if errcode := m.Handler(g, remoteAddr, session); errcode != "success" {
 
@@ -393,7 +465,10 @@ next:
 				session := binary.BigEndian.Uint32(frame[4:8])
 				var se status.Status
 				// Bad Packet send back a Status to the client
-				_ = se.New("errcode=badpacket", session, 0, 0, nil)
+				stheader := "descriptor=" + sarflags.GetStr(header, "descriptor")
+				stheader += ",metadatarecvd=no,allholes=yes,reqholes=requested,"
+				stheader += "errcode=badpacket"
+				_ = se.New(stheader, session, 0, 0, nil)
 				screen.Fprintln(g, "msg", "red_black", "Bad Status:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr), " session ", session)
 				goto next
@@ -406,7 +481,10 @@ next:
 			// Bad Packet send back a Status to the client
 			// We can't even know the session # so use 0
 			var se status.Status
-			_ = se.New("errcode=badpacket", 0, 0, 0, nil)
+			stheader := "descriptor=" + sarflags.GetStr(header, "descriptor")
+			stheader += ",metadatarecvd=no,allholes=yes,reqholes=requested,"
+			stheader += "errcode=badpacket"
+			_ = se.New(stheader, 0, 0, 0, nil)
 			screen.Fprintln(g, "msg", "red_black", "Bad Header in Saratoga Frame from ",
 				sarnet.UDPinfo(remoteAddr))
 		}
@@ -419,7 +497,7 @@ func main() {
 
 	if len(os.Args) != 2 {
 		fmt.Println("usage:", "saratoga <iface>")
-		fmt.Println("Eg. go run saratoga.go en0")
+		fmt.Println("Eg. go run saratoga.go en0 (Interface says where to listen for multicast joins")
 		return
 	}
 

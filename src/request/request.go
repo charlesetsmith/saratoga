@@ -4,13 +4,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"net"
 	"strings"
 
 	"github.com/charlesetsmith/saratoga/src/sarflags"
-	"github.com/charlesetsmith/saratoga/src/sarnet"
-	"github.com/charlesetsmith/saratoga/src/screen"
-	"github.com/jroimartin/gocui"
 )
 
 // Request -- Holds Request frame information
@@ -139,33 +135,4 @@ func (r *Request) Print() string {
 	sflag += fmt.Sprintf("  filename:<%s>", r.Fname)
 	sflag += fmt.Sprintf("  auth:<%s>\n", r.Auth)
 	return sflag
-}
-
-// Handler - We have an inbound request starting up a new session or updating the session info
-// Create a new, or change an existing sessions information
-func (r *Request) Handler(g *gocui.Gui, from *net.UDPAddr, session uint32) string {
-
-	// screen.Fprintln(g, "msg", "green_black", r.Print())
-
-	switch sarflags.GetStr(r.Header, "reqtype") {
-	case "noaction":
-		screen.Fprintln(g, "msg", "yellow_black", "Request Noaction from", sarnet.UDPinfo(from), "session", session)
-	case "get":
-		screen.Fprintln(g, "msg", "yellow_black", "Request Get from", sarnet.UDPinfo(from), "session", session)
-	case "put": // Create a server put transfer (i.e. The client has done a put)
-		screen.Fprintln(g, "msg", "yellow_black", "Request Put from", sarnet.UDPinfo(from), "session", session)
-	case "getdelete":
-		screen.Fprintln(g, "msg", "yellow_black", "Request GetDelete from", sarnet.UDPinfo(from), "session", session)
-	case "putdelete":
-		screen.Fprintln(g, "msg", "yellow_black", "Request PutDelete from", sarnet.UDPinfo(from), "session", session)
-	case "delete":
-		screen.Fprintln(g, "msg", "yellow_black", "Request Delete from", sarnet.UDPinfo(from), "session", session)
-	case "getdir":
-		screen.Fprintln(g, "msg", "yellow_black", "Request GetDir from", sarnet.UDPinfo(from), "session", session)
-	default:
-		screen.Fprintln(g, "msg", "red_black", "Invalid Request from", sarnet.UDPinfo(from), "session", session)
-		return "badrequest"
-	}
-	return "success"
-	// Return an errcode string
 }

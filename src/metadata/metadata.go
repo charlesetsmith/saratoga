@@ -210,7 +210,8 @@ func (m MetaData) Print() string {
 
 // Handler - We have some incoming metadata for a session. Add the metadata to the session
 func (m *MetaData) Handler(g *gocui.Gui, from *net.UDPAddr, session uint32) string {
-	screen.Fprintln(g, "msg", "yellow_black", m.Print())
+	// screen.Fprintln(g, "msg", "yellow_black", m.Print())
+	screen.Fprintln(g, "msg", "yellow_black", "Metadata Sent")
 	// Return an errcode string
 	return "success"
 }

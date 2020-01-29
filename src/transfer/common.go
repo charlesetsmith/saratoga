@@ -19,12 +19,6 @@ var Ttypes = []string{"get", "getrm", "getdir", "put", "putblind", "putrm", "rm"
 var smu sync.Mutex
 var sessionid uint32
 
-// Hole - Beginning and end of a Hole
-type Hole struct {
-	start uint64
-	end   uint64
-}
-
 // Info - List client & server transfers in progress to msg window matching ttype or all if ""
 func Info(g *gocui.Gui, ttype string) {
 	var tinfo []CTransfer

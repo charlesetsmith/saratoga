@@ -31,8 +31,8 @@ type CTransfer struct {
 	peer      net.IP // Remote Host
 	filename  string // File name to get from remote host
 	fp        *os.File
-	frames    [][]byte // Frame queue
-	holes     []Hole   // Holes
+	frames    [][]byte      // Frame queue
+	holes     []status.Hole // Holes
 }
 
 var ctrmu sync.Mutex
@@ -76,7 +76,7 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 			return
 		}
 		// We have a status so grab it
-		screen.Fprintln(g, "msg", "blue_black", "Read a Frame len", rlen, "bytes")
+		screen.Fprintln(g, "msg", "blue_black", "Client Read a Frame len", rlen, "bytes")
 		rframe := make([]byte, rlen)
 		copy(rframe, rbuf[:rlen])
 		header := binary.BigEndian.Uint32(rframe[:4])
@@ -93,6 +93,7 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 				errflag <- errf
 				return
 			}
+			screen.Fprintln(g, "msg", "blue_black", "Client Status Read:", errf)
 		} else { // Not a status frame
 			errflag <- "badpacket"
 			return
@@ -276,8 +277,8 @@ func Doclient(t *CTransfer, g *gocui.Gui, errstr chan string) {
 	errstr <- "undefined"
 }
 
-// New - Add a new transfer to the CTransfers list
-func (t *CTransfer) New(g *gocui.Gui, ttype string, ip string, fname string) error {
+// CNew - Add a new transfer to the CTransfers list
+func (t *CTransfer) CNew(g *gocui.Gui, ttype string, ip string, fname string) error {
 
 	// screen.Fprintln(g, "msg", "red_black", "Addtran for", ip, fname, flags)
 	if addr := net.ParseIP(ip); addr != nil { // We have a valid IP Address
