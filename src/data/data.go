@@ -4,13 +4,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"net"
 	"strings"
 
 	"github.com/charlesetsmith/saratoga/src/sarflags"
-	"github.com/charlesetsmith/saratoga/src/screen"
 	"github.com/charlesetsmith/saratoga/src/timestamp"
-	"github.com/jroimartin/gocui"
 )
 
 // Data -- Holds Data frame information
@@ -235,12 +232,4 @@ func (d Data) ShortPrint() string {
 	sflag += fmt.Sprintf("offset:%d,", d.Offset)
 	sflag += fmt.Sprintf("Payloadlen:%d", len(d.Payload))
 	return sflag
-}
-
-// Handler - We have some incoming data for a session. Add the data to the session
-// For this implementation of saratoga if no session exists then just dump the data
-func (d *Data) Handler(g *gocui.Gui, from *net.UDPAddr, session uint32) string {
-	screen.Fprintln(g, "msg", "yellow_black", d.ShortPrint())
-	// Return an errcode string
-	return "success"
 }

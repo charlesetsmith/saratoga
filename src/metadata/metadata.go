@@ -4,15 +4,12 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"net"
 	"os"
 	"strings"
 
 	"github.com/charlesetsmith/saratoga/src/dirent"
 	"github.com/charlesetsmith/saratoga/src/frames"
 	"github.com/charlesetsmith/saratoga/src/sarflags"
-	"github.com/charlesetsmith/saratoga/src/screen"
-	"github.com/jroimartin/gocui"
 )
 
 // MetaData -- Holds MetaData frame information
@@ -206,12 +203,4 @@ func (m MetaData) Print() string {
 	}
 	sflag += fmt.Sprintf("%s", m.Dir.Print())
 	return sflag
-}
-
-// Handler - We have some incoming metadata for a session. Add the metadata to the session
-func (m *MetaData) Handler(g *gocui.Gui, from *net.UDPAddr, session uint32) string {
-	// screen.Fprintln(g, "msg", "yellow_black", m.Print())
-	screen.Fprintln(g, "msg", "yellow_black", "Metadata Sent")
-	// Return an errcode string
-	return "success"
 }

@@ -150,10 +150,10 @@ func (s Status) Put() ([]byte, error) {
 	return frame, nil
 }
 
-// Get -- Decode Data byte slice frame into Data struct
+// Get -- Decode Status byte slice frame into Status struct
 func (s *Status) Get(frame []byte) error {
 
-	if len(frame) < 16 {
+	if len(frame) < 12 {
 		return errors.New("Status Frame too short")
 	}
 	s.Header = binary.BigEndian.Uint32(frame[:4])
@@ -223,7 +223,7 @@ func (s *Status) Get(frame []byte) error {
 	return nil
 }
 
-// Print - Print out details of Beacon struct
+// Print - Print out details of Status struct
 func (s Status) Print() string {
 	sflag := fmt.Sprintf("Status: 0x%x\n", s.Header)
 	sflags := sarflags.Values("status")

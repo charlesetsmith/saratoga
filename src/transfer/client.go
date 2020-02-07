@@ -47,7 +47,7 @@ var CTransfers = []CTransfer{}
 // We transmit metadata as required
 // We send back a string holding the status error code "success" keeps transfer alive
 func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
-	m *metadata.MetaData, errflag chan string) {
+	m *metadata.MetaData, pos chan [2]uint64, errflag chan string) {
 
 	var filelen uint64
 	var fi os.FileInfo
@@ -104,7 +104,7 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 			// No metadata has been received yet so send/resend it
 			var wframe []byte
 			var err error
-			if wframe, err = m.Put(); err != nil {
+			if wframe, err = m.Put(); err != nil { // Send/Resend the Matadata
 				errflag <- "badrequest"
 				return
 			}
@@ -116,14 +116,19 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 		}
 		// We have "success" so Decode into a Status
 		var st status.Status
-		if st.Get(rframe) != nil {
+		if err := st.Get(rframe); err != nil {
+			screen.Fprintln(g, "msg", "red_black", "Bad Status with error:", err)
 			errflag <- "badstatus"
 			return
 		}
 
-		// Send back the current progress & inrespto over the channel so we can process
-		// then in the transfer
-		errflag <- fmt.Sprintf("%d %d", st.Progress, st.Inrespto)
+		// Send back to the caller the current progress & inrespto over the channel so we can process
+		// them in the transfer as well as a success status
+		var proins [2]uint64
+		proins[0] = st.Progress
+		proins[1] = st.Inrespto
+		pos <- proins
+
 		if st.Progress == filelen {
 			screen.Fprintln(g, "msg", "blue_black", "File",
 				t.filename, "length", filelen, "successfully transferred")
@@ -165,6 +170,8 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 				}
 			}
 		}
+		screen.Fprintln(g, "msg", "blue_black", "File",
+			t.filename, "length", filelen, "successfully processed status")
 		errflag <- "success"
 		return
 	}
@@ -486,12 +493,12 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	screen.Fprintln(g, "msg", "magenta_black", "Data Flags <", dflags, ">")
 
 	statuserr := make(chan string, 1)  // The return channel holding the saratoga errflag
-	dataerr := make(chan string, 1)    // The return channel holding the saratoga errflag
-	datapos := make(chan [2]uint64, 1) // input channel from readstatus with progress & inrespto
+	datapos := make(chan [2]uint64, 1) // The return channel from readstatus with progress & inrespto
+	dataerr := make(chan string, 1)
 
 	// This is the guts of handling status. It sits in a loop reading away and processing
 	// the status when received. It sends metadata & data (to fill holes) as required
-	go readstatus(g, t, dflags, conn, m, statuserr)
+	go readstatus(g, t, dflags, conn, m, datapos, statuserr)
 	go senddata(g, t, dflags, conn, datapos, dataerr)
 	for { // Multiplex between writing data & reading status when we have messages coming back
 		select {

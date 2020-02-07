@@ -284,7 +284,7 @@ func reqhandler(g *gocui.Gui, frame []byte, remoteAddr *net.UDPAddr) string {
 		screen.Fprintln(g, "msg", "red_black", "Bad Request:", rxerr, " from ",
 			sarnet.UDPinfo(remoteAddr), " session ", session)
 		// Send back a Status to the client
-		return "errcode=badpacket"
+		return "badpacket"
 	}
 	// Handle the request
 	session = binary.BigEndian.Uint32(frame[4:8])
@@ -294,32 +294,86 @@ func reqhandler(g *gocui.Gui, frame []byte, remoteAddr *net.UDPAddr) string {
 	switch reqtype {
 	case "noaction", "get", "put", "getdelete", "delete", "getdir":
 		var t *transfer.STransfer
-		if t = transfer.SMatch(reqtype, remoteAddr.IP.String(), session); t == nil {
-			// No matching request so add one
+		if t = transfer.SMatch(remoteAddr.IP.String(), session); t == nil {
+			// No matching request so add a new transfer
 			var err error
 			if err = transfer.SNew(g, reqtype, r, remoteAddr.IP.String(), session); err == nil {
 				screen.Fprintln(g, "msg", "yellow_black", "Created Request", reqtype, "from",
 					sarnet.UDPinfo(remoteAddr),
 					"session", session)
-				return "errcode=success"
+				return "success"
 			}
 			screen.Fprintln(g, "msg", "red_black", "Cannot create Request", reqtype, "from",
 				sarnet.UDPinfo(remoteAddr),
 				"session", session, err)
-			return "errcode=badrequest"
+			return "badrequest"
 		}
 		// Request is currently in progress
 		screen.Fprintln(g, "msg", "red_black", "Request", reqtype, "from",
 			sarnet.UDPinfo(remoteAddr),
 			"for session", session, "already in progress")
-		return "errcode=badrequest"
+		return "badrequest"
 
 	default:
 		screen.Fprintln(g, "msg", "red_black", "Invalid Request from",
 			sarnet.UDPinfo(remoteAddr),
 			"session", session)
-		return "errcode=badrequest"
+		return "badrequest"
 	}
+}
+
+func methandler(g *gocui.Gui, frame []byte, remoteAddr *net.UDPAddr) string {
+	var session uint32
+	var m metadata.MetaData
+
+	if rxerr := m.Get(frame); rxerr != nil {
+		session = binary.BigEndian.Uint32(frame[4:8])
+		screen.Fprintln(g, "msg", "red_black", "Bad Metadata:", rxerr, " from ",
+			sarnet.UDPinfo(remoteAddr), " session ", session)
+		// Send back a Status to the client
+		return "badpacket"
+	}
+	// Handle the metadata
+	session = binary.BigEndian.Uint32(frame[4:8])
+	// screen.Fprintln(g, "msg", "green_black", m.Print())
+	var t *transfer.STransfer
+	if t = transfer.SMatch(remoteAddr.IP.String(), session); t != nil {
+		t.SChange(g, m)
+		screen.Fprintln(g, "msg", "yellow_black", "Changed Transfer", session, "from",
+			sarnet.UDPinfo(remoteAddr))
+		return "success"
+	}
+	// Request is currently in progress
+	screen.Fprintln(g, "msg", "red_black", "Metadata received for no such transfer as", session, "from",
+		sarnet.UDPinfo(remoteAddr))
+	return "badpacket"
+}
+
+func dathandler(g *gocui.Gui, frame []byte, remoteAddr *net.UDPAddr) string {
+	var session uint32
+	var d data.Data
+
+	if rxerr := d.Get(frame); rxerr != nil {
+		session = binary.BigEndian.Uint32(frame[4:8])
+		screen.Fprintln(g, "msg", "red_black", "Bad Data:", rxerr, " from ",
+			sarnet.UDPinfo(remoteAddr), " session ", session)
+		// Send back a Status to the client
+		return "badpacket"
+	}
+	// Handle the data
+	session = binary.BigEndian.Uint32(frame[4:8])
+	// screen.Fprintln(g, "msg", "green_black", m.Print())
+	var t *transfer.STransfer
+	if t = transfer.SMatch(remoteAddr.IP.String(), session); t != nil {
+		t.SData(g, d)
+		screen.Fprintln(g, "msg", "yellow_black", "Changed Transfer", session, "from",
+			sarnet.UDPinfo(remoteAddr))
+		return "success"
+	}
+	// Request is currently in progress
+	screen.Fprintln(g, "msg", "red_black", "Data received for no such transfer as", session, "from",
+		sarnet.UDPinfo(remoteAddr))
+	return "badpacket"
 }
 
 // Listen -- IPv4 & IPv6 for an incoming frames and shunt them off to the
@@ -402,14 +456,14 @@ next:
 				goto next
 			}
 
-			// Create & Send back a status to the client to tell it the error or that we have accepted the transfer
+			// Create a status to the client to tell it the error or that we have accepted the transfer
 			session := binary.BigEndian.Uint32(frame[4:8])
-			errcode := reqhandler(g, frame, remoteAddr)
-			stheader := "descriptor=" + sarflags.GetStr(header, "descriptor")
+			errcode := reqhandler(g, frame, remoteAddr)                       // process the request
+			stheader := "descriptor=" + sarflags.GetStr(header, "descriptor") // echo the descriptor
 			stheader += ",metadatarecvd=no,allholes=yes,reqholes=requested,"
-			stheader += errcode
+			stheader += "errcode=" + errcode
 
-			// Send back a status to the client to tell it the error or that we have accepted the transfer
+			// Send back a status to the client to tell it the error or that we have a success with creating the transfer
 			var st status.Status
 			_ = st.New(stheader, session, 0, 0, nil)
 			var wframe []byte
@@ -438,9 +492,26 @@ next:
 				goto next
 			} // Handle the data
 			session := binary.BigEndian.Uint32(frame[4:8])
-			if errcode := d.Handler(g, remoteAddr, session); errcode != "success" {
-
+			errcode := dathandler(g, frame, remoteAddr) // process the data
+			if errcode != "success" {                   // If we have a error send back a status with it
+				stheader := "descriptor=" + sarflags.GetStr(header, "descriptor") // echo the descriptor
+				stheader += ",metadatarecvd=no,allholes=yes,reqholes=requested,"
+				stheader += "errcode=" + errcode
+				// Send back a status to the client to tell it the error or that we have a success with creating the transfer
+				var st status.Status
+				_ = st.New(stheader, session, 0, 0, nil)
+				var wframe []byte
+				var txerr error
+				if wframe, txerr = st.Put(); txerr == nil {
+					_, err := conn.WriteToUDP(wframe, remoteAddr)
+					if err != nil || txerr != nil {
+						// conn.Close()
+						// errflag <- "cantsend"
+					}
+				}
 			}
+			goto next
+
 		case "metadata":
 			var m metadata.MetaData
 			if rxerr := m.Get(frame); rxerr != nil {
@@ -456,9 +527,27 @@ next:
 				goto next
 			} // Handle the metadata
 			session := binary.BigEndian.Uint32(frame[4:8])
-			if errcode := m.Handler(g, remoteAddr, session); errcode != "success" {
+			errcode := methandler(g, frame, remoteAddr) // process the metadata
+			if errcode != "success" {                   // If we have a error send back a status with it
+				stheader := "descriptor=" + sarflags.GetStr(header, "descriptor") // echo the descriptor
+				stheader += ",metadatarecvd=no,allholes=yes,reqholes=requested,"
+				stheader += "errcode=" + errcode
 
+				// Send back a status to the client to tell it the error or that we have a success with creating the transfer
+				var st status.Status
+				_ = st.New(stheader, session, 0, 0, nil)
+				var wframe []byte
+				var txerr error
+				if wframe, txerr = st.Put(); txerr == nil {
+					_, err := conn.WriteToUDP(wframe, remoteAddr)
+					if err != nil || txerr != nil {
+						// conn.Close()
+						// errflag <- "cantsend"
+					}
+				}
 			}
+			goto next
+
 		case "status":
 			var s status.Status
 			if rxerr := s.Get(frame); rxerr != nil {
@@ -473,6 +562,7 @@ next:
 					sarnet.UDPinfo(remoteAddr), " session ", session)
 				goto next
 			} // Handle the status
+
 			session := binary.BigEndian.Uint32(frame[4:8])
 			if errcode := s.Handler(g, remoteAddr, session); errcode != "success" {
 
@@ -493,6 +583,7 @@ next:
 	quit <- struct{}{}
 }
 
+// Main
 func main() {
 
 	if len(os.Args) != 2 {
