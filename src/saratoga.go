@@ -397,18 +397,11 @@ next:
 		// Very basic frame checks before we get into what it is
 		if framelen < 8 {
 			// Saratoga packet too small
-			var se status.Status
-			// We don't know the session # so use 0
-			_ = se.New("errcode=badpacket", 0, 0, 0, nil)
 			screen.Fprintln(g, "msg", "red_black", "Rx Saratoga Frame too short from ",
 				sarnet.UDPinfo(remoteAddr))
 			goto next
 		}
 		if framelen > sarnet.MaxFrameSize {
-			// Saratoga packet too long
-			var se status.Status
-			// We can't even know the session # so use 0
-			_ = se.New("errcode=badpacket", 0, 0, 0, nil)
 			screen.Fprintln(g, "msg", "red_black", "Rx Saratoga Frame too long", framelen,
 				"from", sarnet.UDPinfo(remoteAddr))
 			goto next
@@ -451,7 +444,8 @@ next:
 		case "request":
 			// Handle the request
 			var req request.Request
-			if rxerr := req.Get(frame); rxerr != nil {
+			var rxerr error
+			if rxerr = req.Get(frame); rxerr != nil {
 				// We just drop bad requests
 				screen.Fprintln(g, "msg", "red_black", "Bad Request:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr))
@@ -465,30 +459,27 @@ next:
 			stheader += ",metadatarecvd=no,allholes=yes,reqholes=requested,"
 			stheader += "errcode=" + errcode
 
-			// Send back a status to the client to tell it the error or that we have a success with creating the transfer
-			var st status.Status
-			_ = st.New(stheader, session, 0, 0, nil)
-			var wframe []byte
-			var txerr error
-			if wframe, txerr = st.Put(); txerr == nil {
-				_, err := conn.WriteToUDP(wframe, remoteAddr)
-				if err != nil || txerr != nil {
-					// conn.Close()
-					// errflag <- "cantsend"
+			if errcode != "success" {
+				transfer.WriteErrStatus(g, stheader, session, conn, remoteAddr)
+				screen.Fprintln(g, "msg", "red_black", "Bad Status:", rxerr, " from ",
+					sarnet.UDPinfo(remoteAddr), " session ", session)
+			} else {
+				var t *transfer.STransfer
+				if t = transfer.SMatch(remoteAddr.IP.String(), session); t != nil {
+					transfer.WriteStatus(g, t, stheader, conn, remoteAddr)
 				}
 			}
 			goto next
 
 		case "data":
 			var d data.Data
-			if rxerr := d.Get(frame); rxerr != nil {
+			var rxerr error
+			if rxerr = d.Get(frame); rxerr != nil {
 				session := binary.BigEndian.Uint32(frame[4:8])
-				var se status.Status
 				// Bad Packet send back a Status to the client
 				stheader := "descriptor=" + sarflags.GetStr(header, "descriptor")
-				stheader += ",metadatarecvd=no,allholes=yes,reqholes=requested,"
-				stheader += "errcode=badpacket"
-				_ = se.New(stheader, session, 0, 0, nil)
+				stheader += ",metadatarecvd=no,allholes=yes,reqholes=requested,errcode=badpacket"
+				transfer.WriteErrStatus(g, stheader, session, conn, remoteAddr)
 				screen.Fprintln(g, "msg", "red_black", "Bad Data:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr), " session ", session)
 				goto next
@@ -516,7 +507,8 @@ next:
 
 		case "metadata":
 			var m metadata.MetaData
-			if rxerr := m.Get(frame); rxerr != nil {
+			var rxerr error
+			if rxerr = m.Get(frame); rxerr != nil {
 				session := binary.BigEndian.Uint32(frame[4:8])
 				var se status.Status
 				// Bad Packet send back a Status to the client
@@ -534,19 +526,9 @@ next:
 				stheader := "descriptor=" + sarflags.GetStr(header, "descriptor") // echo the descriptor
 				stheader += ",metadatarecvd=no,allholes=yes,reqholes=requested,"
 				stheader += "errcode=" + errcode
-
-				// Send back a status to the client to tell it the error or that we have a success with creating the transfer
-				var st status.Status
-				_ = st.New(stheader, session, 0, 0, nil)
-				var wframe []byte
-				var txerr error
-				if wframe, txerr = st.Put(); txerr == nil {
-					_, err := conn.WriteToUDP(wframe, remoteAddr)
-					if err != nil || txerr != nil {
-						// conn.Close()
-						// errflag <- "cantsend"
-					}
-				}
+				transfer.WriteErrStatus(g, stheader, session, conn, remoteAddr)
+				screen.Fprintln(g, "msg", "red_black", "Bad Metadata:", rxerr, " from ",
+					sarnet.UDPinfo(remoteAddr), " session ", session)
 			}
 			goto next
 
@@ -570,15 +552,7 @@ next:
 
 			}
 		default:
-			// Bad Packet send back a Status to the client
-			// We can't even know the session # so use 0
-			var se status.Status
-			stheader := "descriptor=" + sarflags.GetStr(header, "descriptor")
-			stheader += ",metadatarecvd=no,allholes=yes,reqholes=requested,"
-			stheader += "errcode=badpacket"
-			_ = se.New(stheader, 0, 0, 0, nil)
-			screen.Fprintln(g, "msg", "red_black", "Bad Header in Saratoga Frame from ",
-				sarnet.UDPinfo(remoteAddr))
+			// Bad Packet drop it
 		}
 	}
 	screen.Fprintln(g, "msg", "red_black", "Sarataga listener failed - ", err)

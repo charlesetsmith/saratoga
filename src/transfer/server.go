@@ -46,12 +46,33 @@ var STransfers = []STransfer{}
 // Dcount - Data frmae counter
 var Dcount int
 
-// Writestatus -- compose & semd status frames
+// WriteErrStatus - Send an error status
+func WriteErrStatus(g *gocui.Gui, flags string, session uint32, conn *net.UDPConn, remoteAddr *net.UDPAddr) string {
+	if flagvalue(flags, "errcode") == "success" { // Dont send success that is silly
+		return "success"
+	}
+	var st status.Status
+	if err := st.New(flags, session, 0, 0, nil); err != nil {
+		return "badstatus"
+	}
+	var wframe []byte
+	var err error
+	if wframe, err = st.Put(); err != nil {
+		return "badstatus"
+	}
+	_, err = conn.WriteToUDP(wframe, remoteAddr)
+	if err != nil {
+		return "cantsend"
+	}
+	return "success"
+}
+
+// WriteStatus -- compose & semd status frames
 // Our connection to the client is conn
 // We assemble Status using sflags
 // We transmit status immediately
 // We send back a string holding the status error code or "success" keeps transfer alive
-func Writestatus(g *gocui.Gui, t *STransfer, sflags string, conn *net.UDPConn, remoteAddr *net.UDPAddr) string {
+func WriteStatus(g *gocui.Gui, t *STransfer, sflags string, conn *net.UDPConn, remoteAddr *net.UDPAddr) string {
 
 	var maxholes = stpaylen(sflags) // Work out maximum # holes we can put in a single status frame
 
@@ -191,7 +212,7 @@ func (t *STransfer) SData(g *gocui.Gui, d data.Data, conn *net.UDPConn, remoteAd
 			stheader += "metadatarecvd=yes"
 		}
 		// Send back a status to the client to tell it a success with creating the transfer
-		Writestatus(g, t, stheader, conn, remoteAddr)
+		WriteStatus(g, t, stheader, conn, remoteAddr)
 	}
 
 	// copy(t.data[d.Offset:], d.Payload)
