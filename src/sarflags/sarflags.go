@@ -193,66 +193,75 @@ var flagframe = map[string][]string{
 	"errcode":       []string{"status"},
 }
 
+/*
+ Frame types with applicable flags:
+	"beacon": "version", "frametype", "descriptor", "stream", "txwilling", "rxwilling", "udplite", "freespace", "freespaced"
+	"request": "version", "frametype", "descriptor", "stream", "reqtype", "fileordir", "udplite"
+	"metadata": "version", "frametype", "descriptor, "transfer", "progress", "udptype", "csumlen", "csumtype"
+	"data": "version", "frametype", "descriptor", "transfer", "reqtstamp", "reqstatus", "eod"
+	"status": "version", "frametype", "descriptor", "reqtstamp", "metadatarecvd", "allholes", "reqholes", "errcode"
+*/
+
 type flaginfo struct {
 	name string
 	val  uint32
 }
 
 var flagvals = map[string][]flaginfo{
-	"version": []flaginfo{
+	"version": []flaginfo{ // "beacon", "request", "metadata", "data", "status"
 		flaginfo{name: "v0", val: 0},
 		flaginfo{name: "v1", val: 1},
 	},
-	"frametype": []flaginfo{
+	"frametype": []flaginfo{ // "beacon", "request", "metadata", "data", "status"
 		flaginfo{name: "beacon", val: 0},
 		flaginfo{name: "request", val: 1},
 		flaginfo{name: "metadata", val: 2},
 		flaginfo{name: "data", val: 3},
 		flaginfo{name: "status", val: 4},
 	},
-	"descriptor": []flaginfo{
+	"descriptor": []flaginfo{ // "beacon", "request", "metadata", "data", "status"
 		flaginfo{name: "d16", val: 0},
 		flaginfo{name: "d32", val: 1},
 		flaginfo{name: "d64", val: 2},
 		// flaginfo{name: "d128", val: 3}, INVALID AT THIS TIME WAIT FOR 128 bit int's
 	},
-	"stream": []flaginfo{
+	"stream": []flaginfo{ // "beacon", "request"
 		flaginfo{name: "no", val: 0},
 		flaginfo{name: "yes", val: 1},
 	},
-	"transfer": []flaginfo{
+	"transfer": []flaginfo{ // "metadata", "data"
 		flaginfo{name: "file", val: 0},
 		flaginfo{name: "directory", val: 1},
 		flaginfo{name: "bundle", val: 2},
 		flaginfo{name: "stream", val: 3},
 	},
-	"reqtstamp": []flaginfo{
+	"reqtstamp": []flaginfo{ // "data", "status"
 		flaginfo{name: "no", val: 0},
 		flaginfo{name: "yes", val: 1},
 	},
-	"progress": []flaginfo{
+	"progress": []flaginfo{ // "metadata"
 		flaginfo{name: "inprogress", val: 0},
 		flaginfo{name: "terminated", val: 1},
 	},
-	"txwilling": []flaginfo{
+	"txwilling": []flaginfo{ // "beacon"
 		flaginfo{name: "no", val: 0},
 		flaginfo{name: "invalid", val: 1},
 		flaginfo{name: "capable", val: 2},
 		flaginfo{name: "yes", val: 3},
 	},
-	"udptype": []flaginfo{
+	"udptype": []flaginfo{ // "metadata"
 		flaginfo{name: "udponly", val: 0},
 		flaginfo{name: "udplite", val: 1},
 	},
-	"metadatarecvd": []flaginfo{
+	"metadatarecvd": []flaginfo{ // "status
 		flaginfo{name: "yes", val: 0},
 		flaginfo{name: "no", val: 1},
 	},
-	"allholes": []flaginfo{
+	"allholes": []flaginfo{ // "status"
 		flaginfo{name: "yes", val: 0},
 		flaginfo{name: "no", val: 1},
 	},
-	"reqtype": []flaginfo{
+	"reqtype": []flaginfo{ // "request"
 		flaginfo{name: "noaction", val: 0},
 		flaginfo{name: "get", val: 1},
 		flaginfo{name: "put", val: 2},
@@ -261,43 +270,43 @@ var flagvals = map[string][]flaginfo{
 		flaginfo{name: "delete", val: 5},
 		flaginfo{name: "getdir", val: 6},
 	},
-	"rxwilling": []flaginfo{
+	"rxwilling": []flaginfo{ // "beacon"
 		flaginfo{name: "no", val: 0},
 		//		flaginfo{name: "invalid", val: 1},
 		flaginfo{name: "capable", val: 2},
 		flaginfo{name: "yes", val: 3},
 	},
-	"reqholes": []flaginfo{
+	"reqholes": []flaginfo{ // "status"
 		flaginfo{name: "requested", val: 0},
 		flaginfo{name: "voluntarily", val: 1},
 	},
-	"fileordir": []flaginfo{
+	"fileordir": []flaginfo{ // "request"
 		flaginfo{name: "file", val: 0},
 		flaginfo{name: "directory", val: 1},
 	},
-	"reqstatus": []flaginfo{
+	"reqstatus": []flaginfo{ // "data"
 		flaginfo{name: "no", val: 0},
 		flaginfo{name: "yes", val: 1},
 	},
-	"udplite": []flaginfo{
+	"udplite": []flaginfo{ // "beacon", "request"
 		flaginfo{name: "no", val: 0},
 		flaginfo{name: "yes", val: 1},
 	},
-	"eod": []flaginfo{
+	"eod": []flaginfo{ // "data"
 		flaginfo{name: "no", val: 0},
 		flaginfo{name: "yes", val: 1},
 	},
-	"freespace": []flaginfo{
+	"freespace": []flaginfo{ // "beacon"
 		flaginfo{name: "no", val: 0},
 		flaginfo{name: "yes", val: 1},
 	},
-	"freespaced": []flaginfo{
+	"freespaced": []flaginfo{ // "beacon"
 		flaginfo{name: "d16", val: 0},
 		flaginfo{name: "d32", val: 1},
 		flaginfo{name: "d64", val: 2},
 		// flaginfo{name: "d128", val: 3}, INVALID AT THIS TIME WIAT FOR 128 bit ints
 	},
-	"csumlen": []flaginfo{
+	"csumlen": []flaginfo{ // "metadata"
 		flaginfo{name: "none", val: 0},
 		flaginfo{name: "crc32", val: 1},
 		// flaginfo{name: "invalid2", val: 2},
@@ -305,13 +314,13 @@ var flagvals = map[string][]flaginfo{
 		flaginfo{name: "md5", val: 4},
 		flaginfo{name: "sha1", val: 5},
 	},
-	"csumtype": []flaginfo{
+	"csumtype": []flaginfo{ // "metadata"
 		flaginfo{name: "none", val: 0},
 		flaginfo{name: "crc32", val: 1},
 		flaginfo{name: "md5", val: 2},
 		flaginfo{name: "sha1", val: 3},
 	},
-	"errcode": []flaginfo{
+	"errcode": []flaginfo{ // "status"
 		flaginfo{name: "success", val: 0x0},     // Process the status and continue
 		flaginfo{name: "unspecified", val: 0x1}, // All others immediately kill the transfer
 		flaginfo{name: "cantsend", val: 0x2},

@@ -123,7 +123,7 @@ func replaceflag(curflags string, newflag string) string {
 }
 
 // Look for and return value of a particular flag in flags
-// e.g flags:descriptor=d32,timestamp=off flag:timeatamp return:off
+// e.g flags:descriptor=d32,timestamp=off flag:timestamp return:off
 func flagvalue(flags, flag string) string {
 	flags = strings.Replace(flags, " ", "", -1) // Get rid of extra spaces in flags
 	// Grab the flags and set the frame header

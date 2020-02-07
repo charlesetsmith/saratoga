@@ -322,6 +322,7 @@ func reqhandler(g *gocui.Gui, frame []byte, remoteAddr *net.UDPAddr) string {
 	}
 }
 
+// Metadata handler for Server
 func methandler(g *gocui.Gui, frame []byte, remoteAddr *net.UDPAddr) string {
 	var session uint32
 	var m metadata.MetaData
@@ -349,7 +350,8 @@ func methandler(g *gocui.Gui, frame []byte, remoteAddr *net.UDPAddr) string {
 	return "badpacket"
 }
 
-func dathandler(g *gocui.Gui, frame []byte, remoteAddr *net.UDPAddr) string {
+// Data handler for server
+func dathandler(g *gocui.Gui, frame []byte, conn *net.UDPConn, remoteAddr *net.UDPAddr) string {
 	var session uint32
 	var d data.Data
 
@@ -365,18 +367,18 @@ func dathandler(g *gocui.Gui, frame []byte, remoteAddr *net.UDPAddr) string {
 	// screen.Fprintln(g, "msg", "green_black", m.Print())
 	var t *transfer.STransfer
 	if t = transfer.SMatch(remoteAddr.IP.String(), session); t != nil {
-		t.SData(g, d)
+		t.SData(g, d, conn, remoteAddr) // The data handler for the transfer
 		screen.Fprintln(g, "msg", "yellow_black", "Changed Transfer", session, "from",
 			sarnet.UDPinfo(remoteAddr))
 		return "success"
 	}
-	// Request is currently in progress
+	// No transfer is currently in progress
 	screen.Fprintln(g, "msg", "red_black", "Data received for no such transfer as", session, "from",
 		sarnet.UDPinfo(remoteAddr))
 	return "badpacket"
 }
 
-// Listen -- IPv4 & IPv6 for an incoming frames and shunt them off to the
+// Listen -- Go routing for recieving IPv4 & IPv6 for an incoming frames and shunt them off to the
 // correct frame handlers
 func listen(g *gocui.Gui, conn *net.UDPConn, quit chan struct{}) {
 
@@ -492,8 +494,8 @@ next:
 				goto next
 			} // Handle the data
 			session := binary.BigEndian.Uint32(frame[4:8])
-			errcode := dathandler(g, frame, remoteAddr) // process the data
-			if errcode != "success" {                   // If we have a error send back a status with it
+			errcode := dathandler(g, frame, conn, remoteAddr) // process the data
+			if errcode != "success" {                         // If we have a error send back a status with it
 				stheader := "descriptor=" + sarflags.GetStr(header, "descriptor") // echo the descriptor
 				stheader += ",metadatarecvd=no,allholes=yes,reqholes=requested,"
 				stheader += "errcode=" + errcode

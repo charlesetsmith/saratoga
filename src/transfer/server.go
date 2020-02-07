@@ -14,23 +14,28 @@ import (
 	"github.com/charlesetsmith/saratoga/src/sarflags"
 	"github.com/charlesetsmith/saratoga/src/screen"
 	"github.com/charlesetsmith/saratoga/src/status"
+	"github.com/charlesetsmith/saratoga/src/timestamp"
 	"github.com/jroimartin/gocui"
 )
 
 // STransfer Server Transfer Info
 type STransfer struct {
-	direction string        // "client|server"
-	ttype     string        // STransfer type "get,getrm,put,putrm,blindput,rm"
-	tstamp    string        // Timestamp type used in transfer
-	peer      net.IP        // Remote Host
-	session   uint32        // Session + peer is the unique key
-	stflags   string        // Status Flags currently set WORK ON THIS!!!!!
-	filename  string        // Remote File name to get/put
-	csumtype  string        // What type of checksum are we using
-	havemeta  bool          // Have we recieved a metadata yet
-	checksum  []byte        // Checksum of the remote file to be get/put if requested
-	dir       dirent.DirEnt // Directory entry info of the remote file to be get/put
-	fp        *os.File      // Local File to write to/read from
+	direction string              // "client|server"
+	ttype     string              // STransfer type "get,getrm,put,putrm,blindput,rm"
+	tstamp    timestamp.Timestamp // Timestamp type used in transfer
+	peer      net.IP              // Remote Host
+	session   uint32              // Session + peer is the unique key
+	stflags   string              // Status Flags currently set WORK ON THIS!!!!!
+	filename  string              // Remote File name to get/put
+	csumtype  string              // What type of checksum are we using
+	havemeta  bool                // Have we recieved a metadata yet
+	checksum  []byte              // Checksum of the remote file to be get/put if requested
+	dir       dirent.DirEnt       // Directory entry info of the remote file to be get/put
+	fp        *os.File            // Local File to write to/read from
+	data      []byte              // Buffered data
+	progress  uint64              // Current Progress indicator
+	inrespto  uint64              // In respose to indicator
+	holes     []status.Hole       // What holes I need to fill
 }
 
 var strmu sync.Mutex
@@ -38,82 +43,59 @@ var strmu sync.Mutex
 // STransfers - Slice of Server transfers in progress
 var STransfers = []STransfer{}
 
-// compose process status frames
-// We read from and seek within fp
+// Dcount - Data frmae counter
+var Dcount int
+
+// Writestatus -- compose & semd status frames
 // Our connection to the client is conn
 // We assemble Status using sflags
-// We transmit status as required
+// We transmit status immediately
 // We send back a string holding the status error code or "success" keeps transfer alive
-func writestatus(g *gocui.Gui, t *STransfer, sflags string, conn *net.UDPConn,
-	progresp chan [2]uint64,
-	hole chan []status.Hole,
-	inerrflag chan string,
-	errflag chan string) {
+func Writestatus(g *gocui.Gui, t *STransfer, sflags string, conn *net.UDPConn, remoteAddr *net.UDPAddr) string {
 
-	// var filelen uint64
-	// var fi os.FileInfo
-	// var err error
-
-	// Grab the file informaion
-	//if fi, err = t.fp.Stat(); err != nil {
-	//	errflag <- "filenotfound"
-	//	return
-	//}
-	// filelen = uint64(fi.Size())
 	var maxholes = stpaylen(sflags) // Work out maximum # holes we can put in a single status frame
-	for {
-		prval := <-progresp // Read in the current progress & inrespto
-		progress := prval[0]
-		inrespto := prval[1]
-		holes := <-hole // Read in the current holes we need to process
 
-		inerr := <-inerrflag // Errflag to send to the client
-		errf := "errflag=" + inerr
-		flags := replaceflag(sflags, errf)
-		var lasthole int
-		if errf == "success" {
-			lasthole = len(holes) // How many holes do we have
-		} else {
-			lasthole = 0 // We have no holes if an error is being sent
-		}
-
-		var framecnt int // Number of status frames we will need (at least 1)
-		if lasthole <= maxholes {
-			framecnt = 1
-			flags = replaceflag(sflags, "allholes=yes")
-		} else {
-			framecnt = len(holes)/maxholes + 1
-			flags = replaceflag(sflags, "allholes=no")
-		}
-
-		// Loop through creating and sending the status frames with the holes in them
-		for fc := 0; fc < framecnt; fc++ {
-			starthole := fc * maxholes
-			endhole := fc*maxholes + maxholes
-			if endhole > lasthole {
-				endhole = lasthole
-			}
-
-			var st status.Status
-			if err := st.New(flags, t.session, progress, inrespto, holes[starthole:endhole]); err != nil {
-				errflag <- "badstatus"
-				return
-			}
-			var wframe []byte
-			var err error
-			if wframe, err = st.Put(); err != nil {
-				errflag <- "badstatus"
-				return
-			}
-			_, err = conn.Write(wframe)
-			if err != nil {
-				errflag <- "cantsend"
-				return
-			}
-		}
-		errflag <- "success"
-		return
+	errf := flagvalue(sflags, "errcode")
+	var lasthole int
+	if errf == "success" {
+		lasthole = len(t.holes) // How many holes do we have
+	} else {
+		lasthole = 0 // We have no holes if an error is being sent
 	}
+
+	var framecnt int // Number of status frames we will need (at least 1)
+	flags := sflags
+	if lasthole <= maxholes {
+		framecnt = 1
+		flags = replaceflag(sflags, "allholes=yes")
+	} else {
+		framecnt = len(t.holes)/maxholes + 1
+		flags = replaceflag(sflags, "allholes=no")
+	}
+
+	// Loop through creating and sending the status frames with the holes in them
+	for fc := 0; fc < framecnt; fc++ {
+		starthole := fc * maxholes
+		endhole := fc*maxholes + maxholes
+		if endhole > lasthole {
+			endhole = lasthole
+		}
+
+		var st status.Status
+		if err := st.New(flags, t.session, t.progress, t.inrespto, t.holes[starthole:endhole]); err != nil {
+			return "badstatus"
+		}
+		var wframe []byte
+		var err error
+		if wframe, err = st.Put(); err != nil {
+			return "badstatus"
+		}
+		_, err = conn.WriteToUDP(wframe, remoteAddr)
+		if err != nil {
+			return "cantsend"
+		}
+	}
+	return "success"
 }
 
 func readdata(g *gocui.Gui, t *STransfer, sflags string, conn *net.UDPConn,
@@ -160,7 +142,6 @@ func SNew(g *gocui.Gui, ttype string, r request.Request, ip string, session uint
 		defer strmu.Unlock()
 		t.direction = "server"
 		t.ttype = ttype
-		t.tstamp = sarflags.Cli.Timestamp
 		t.session = session
 		t.peer = addr
 		t.havemeta = false
@@ -177,7 +158,7 @@ func SNew(g *gocui.Gui, ttype string, r request.Request, ip string, session uint
 	return errors.New("Invalid IP Address")
 }
 
-// SChange - Add metadata information to the STransfer in STransfers list upon receipt of a metadata
+// SChange - Add metadata information to the STransfer in STransfers list upon receipt of metadata
 func (t *STransfer) SChange(g *gocui.Gui, m metadata.MetaData) {
 	// Lock it as we are going to add a new transfer slice
 	strmu.Lock()
@@ -190,10 +171,30 @@ func (t *STransfer) SChange(g *gocui.Gui, m metadata.MetaData) {
 	strmu.Unlock()
 }
 
-// SData - Add data information to the STransfer in STransfers list upon receipt of a data
-func (t *STransfer) SData(g *gocui.Gui, d data.Data) {
+// SData - Add data information to the STransfer in STransfers list upon receipt of data
+func (t *STransfer) SData(g *gocui.Gui, d data.Data, conn *net.UDPConn, remoteAddr *net.UDPAddr) {
 	// Lock it as we are going to add a new transfer slice
 	strmu.Lock()
+	if sarflags.GetStr(d.Header, "reqtstamp") == "yes" { // Grab the timestamp from data
+		t.tstamp = d.Tstamp
+	}
+	Dcount++
+	if Dcount%100 == 0 { // Send back a status every 100 data frames recieved
+		Dcount = 0
+	}
+	if Dcount == 0 || sarflags.GetStr(d.Header, "reqstatus") == "yes" || !t.havemeta { // Send a status back
+		stheader := "descriptor=" + sarflags.GetStr(d.Header, "descriptor") // echo the descriptor
+		stheader += ",allholes=yes,reqholes=requested,errcode=success,"
+		if !t.havemeta {
+			stheader += "metadatarecvd=no"
+		} else {
+			stheader += "metadatarecvd=yes"
+		}
+		// Send back a status to the client to tell it a success with creating the transfer
+		Writestatus(g, t, stheader, conn, remoteAddr)
+	}
+
+	// copy(t.data[d.Offset:], d.Payload)
 	strmu.Unlock()
 }
 
