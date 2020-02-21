@@ -363,9 +363,9 @@ func files(g *gocui.Gui, args []string) {
 func freespace(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
 		if sarflags.Cli.Global["freespace"] == "yes" {
-			screen.Fprintln(g, "msg", "green_black", "Free space advertised")
+			screen.Fprintln(g, "msg", "green_black", "Free space is advertised")
 		} else {
-			screen.Fprintln(g, "msg", "green_black", "Free space not advertised")
+			screen.Fprintln(g, "msg", "green_black", "Free space is not advertised")
 		}
 		return
 	}
@@ -374,18 +374,19 @@ func freespace(g *gocui.Gui, args []string) {
 		screen.Fprintln(g, "msg", "green_black", cmd["freespace"][1])
 		return
 	}
-	sarflags.Climu.Lock()
-	defer sarflags.Climu.Unlock()
 	if len(args) == 2 {
+		sarflags.Climu.Lock()
+		defer sarflags.Climu.Unlock()
 		if args[1] == "yes" {
+			screen.Fprintln(g, "msg", "green_black", "freespace is advertised")
 			sarflags.Cli.Global["freespace"] = "yes"
 			return
 		}
 		if args[1] == "no" {
+			screen.Fprintln(g, "msg", "green_black", "freespace is not advertised")
 			sarflags.Cli.Global["freespace"] = "no"
 			return
 		}
-		// screen.Fprintln(g, "msg", "red_black", "usage: ", cmd["freespace][0]"])
 	}
 	screen.Fprintln(g, "msg", "red_black", "usage: ", cmd["freespace"][0])
 }
@@ -645,8 +646,7 @@ func put(g *gocui.Gui, args []string) {
 	if len(args) == 3 {
 		t := new(transfer.CTransfer)
 		if err := t.CNew(g, "put", args[1], args[2]); err == nil {
-			errflag := make(chan string, 1) // The return channel holding the saratoga errflag
-			defer close(errflag)
+			errflag := make(chan string, 1)     // The return channel holding the saratoga errflag
 			go transfer.Doclient(t, g, errflag) // Actually do the transfer
 			errcode := <-errflag
 			if errcode != "success" {
@@ -656,6 +656,8 @@ func put(g *gocui.Gui, args []string) {
 					screen.Fprintln(g, "msg", "red_black", "Unable to remove transfer: ", t.Print())
 				}
 			}
+			screen.Fprintln(g, "msg", "green_black", "put completed closing channel")
+			close(errflag)
 		} else {
 			screen.Fprintln(g, "msg", "red_black", "Cannot add transfer: ", err.Error())
 		}

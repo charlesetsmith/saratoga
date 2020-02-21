@@ -4,13 +4,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"net"
 	"strings"
 
 	"github.com/charlesetsmith/saratoga/src/sarflags"
-	"github.com/charlesetsmith/saratoga/src/screen"
 	"github.com/charlesetsmith/saratoga/src/timestamp"
-	"github.com/jroimartin/gocui"
 )
 
 // Hole -- Beggining and End of a hole
@@ -241,11 +238,4 @@ func (s Status) Print() string {
 		sflag += fmt.Sprintf("  Hole[%d]: Start:%d End:%d\n", i, s.Holes[i].Start, s.Holes[i].End)
 	}
 	return sflag
-}
-
-// Handler - We have a status update for a session. Process the holes or close the session
-func (s *Status) Handler(g *gocui.Gui, from *net.UDPAddr, session uint32) string {
-	screen.Fprintln(g, "msg", "yellow_black", s.Print())
-	// Return an errcode string
-	return "success"
 }

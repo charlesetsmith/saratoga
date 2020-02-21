@@ -7,7 +7,6 @@ import (
 	"os"
 	"sync"
 
-	"github.com/charlesetsmith/saratoga/src/data"
 	"github.com/charlesetsmith/saratoga/src/dirent"
 	"github.com/charlesetsmith/saratoga/src/metadata"
 	"github.com/charlesetsmith/saratoga/src/request"
@@ -20,25 +19,27 @@ import (
 
 // STransfer Server Transfer Info
 type STransfer struct {
-	direction string              // "client|server"
-	ttype     string              // STransfer type "get,getrm,put,putrm,blindput,rm"
-	tstamp    timestamp.Timestamp // Timestamp type used in transfer
-	peer      net.IP              // Remote Host
-	session   uint32              // Session + peer is the unique key
-	stflags   string              // Status Flags currently set WORK ON THIS!!!!!
-	filename  string              // Remote File name to get/put
-	csumtype  string              // What type of checksum are we using
-	havemeta  bool                // Have we recieved a metadata yet
-	checksum  []byte              // Checksum of the remote file to be get/put if requested
-	dir       dirent.DirEnt       // Directory entry info of the remote file to be get/put
-	fp        *os.File            // Local File to write to/read from
-	data      []byte              // Buffered data
-	progress  uint64              // Current Progress indicator
-	inrespto  uint64              // In respose to indicator
-	holes     []status.Hole       // What holes I need to fill
+	Direction string              // "client|server"
+	Ttype     string              // STransfer type "get,getrm,put,putrm,blindput,rm"
+	Tstamp    timestamp.Timestamp // Timestamp type used in transfer
+	Peer      net.IP              // Remote Host
+	Session   uint32              // Session + peer is the unique key
+	Stflags   string              // Status Flags currently set WORK ON THIS!!!!!
+	Filename  string              // Remote File name to get/put
+	Csumtype  string              // What type of checksum are we using
+	Havemeta  bool                // Have we recieved a metadata yet
+	Checksum  []byte              // Checksum of the remote file to be get/put if requested
+	Dir       dirent.DirEnt       // Directory entry info of the remote file to be get/put
+	Fp        *os.File            // Local File to write to/read from
+	Data      []byte              // Buffered data
+	Dcount    int                 // Count of Data frames so we can schedule status
+	Progress  uint64              // Current Progress indicator
+	Inrespto  uint64              // In respose to indicator
+	Holes     []status.Hole       // What holes I need to fill
 }
 
-var strmu sync.Mutex
+// Strmu - Protect transfer
+var Strmu sync.Mutex
 
 // STransfers - Slice of Server transfers in progress
 var STransfers = []STransfer{}
@@ -79,7 +80,7 @@ func WriteStatus(g *gocui.Gui, t *STransfer, sflags string, conn *net.UDPConn, r
 	errf := flagvalue(sflags, "errcode")
 	var lasthole int
 	if errf == "success" {
-		lasthole = len(t.holes) // How many holes do we have
+		lasthole = len(t.Holes) // How many holes do we have
 	} else {
 		lasthole = 0 // We have no holes if an error is being sent
 	}
@@ -90,7 +91,7 @@ func WriteStatus(g *gocui.Gui, t *STransfer, sflags string, conn *net.UDPConn, r
 		framecnt = 1
 		flags = replaceflag(sflags, "allholes=yes")
 	} else {
-		framecnt = len(t.holes)/maxholes + 1
+		framecnt = len(t.Holes)/maxholes + 1
 		flags = replaceflag(sflags, "allholes=no")
 	}
 
@@ -103,7 +104,7 @@ func WriteStatus(g *gocui.Gui, t *STransfer, sflags string, conn *net.UDPConn, r
 		}
 
 		var st status.Status
-		if err := st.New(flags, t.session, t.progress, t.inrespto, t.holes[starthole:endhole]); err != nil {
+		if err := st.New(flags, t.Session, t.Progress, t.Inrespto, t.Holes[starthole:endhole]); err != nil {
 			return "badstatus"
 		}
 		var wframe []byte
@@ -119,13 +120,6 @@ func WriteStatus(g *gocui.Gui, t *STransfer, sflags string, conn *net.UDPConn, r
 	return "success"
 }
 
-func readdata(g *gocui.Gui, t *STransfer, sflags string, conn *net.UDPConn,
-	progresp chan [2]uint64,
-	hole chan []status.Hole,
-	inerrflag chan string,
-	errflag chan string) {
-}
-
 // SMatch - Return a pointer to the STransfer if we find it, nil otherwise
 func SMatch(ip string, session uint32) *STransfer {
 
@@ -136,7 +130,7 @@ func SMatch(ip string, session uint32) *STransfer {
 	}
 
 	for _, i := range STransfers {
-		if addr.Equal(i.peer) && session == i.session {
+		if addr.Equal(i.Peer) && session == i.Session {
 			return &i
 		}
 	}
@@ -150,27 +144,27 @@ func SNew(g *gocui.Gui, ttype string, r request.Request, ip string, session uint
 	// screen.Fprintln(g, "msg", "red_black", "Addtran for", ip, fname, flags)
 	if addr := net.ParseIP(ip); addr != nil { // We have a valid IP Address
 		for _, i := range STransfers { // Don't add duplicates
-			if addr.Equal(i.peer) && session == i.session {
+			if addr.Equal(i.Peer) && session == i.Session {
 				emsg := fmt.Sprintf("STransfer for session %d to %s is currently in progress, cannnot add transfer",
-					session, i.peer.String())
+					session, i.Peer.String())
 				screen.Fprintln(g, "msg", "red_black", emsg)
 				return errors.New(emsg)
 			}
 		}
 
 		// Lock it as we are going to add a new transfer slice
-		strmu.Lock()
-		defer strmu.Unlock()
-		t.direction = "server"
-		t.ttype = ttype
-		t.session = session
-		t.peer = addr
-		t.havemeta = false
+		Strmu.Lock()
+		defer Strmu.Unlock()
+		t.Direction = "server"
+		t.Ttype = ttype
+		t.Session = session
+		t.Peer = addr
+		t.Havemeta = false
+		t.Dcount = 0
 		// t.filename = fname
-		var msg string
 
-		msg = fmt.Sprintf("Added %s Transfer to %s session %d",
-			t.ttype, t.peer.String(), t.session)
+		msg := fmt.Sprintf("Added %s Transfer to %s session %d",
+			t.Ttype, t.Peer.String(), t.Session)
 		STransfers = append(STransfers, t)
 		screen.Fprintln(g, "msg", "green_black", msg)
 		return nil
@@ -179,75 +173,60 @@ func SNew(g *gocui.Gui, ttype string, r request.Request, ip string, session uint
 	return errors.New("Invalid IP Address")
 }
 
-// SChange - Add metadata information to the STransfer in STransfers list upon receipt of metadata
-func (t *STransfer) SChange(g *gocui.Gui, m metadata.MetaData) {
+// SChange - Add metadata information to the STransfer in STransfers list upon receipt of a metadata
+func (t *STransfer) SChange(g *gocui.Gui, m metadata.MetaData) error {
 	// Lock it as we are going to add a new transfer slice
-	strmu.Lock()
-	t.csumtype = sarflags.GetStr(m.Header, "csumtype")
-	t.checksum = make([]byte, len(m.Checksum))
-	copy(t.checksum, m.Checksum)
-	t.dir = m.Dir
-	t.havemeta = true
-	screen.Fprintln(g, "msg", "yellow_black", "Added metadata info to transfer", t.Print())
-	strmu.Unlock()
-}
-
-// SData - Add data information to the STransfer in STransfers list upon receipt of data
-func (t *STransfer) SData(g *gocui.Gui, d data.Data, conn *net.UDPConn, remoteAddr *net.UDPAddr) {
-	// Lock it as we are going to add a new transfer slice
-	strmu.Lock()
-	if sarflags.GetStr(d.Header, "reqtstamp") == "yes" { // Grab the timestamp from data
-		t.tstamp = d.Tstamp
+	Strmu.Lock()
+	t.Csumtype = sarflags.GetStr(m.Header, "csumtype")
+	t.Checksum = make([]byte, len(m.Checksum))
+	copy(t.Checksum, m.Checksum)
+	t.Dir = m.Dir
+	// Create the file buffer for the transfer
+	// AT THE MOMENT WE ARE HOLDING THE WHOLE FILE IN A MEMORY BUFFER!!!!
+	// OF COURSE WE NEED TO SORT THIS OUT LATER
+	if len(t.Data) == 0 { // Create the buffer only once
+		t.Data = make([]byte, t.Dir.Size)
 	}
-	Dcount++
-	if Dcount%100 == 0 { // Send back a status every 100 data frames recieved
-		Dcount = 0
+	if len(t.Data) != (int)(m.Dir.Size) {
+		emsg := fmt.Sprintf("Size of File Differs - Old=%d New=%d",
+			len(t.Data), m.Dir.Size)
+		return errors.New(emsg)
 	}
-	if Dcount == 0 || sarflags.GetStr(d.Header, "reqstatus") == "yes" || !t.havemeta { // Send a status back
-		stheader := "descriptor=" + sarflags.GetStr(d.Header, "descriptor") // echo the descriptor
-		stheader += ",allholes=yes,reqholes=requested,errcode=success,"
-		if !t.havemeta {
-			stheader += "metadatarecvd=no"
-		} else {
-			stheader += "metadatarecvd=yes"
-		}
-		// Send back a status to the client to tell it a success with creating the transfer
-		WriteStatus(g, t, stheader, conn, remoteAddr)
-	}
-
-	// copy(t.data[d.Offset:], d.Payload)
-	strmu.Unlock()
+	t.Havemeta = true
+	screen.Fprintln(g, "msg", "yellow_black", "Added metadata to transfer and file buffer size", len(t.Data))
+	Strmu.Unlock()
+	return nil
 }
 
 // Remove - Remove a STransfer from the STransfers
 func (t *STransfer) Remove() error {
-	strmu.Lock()
-	defer strmu.Unlock()
+	Strmu.Lock()
+	defer Strmu.Unlock()
 	for i := len(STransfers) - 1; i >= 0; i-- {
-		if t.peer.Equal(CTransfers[i].peer) && t.session == STransfers[i].session {
+		if t.Peer.Equal(CTransfers[i].peer) && t.Session == STransfers[i].Session {
 			STransfers = append(STransfers[:i], STransfers[i+1:]...)
 			return nil
 		}
 	}
 	emsg := fmt.Sprintf("Cannot remove %s Transfer for session %d to %s",
-		t.ttype, t.session, t.peer.String())
+		t.Ttype, t.Session, t.Peer.String())
 	return errors.New(emsg)
 }
 
 // FmtPrint - String of relevant STransfer info
 func (t *STransfer) FmtPrint(sfmt string) string {
-	return fmt.Sprintf(sfmt, t.direction,
-		t.ttype,
-		t.peer.String(),
-		t.session)
+	return fmt.Sprintf(sfmt, t.Direction,
+		t.Ttype,
+		t.Peer.String(),
+		t.Session)
 }
 
 // Print - String of relevant STransfer info
 func (t *STransfer) Print() string {
-	return fmt.Sprintf("%s|%s|%s|%d|%s\n\t%s", t.direction,
-		t.ttype,
-		t.peer.String(),
-		t.session,
-		t.csumtype,
-		t.dir.Print())
+	return fmt.Sprintf("%s|%s|%s|%d|%s\n\t%s", t.Direction,
+		t.Ttype,
+		t.Peer.String(),
+		t.Session,
+		t.Csumtype,
+		t.Dir.Print())
 }

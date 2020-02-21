@@ -276,6 +276,8 @@ func Doclient(t *CTransfer, g *gocui.Gui, errstr chan string) {
 				errflag := make(chan string, 1) // The return channel holding the saratoga errflag
 				go fn(t, g, errflag)
 				retcode := <-errflag
+				close(errflag)
+				screen.Fprintln(g, "msg", "yellow_black", "Doclient completed with errstr:", retcode)
 				errstr <- retcode
 				return
 			}
@@ -496,6 +498,8 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	datapos := make(chan [2]uint64, 1) // The return channel from readstatus with progress & inrespto
 	dataerr := make(chan string, 1)
 
+	// ISSUE CAUSING HANG SOMEWHERE IN HERE!!!!
+
 	// This is the guts of handling status. It sits in a loop reading away and processing
 	// the status when received. It sends metadata & data (to fill holes) as required
 	go readstatus(g, t, dflags, conn, m, datapos, statuserr)
@@ -522,6 +526,10 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 				errflag <- derr
 				return
 			}
+		case dpos := <-datapos:
+			screen.Fprintln(g, "msg", "magenta_black", "Read Data Pos=", dpos)
+			// default: // the select is non-blocking, fall through
+			// screen.Fprintf(g, "msg", "magenta_black", "*")
 		}
 	}
 }
