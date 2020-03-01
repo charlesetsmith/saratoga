@@ -1,0 +1,48 @@
+{
+	"_comment1" : "Default Descriptor: d16,d32,d64",
+	"descriptor" :      "d32",
+
+	"_comment2" : "Default Checksum type: none",
+	"csumtype" :        "none",
+
+	"_comment3" : "Is freespace tp be advertised: yes,no",
+	"freespace" :       "no",
+
+	"_comment4" : "Can files/streams be transmitted: yes,no",
+	"txwilling" :       "yes",
+
+	"_comment5" : "Can files/streams be received: yes,no",
+	"rxwilling" :       "yes",
+
+	"_comment6" : "Are strems supported: yes,no",
+	"stream" :         	"no",
+
+	"_comment7" : "Do re request timestamps: yes,no",
+	"reqtstamp" :       "yes",
+
+	"_comment8" : "Do we require status to be sent/receivedL yes,no",
+	"reqstatus" :      	"no",
+
+	"_comment9" : "Is UDP Lite supported: yes,no",
+	"udplite" :        	"no",
+
+	"_comment10" : "What is the default timestamp format: posix64",
+	"timestamp" :       "posix64",
+
+	"_comment11" : "What timezone is to be used in timestamps",
+	"timezone" :       	"utc",
+
+	"_comment12" : "Waht is the default directory for saratoga",
+	"sardir" :		    ".",
+
+	"_comment13" : "Various timeouts in seconds to use in transfers",
+	"timeout" : {
+		"metadata" : 	55,
+		"request" :  	56,
+		"status" :   	57,
+		"transfer" : 	58
+	},
+
+	"_comment14" : "A status is requested every data frames received",
+	"datacounter" :     100
+}

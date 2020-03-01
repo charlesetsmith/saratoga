@@ -4,8 +4,10 @@ package main
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -579,12 +581,52 @@ next:
 	quit <- struct{}{}
 }
 
+// Timeouts - JSON Config Default Global Timeout Settings
+type Timeouts struct {
+	Metadata int
+	Request  int
+	Status   int
+	Transfer int
+}
+
+// Config - JSON Config Default Global Settings
+type Config struct {
+	Descriptor  string
+	Csumtype    string
+	Freespace   string
+	Txwilling   string
+	Rxwilling   string
+	Stream      string
+	Reqtstamp   string
+	Reqstatus   string
+	Udplite     string
+	Timestamp   string
+	Timezone    string
+	Sardir      string
+	Timeout     Timeouts
+	Datacounter int
+}
+
 // Main
 func main() {
 
-	if len(os.Args) != 2 {
-		fmt.Println("usage:", "saratoga <iface>")
-		fmt.Println("Eg. go run saratoga.go en0 (Interface says where to listen for multicast joins")
+	if len(os.Args) != 3 {
+		fmt.Println("usage:", "saratoga <config> <iface>")
+		fmt.Println("Eg. go run saratoga.go saratoga.json en0 (Interface says where to listen for multicast joins")
+		return
+	}
+
+	var confdata []byte
+	var conf Config
+	var err error
+
+	// Read  in the JSON Config data
+	if confdata, err = ioutil.ReadFile(os.Args[1]); err != nil {
+		fmt.Println("Cannot open saratoga json config file", os.Args[1], ":", err)
+		return
+	}
+	if err := json.Unmarshal(confdata, &conf); err != nil {
+		fmt.Println("Cannot read config error:", err)
 		return
 	}
 
@@ -603,36 +645,46 @@ func main() {
 	} else {
 		sarflags.Cli.Global["descriptor"] = "d64"
 	}
-	sarflags.Cli.Global["csumtype"] = "none"
-	sarflags.Cli.Global["freespace"] = "no"
-	sarflags.Cli.Global["txwilling"] = "yes"
-	sarflags.Cli.Global["rxwilling"] = "yes"
-	sarflags.Cli.Global["stream"] = "no"
-	sarflags.Cli.Global["reqtstamp"] = "no"
-	sarflags.Cli.Global["reqstatus"] = "no"
-	sarflags.Cli.Global["udplite"] = "no"
-	sarflags.Cli.Timestamp = "posix64" // Default timestamp type to use
-
+	switch conf.Descriptor {
+	case "d16": // Everything must support at least d16
+		sarflags.Cli.Global["descriptor"] = "d16"
+	case "d32": // Only d32 & d64 support a d32
+		if sarflags.Cli.Global["descriptor"] == "d32" || sarflags.Cli.Global["descriptor"] == "d64" {
+			sarflags.Cli.Global["descriptor"] = "d32"
+		}
+	case "d64": // ONly d64 supports a d64 of course
+		sarflags.Cli.Global["descriptor"] = "d64"
+	default: // All else invlaid
+		e := fmt.Sprintf("Invalid Descriptor in %s: %s", os.Args[1], conf.Descriptor)
+		log.Fatal(errors.New(e))
+	}
+	sarflags.Cli.Global["csumtype"] = conf.Csumtype
+	sarflags.Cli.Global["freespace"] = conf.Freespace
+	sarflags.Cli.Global["txwilling"] = conf.Txwilling
+	sarflags.Cli.Global["rxwilling"] = conf.Rxwilling
+	sarflags.Cli.Global["stream"] = conf.Stream
+	sarflags.Cli.Global["reqtstamp"] = conf.Reqtstamp
+	sarflags.Cli.Global["reqstatus"] = conf.Reqstatus
+	sarflags.Cli.Global["udplite"] = conf.Udplite
+	sarflags.Cli.Timestamp = conf.Timestamp               // Default timestamp type to use
+	sarflags.Cli.Timeout.Metadata = conf.Timeout.Metadata // Seconds
+	sarflags.Cli.Timeout.Request = conf.Timeout.Request   // Seconds
+	sarflags.Cli.Timeout.Status = conf.Timeout.Status     // Seconds
+	sarflags.Cli.Timeout.Transfer = conf.Timeout.Transfer // Seconds
+	sarflags.Cli.Datacnt = conf.Datacounter               // # Data frames between request for status
+	sarflags.Cli.Timezone = conf.Timezone                 // TImezone to use for logs
+	sarflags.Climu.Unlock()
 	/* for f := range sarflags.Cli.Global {
 		if !sarflags.Valid(f, sarflags.Global[f]) {
 			ps := "Invalid Flag:" + f + "=" + sarflags.Global[f]
 			panic(ps)
 		}
 	} */
-	sarflags.Cli.Timestamp = "posix64"
-	sarflags.Cli.Timeout.Metadata = 60 // Seconds
-	sarflags.Cli.Timeout.Request = 60  // Seconds
-	sarflags.Cli.Timeout.Status = 60   // Seconds
-	sarflags.Cli.Timeout.Transfer = 60 // Seconds
-	sarflags.Cli.Datacnt = 100         // # Data frames between request for status
-	sarflags.Cli.Timezone = "utc"      // TImezone to use for logs
-	sarflags.Climu.Unlock()
-
 	var sardir string
 
 	// Get the default directory for sarotaga transfers from environment
 	if sardir = os.Getenv("SARDIR"); sardir == "" {
-		log.Fatal(errors.New("No Saratoga transfer directory SARDIR environment variable set"))
+		sardir = conf.Sardir // If no env variable set then set it to conf file value
 	}
 	// Move to it
 	if err := os.Chdir(sardir); err != nil {
@@ -667,7 +719,7 @@ func main() {
 	// What Interface are we receiving Multicasts on
 	var iface *net.Interface
 
-	iface, err = net.InterfaceByName(os.Args[1])
+	iface, err = net.InterfaceByName(os.Args[2])
 	if err != nil {
 		fmt.Println("Saratoga Unable to lookup interfacebyname:", os.Args[1])
 		log.Fatal(err)
