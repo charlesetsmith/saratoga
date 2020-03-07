@@ -583,28 +583,28 @@ next:
 
 // Timeouts - JSON Config Default Global Timeout Settings
 type Timeouts struct {
-	Metadata int
-	Request  int
-	Status   int
-	Transfer int
+	Metadata int // If no Metadata is received after x seconds cancel transfer
+	Request  int // If no request is received after x seconds cancel transfer
+	Status   int // Send a status every x seconds
+	Transfer int // If no data has been received after x seconds cancel transfer
 }
 
 // Config - JSON Config Default Global Settings
 type Config struct {
-	Descriptor  string
-	Csumtype    string
-	Freespace   string
-	Txwilling   string
-	Rxwilling   string
-	Stream      string
-	Reqtstamp   string
-	Reqstatus   string
-	Udplite     string
-	Timestamp   string
-	Timezone    string
-	Sardir      string
-	Timeout     Timeouts
-	Datacounter int
+	Descriptor  string   // Default Descriptor: d16,d32,d64
+	Csumtype    string   // Default Checksum type: none
+	Freespace   string   // Is freespace tp be advertised: yes,no
+	Txwilling   string   // Can files/streams be sent: yes,no
+	Rxwilling   string   // Can files/streams be received: yes,no
+	Stream      string   // Can files/streams be transmitted: yes,no
+	Reqtstamp   string   // Request timestamps: yes,no
+	Reqstatus   string   // Request status frame to be sent/received: yes,no
+	Udplite     string   // Is UDP Lite supported: yes,no
+	Timestamp   string   // What is the default timestamp format: posix64
+	Timezone    string   // What timezone is to be used in timestamps: utc
+	Sardir      string   // What is the default directory for saratoga files
+	Timeout     Timeouts // Various Timers
+	Datacounter int      // How many data frames received before a status is requested
 }
 
 // Main
@@ -622,11 +622,11 @@ func main() {
 
 	// Read  in the JSON Config data
 	if confdata, err = ioutil.ReadFile(os.Args[1]); err != nil {
-		fmt.Println("Cannot open saratoga json config file", os.Args[1], ":", err)
+		fmt.Println("Cannot open saratoga config file", os.Args[1], ":", err)
 		return
 	}
 	if err := json.Unmarshal(confdata, &conf); err != nil {
-		fmt.Println("Cannot read config error:", err)
+		fmt.Println("Cannot read saratoga config file", os.Args[1], ":", err)
 		return
 	}
 
