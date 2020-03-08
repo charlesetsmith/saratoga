@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/charlesetsmith/saratoga/src/dirent"
+	"github.com/charlesetsmith/saratoga/src/holes"
 	"github.com/charlesetsmith/saratoga/src/metadata"
 	"github.com/charlesetsmith/saratoga/src/request"
 	"github.com/charlesetsmith/saratoga/src/sarflags"
@@ -35,7 +36,7 @@ type STransfer struct {
 	Dcount    int                 // Count of Data frames so we can schedule status
 	Progress  uint64              // Current Progress indicator
 	Inrespto  uint64              // In respose to indicator
-	Holes     []status.Hole       // What holes I need to fill
+	CurFills  holes.Holes         // What has been received
 }
 
 // Strmu - Protect transfer
@@ -80,7 +81,8 @@ func WriteStatus(g *gocui.Gui, t *STransfer, sflags string, conn *net.UDPConn, r
 	errf := flagvalue(sflags, "errcode")
 	var lasthole int
 	if errf == "success" {
-		lasthole = len(t.Holes) // How many holes do we have
+		h := t.CurFills.Getholes()
+		lasthole = len(h) // How many holes do we have
 	} else {
 		lasthole = 0 // We have no holes if an error is being sent
 	}
@@ -91,7 +93,8 @@ func WriteStatus(g *gocui.Gui, t *STransfer, sflags string, conn *net.UDPConn, r
 		framecnt = 1
 		flags = replaceflag(sflags, "allholes=yes")
 	} else {
-		framecnt = len(t.Holes)/maxholes + 1
+		h := t.CurFills.Getholes()
+		framecnt = len(h)/maxholes + 1
 		flags = replaceflag(sflags, "allholes=no")
 	}
 
@@ -104,7 +107,8 @@ func WriteStatus(g *gocui.Gui, t *STransfer, sflags string, conn *net.UDPConn, r
 		}
 
 		var st status.Status
-		if err := st.New(flags, t.Session, t.Progress, t.Inrespto, t.Holes[starthole:endhole]); err != nil {
+		h := t.CurFills.Getholes()
+		if err := st.New(flags, t.Session, t.Progress, t.Inrespto, h[starthole:endhole]); err != nil {
 			return "badstatus"
 		}
 		var wframe []byte

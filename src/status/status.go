@@ -6,15 +6,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/charlesetsmith/saratoga/src/holes"
 	"github.com/charlesetsmith/saratoga/src/sarflags"
 	"github.com/charlesetsmith/saratoga/src/timestamp"
 )
-
-// Hole -- Beggining and End of a hole
-type Hole struct {
-	Start uint64
-	End   uint64
-}
 
 // Status -- Status of the transfer and holes
 type Status struct {
@@ -23,13 +18,13 @@ type Status struct {
 	Tstamp   timestamp.Timestamp
 	Progress uint64
 	Inrespto uint64
-	Holes    []Hole
+	Holes    holes.Holes
 }
 
 // New - Construct a Status frame - return byte slice of frame
 // Flags is of format "flagname1=flagval1,flagname2=flagval2...
 // The timestamp type to use is also in the flags as "timestamp=flagval"
-func (s *Status) New(flags string, session uint32, progress uint64, inrespto uint64, holes []Hole) error {
+func (s *Status) New(flags string, session uint32, progress uint64, inrespto uint64, holes holes.Holes) error {
 
 	var err error
 
@@ -177,12 +172,11 @@ func (s *Status) Get(frame []byte) error {
 		hlen := len(frame[pos:])
 		// log.Fatal("Holes in frame len", hlen, "number of holes", hlen/2/dsize)
 		for i := 0; i < hlen/2/dsize; i++ {
-			start := uint64(binary.BigEndian.Uint16(frame[pos : pos+dsize]))
+			start := int(binary.BigEndian.Uint16(frame[pos : pos+dsize]))
 			pos += dsize
-			end := uint64(binary.BigEndian.Uint16(frame[pos : pos+dsize]))
+			end := int(binary.BigEndian.Uint16(frame[pos : pos+dsize]))
 			pos += dsize
-			ah := Hole{Start: start, End: end}
-			s.Holes = append(s.Holes, ah)
+			s.Holes = append(s.Holes, holes.Hole{Start: start, End: end})
 		}
 	case "d32":
 		dsize = 4
@@ -192,12 +186,11 @@ func (s *Status) Get(frame []byte) error {
 		pos += dsize
 		hlen := len(frame[pos:])
 		for i := 0; i < hlen/2/dsize; i++ {
-			start := uint64(binary.BigEndian.Uint32(frame[pos : pos+dsize]))
+			start := int(binary.BigEndian.Uint32(frame[pos : pos+dsize]))
 			pos += dsize
-			end := uint64(binary.BigEndian.Uint32(frame[pos : pos+dsize]))
+			end := int(binary.BigEndian.Uint32(frame[pos : pos+dsize]))
 			pos += dsize
-			ah := Hole{Start: start, End: end}
-			s.Holes = append(s.Holes, ah)
+			s.Holes = append(s.Holes, holes.Hole{Start: start, End: end})
 		}
 	case "d64":
 		dsize = 8
@@ -207,12 +200,11 @@ func (s *Status) Get(frame []byte) error {
 		pos += dsize
 		hlen := len(frame[pos:])
 		for i := 0; i < hlen/2/dsize; i++ {
-			start := uint64(binary.BigEndian.Uint64(frame[pos : pos+dsize]))
+			start := int(binary.BigEndian.Uint64(frame[pos : pos+dsize]))
 			pos += dsize
-			end := uint64(binary.BigEndian.Uint64(frame[pos : pos+dsize]))
+			end := int(binary.BigEndian.Uint64(frame[pos : pos+dsize]))
 			pos += dsize
-			ah := Hole{Start: start, End: end}
-			s.Holes = append(s.Holes, ah)
+			s.Holes = append(s.Holes, holes.Hole{Start: start, End: end})
 		}
 	default:
 		return errors.New("Invalid descriptor in Status frame")

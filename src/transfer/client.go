@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/charlesetsmith/saratoga/src/data"
+	"github.com/charlesetsmith/saratoga/src/holes"
 	"github.com/charlesetsmith/saratoga/src/metadata"
 	"github.com/charlesetsmith/saratoga/src/request"
 	"github.com/charlesetsmith/saratoga/src/sarflags"
@@ -31,8 +32,8 @@ type CTransfer struct {
 	peer      net.IP // Remote Host
 	filename  string // File name to get from remote host
 	fp        *os.File
-	frames    [][]byte      // Frame queue
-	holes     []status.Hole // Holes
+	frames    [][]byte    // Frame queue
+	holes     holes.Holes // Holes
 }
 
 var ctrmu sync.Mutex
