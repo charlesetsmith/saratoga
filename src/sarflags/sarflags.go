@@ -120,7 +120,14 @@ const MaxUint16 = uint64(65535)
 const MaxUint32 = uint64(4294967295)
 
 // MaxUint64 -- Biggest unsigned 64 bit integer
-const MaxUint64 = uint64(18446744073709551615)
+// It should be this but...
+// const MaxUint64 = uint64(18446744073709551615)
+// const MaxUint64 = uint64(0xFFFFFFFFFFFFFFFF)
+
+// MaxUint64 - Biggest 64 bit unsigned integer
+// It needs to be this as handling file i/o and slices requires an "int"
+// which is a signed 64 bit number in go so lets "pretend"
+const MaxUint64 = uint64(0x7FFFFFFFFFFFFFFF)
 
 // Length in bits of the saratoga header flag
 const flagsize uint32 = 32

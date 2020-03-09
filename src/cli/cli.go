@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"sort"
 	"strconv"
@@ -317,6 +318,7 @@ func exit(g *gocui.Gui, args []string) {
 	if len(args) == 1 { // exit 0
 		Cexit = 0
 		screen.Fprintln(g, "msg", "green_black", "Good Bye!")
+		log.Fatal("We have exited OK")
 		return
 	}
 	if len(args) == 2 {
@@ -327,9 +329,13 @@ func exit(g *gocui.Gui, args []string) {
 		case "0": // exit 0
 			Cexit = 0
 			screen.Fprintln(g, "msg", "green_black", "Good Bye!")
+			// THIS IS A KUDGE!!!! FIX IT!!!!!
+			log.Fatal("We have exited 0 OK")
 		case "1": // exit 1
 			Cexit = 1
 			screen.Fprintln(g, "msg", "green_black", "Good Bye!")
+			// THIS IS A KUDGE!!!! FIX IT!!!!!
+			log.Fatal("We have exited 1 OK")
 		default: // Help
 			screen.Fprintln(g, "msg", "red_black", cmd["exit"][0])
 		}

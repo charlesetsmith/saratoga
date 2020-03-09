@@ -391,18 +391,19 @@ func starxhandler(g *gocui.Gui, s status.Status, conn *net.UDPConn, remoteAddr *
 
 // Listen -- Go routing for recieving IPv4 & IPv6 for an incoming frames and shunt them off to the
 // correct frame handlers
-func listen(g *gocui.Gui, conn *net.UDPConn, quit chan struct{}) {
+func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 
 	buf := make([]byte, sarnet.MaxFrameSize+100) // Just in case...
 	framelen := 0
 	err := error(nil)
 	remoteAddr := new(net.UDPAddr)
-next:
 	for err == nil { // Loop forever grabbing frames
 		// Read into buf
 		framelen, remoteAddr, err = conn.ReadFromUDP(buf)
 		if err != nil {
-			break
+			screen.Fprintln(g, "msg", "red_black", "Sarataga listener failed:", err)
+			quit <- err
+			return
 		}
 
 		// Very basic frame checks before we get into what it is
@@ -410,12 +411,12 @@ next:
 			// Saratoga packet too small
 			screen.Fprintln(g, "msg", "red_black", "Rx Saratoga Frame too short from ",
 				sarnet.UDPinfo(remoteAddr))
-			goto next
+			continue
 		}
 		if framelen > sarnet.MaxFrameSize {
 			screen.Fprintln(g, "msg", "red_black", "Rx Saratoga Frame too long", framelen,
 				"from", sarnet.UDPinfo(remoteAddr))
-			goto next
+			continue
 		}
 
 		// OK so we might have a valid frame so copy it to to the frame byte slice
@@ -432,7 +433,7 @@ next:
 				screen.Fprintln(g, "msg", "red_black", "Not Saratoga Version 1 Frame from ",
 					sarnet.UDPinfo(remoteAddr))
 			}
-			goto next
+			continue
 		}
 
 		// Process the frame
@@ -443,13 +444,13 @@ next:
 				// We just drop bad beacons
 				screen.Fprintln(g, "msg", "red_black", "Bad Beacon:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr))
-				goto next
+				continue
 			}
 			// Handle the beacon
 			if errcode := rxb.Handler(g, remoteAddr); errcode != "success" {
 				screen.Fprintln(g, "msg", "red_black", "Bad Beacon:", errcode, " from ",
 					sarnet.UDPinfo(remoteAddr))
-				goto next
+				continue
 			}
 
 		case "request":
@@ -460,7 +461,7 @@ next:
 				// We just drop bad requests
 				screen.Fprintln(g, "msg", "red_black", "Bad Request:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr))
-				goto next
+				continue
 			}
 
 			// Create a status to the client to tell it the error or that we have accepted the transfer
@@ -480,7 +481,7 @@ next:
 					transfer.WriteStatus(g, t, stheader, conn, remoteAddr)
 				}
 			}
-			goto next
+			continue
 
 		case "data":
 			// Handle incoming data
@@ -494,7 +495,7 @@ next:
 				transfer.WriteErrStatus(g, stheader, session, conn, remoteAddr)
 				screen.Fprintln(g, "msg", "red_black", "Bad Data:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr), " session ", session)
-				goto next
+				continue
 			}
 			session := binary.BigEndian.Uint32(frame[4:8])
 			errcode := datrxhandler(g, d, conn, remoteAddr) // process the data
@@ -508,14 +509,10 @@ next:
 				var wframe []byte
 				var txerr error
 				if wframe, txerr = st.Put(); txerr == nil {
-					_, err := conn.WriteToUDP(wframe, remoteAddr)
-					if err != nil || txerr != nil {
-						// conn.Close()
-						// errflag <- "cantsend"
-					}
+					conn.WriteToUDP(wframe, remoteAddr)
 				}
 			}
-			goto next
+			continue
 
 		case "metadata":
 			// Handle incoming metadata
@@ -531,7 +528,7 @@ next:
 				_ = se.New(stheader, session, 0, 0, nil)
 				screen.Fprintln(g, "msg", "red_black", "Bad MetaData:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr), " session ", session)
-				goto next
+				continue
 			}
 			session := binary.BigEndian.Uint32(frame[4:8])
 			errcode := metrxhandler(g, m, remoteAddr) // process the metadata
@@ -543,7 +540,7 @@ next:
 				screen.Fprintln(g, "msg", "red_black", "Bad Metadata:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr), " session ", session)
 			}
-			goto next
+			continue
 
 		case "status":
 			// Handle incoming status
@@ -558,7 +555,7 @@ next:
 				_ = se.New(stheader, session, 0, 0, nil)
 				screen.Fprintln(g, "msg", "red_black", "Bad Status:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr), " session ", session)
-				goto next
+				continue
 			} // Handle the status
 			errcode := starxhandler(g, s, conn, remoteAddr) // process the status
 			if errcode != "success" {                       // If we have a error send back a status with it
@@ -569,7 +566,7 @@ next:
 				screen.Fprintln(g, "msg", "red_black", "Bad Status:", errcode, " from ",
 					sarnet.UDPinfo(remoteAddr), " session ", s.Session)
 			}
-			goto next
+			continue
 
 		default:
 			// Bad Packet drop it
@@ -577,8 +574,6 @@ next:
 				sarnet.UDPinfo(remoteAddr))
 		}
 	}
-	screen.Fprintln(g, "msg", "red_black", "Sarataga listener failed - ", err)
-	quit <- struct{}{}
 }
 
 // Timeouts - JSON Config Default Global Timeout Settings
@@ -652,12 +647,11 @@ func main() {
 		if sarflags.Cli.Global["descriptor"] == "d32" || sarflags.Cli.Global["descriptor"] == "d64" {
 			sarflags.Cli.Global["descriptor"] = "d32"
 		}
-	case "d64": // ONly d64 supports a d64 of course
+	case "d64": // Only d64 supports a d64 of course
 		sarflags.Cli.Global["descriptor"] = "d64"
-	default: // All else invlaid
-		e := fmt.Sprintf("Invalid Descriptor in %s: %s", os.Args[1], conf.Descriptor)
-		log.Fatal(errors.New(e))
+	default: // All else leave it as the default based upon Maxint size
 	}
+	// Give them the defauls set in saratoga JSON congig
 	sarflags.Cli.Global["csumtype"] = conf.Csumtype
 	sarflags.Cli.Global["freespace"] = conf.Freespace
 	sarflags.Cli.Global["txwilling"] = conf.Txwilling
@@ -697,8 +691,6 @@ func main() {
 		log.Fatal(errors.New("Cannot stat sardir"))
 	}
 
-	quit := make(chan struct{})
-
 	g, err := gocui.NewGui(gocui.OutputNormal)
 	if err != nil {
 		fmt.Printf("Cannot run gocui user interface")
@@ -726,6 +718,9 @@ func main() {
 	}
 	sarflags.MTU = iface.MTU
 
+	// When will we return from listening for v6 frames
+	v6listenquit := make(chan error)
+
 	// Listen to Unicast & Multicast v6
 	v6mcastcon, err := net.ListenMulticastUDP("udp6", iface, &v6mcastaddr)
 	if err != nil {
@@ -733,9 +728,12 @@ func main() {
 		log.Fatal(err)
 	} else {
 		sarnet.SetMulticastLoop(v6mcastcon, "IPv6")
-		go listen(g, v6mcastcon, quit)
+		go listen(g, v6mcastcon, v6listenquit)
 		fmt.Println("Saratoga IPv6 Multicast Server started on", sarnet.UDPinfo(&v6mcastaddr))
 	}
+
+	// When will we return from listening for v4 frames
+	v4listenquit := make(chan error)
 
 	// Listen to Unicast & Multicast v4
 	v4mcastcon, err := net.ListenMulticastUDP("udp4", iface, &v4mcastaddr)
@@ -744,7 +742,7 @@ func main() {
 		log.Fatal(err)
 	} else {
 		sarnet.SetMulticastLoop(v4mcastcon, "IPv4")
-		go listen(g, v4mcastcon, quit)
+		go listen(g, v4mcastcon, v4listenquit)
 		fmt.Println("Saratoga IPv4 Multicast Server started on", sarnet.UDPinfo(&v4mcastaddr))
 	}
 
@@ -771,8 +769,8 @@ func main() {
 		}
 	}
 
-	fmt.Println("Sleeping for 5 seconds so you can check out the interfaces")
-	time.Sleep(5 * time.Second)
+	fmt.Println("Sleeping for 3 seconds so you can check out the interfaces")
+	time.Sleep(3 * time.Second)
 
 	// Set up the gocui interface and start the mainloop
 	g.Cursor = true
@@ -784,7 +782,16 @@ func main() {
 	// The Base calling functions for Saratoga live in cli.go so look there first!
 	errflag := make(chan error, 1)
 	go mainloop(g, errflag)
-	<-errflag
+
+	select {
+	case v6err := <-v6listenquit:
+		fmt.Println("Saratoga v6 listener has quit:", v6err)
+	case v4err := <-v4listenquit:
+		fmt.Println("Saratoga v4 lisntener has quit:", v4err)
+	case err := <-errflag:
+		fmt.Println("Mainloop has quit:", err.Error())
+	}
+	return
 }
 
 // Go routine for command line loop
