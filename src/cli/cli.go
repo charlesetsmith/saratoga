@@ -2,20 +2,21 @@ package cli
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"sort"
 	"strconv"
 	"strings"
 
-	"github.com/charlesetsmith/saratoga/src/transfer"
-
 	"github.com/charlesetsmith/saratoga/src/beacon"
 	"github.com/charlesetsmith/saratoga/src/sarflags"
 	"github.com/charlesetsmith/saratoga/src/sarnet"
 	"github.com/charlesetsmith/saratoga/src/screen"
+	"github.com/charlesetsmith/saratoga/src/transfer"
 	"github.com/jroimartin/gocui"
 )
+
+// CurLine -- Current line number in buffer
+var CurLine int
 
 // Remove an entry in a slice of strings by index #
 func removeIndex(s []string, index int) []string {
@@ -44,9 +45,6 @@ func appendunique(slice []string, i string) []string {
 	}
 	return append(slice, i)
 }
-
-// CurLine -- Current line number in buffer
-var CurLine int
 
 // Send count beacons to host
 func sendbeacons(g *gocui.Gui, flags string, count uint, interval uint, host string) {
@@ -318,7 +316,6 @@ func exit(g *gocui.Gui, args []string) {
 	if len(args) == 1 { // exit 0
 		Cexit = 0
 		screen.Fprintln(g, "msg", "green_black", "Good Bye!")
-		log.Fatal("We have exited OK")
 		return
 	}
 	if len(args) == 2 {
@@ -329,13 +326,9 @@ func exit(g *gocui.Gui, args []string) {
 		case "0": // exit 0
 			Cexit = 0
 			screen.Fprintln(g, "msg", "green_black", "Good Bye!")
-			// THIS IS A KUDGE!!!! FIX IT!!!!!
-			log.Fatal("We have exited 0 OK")
 		case "1": // exit 1
 			Cexit = 1
 			screen.Fprintln(g, "msg", "green_black", "Good Bye!")
-			// THIS IS A KUDGE!!!! FIX IT!!!!!
-			log.Fatal("We have exited 1 OK")
 		default: // Help
 			screen.Fprintln(g, "msg", "red_black", cmd["exit"][0])
 		}
@@ -1262,7 +1255,7 @@ var cmd = map[string][2]string{
 	},
 	"putrm": [2]string{
 		"putrm <peer> <filename>",
-		"send a file to a peer and then remove it from peer when successful",
+		"send a file to a peer and then remove it when successful",
 	},
 	"quit": [2]string{
 		"quit [0|1]",

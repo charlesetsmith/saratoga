@@ -2,7 +2,7 @@
 	"_comment" : "Refer to Config struct comments in saratoga.go",
 	"descriptor" :      "d32",
 	"csumtype" :        "none",
-	"freespace" :       "no",
+	"freespace" :       "yes",
 	"txwilling" :       "yes",
 	"rxwilling" :       "yes",
 	"stream" :         	"no",
