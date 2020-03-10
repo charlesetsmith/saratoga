@@ -15,7 +15,6 @@ import (
 	"strings"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/charlesetsmith/saratoga/src/beacon"
 	"github.com/charlesetsmith/saratoga/src/cli"
@@ -49,7 +48,7 @@ func backSpace(g *gocui.Gui, v *gocui.View) error {
 	if cx <= len(cli.Cprompt)+len(strconv.Itoa(cli.CurLine))+3 { // Dont move
 		return nil
 	}
-	// Delete backwards
+	// Delete rune backwards
 	v.EditDelete(true)
 	return nil
 }
@@ -119,14 +118,17 @@ var Sarwg sync.WaitGroup
 // This is where we process command line inputs after a CR entered
 func getLine(g *gocui.Gui, v *gocui.View) error {
 
+	// Our new x position will always be after the prompt + 3 for []: chars
+	xpos := len(cli.Cprompt) + len(strconv.Itoa(cli.CurLine)) + 3
 	if FirstPass {
 		cli.CurLine = 0
 		screen.Fprintf(g, "cmd", "yellow_black", "%s[%d]:", cli.Cprompt, cli.CurLine)
-		v.SetCursor(len(cli.Cprompt)+3+len(strconv.Itoa(cli.CurLine)), 0)
+		v.SetCursor(xpos, 0)
 		return nil
 	}
 	cx, cy := v.Cursor()
 	line, _ := v.Line(cy)
+	screen.Fprintf(g, "msg", "red_black", "cx=%d cy=%d line=%s\n", cx, cy, line)
 	command := strings.SplitN(line, ":", 2)
 	if command[1] == "" { // We have just hit enter - do nothing
 		return nil
@@ -155,18 +157,21 @@ func getLine(g *gocui.Gui, v *gocui.View) error {
 	// screen.Fprintf(g, "msg", "green_black", "cx=%d, cy=%d\n", cx, cy)
 
 	// Have we scrolled past the length of v, if so reset the origin
-	if err := v.SetCursor(len(cli.Cprompt)+len(strconv.Itoa(cli.CurLine))+3, cy+1); err != nil {
-		ox, oy := v.Origin()
-		if err := v.SetOrigin(ox, oy+1); err != nil {
+	if err := v.SetCursor(xpos, cy+1); err != nil {
+		screen.Fprintln(g, "msg", "red_black", "We Scrolled past length of v", err)
+		_, oy := v.Origin()
+		if err := v.SetOrigin(xpos, oy+1); err != nil {
 			screen.Fprintln(g, "msg", "red_black", "SetOrigin Error:", err)
 			return err
 		}
 		// Reset the cursor to last line in v
-		_ = v.SetCursor(len(cli.Cprompt)+len(strconv.Itoa(cli.CurLine))+3, cy)
+		if verr := v.SetCursor(xpos, cy); verr != nil {
+			screen.Fprintln(g, "msg", "red_black", "Setcursor out of bounds:", verr)
+		}
 	}
-	// screen.Fprintln(g, "msg", "yellow_black", "MaxY=", MaxY, "Number Cmd View Lines=", CmdLines)
-	screen.Fprintf(g, "cmd", "yellow_black", "\n%s[%d]:", cli.Cprompt, cli.CurLine)
-
+	screen.Fprintln(g, "msg", "yellow_black", "MaxY=", MaxY, "Number Cmd View Lines=", CmdLines)
+	screen.Fprintf(g, "cmd", "yellow_black", "\n\r%s[%d]:", cli.Cprompt, cli.CurLine)
+	v.SetCursor(xpos, cy+1)
 	return nil
 }
 
@@ -242,7 +247,7 @@ func layout(g *gocui.Gui) error {
 		cmd.FgColor = gocui.ColorGreen
 		cmd.Editable = true
 		cmd.Overwrite = true
-		cmd.Wrap = false
+		cmd.Wrap = true
 	}
 	// This is the message view window - All sorts of status & error messages go here
 	if msg, err = g.SetView("msg", 0, 0, maxX-1, maxY-maxY/ratio); err != nil {
@@ -254,7 +259,7 @@ func layout(g *gocui.Gui) error {
 		msg.BgColor = gocui.ColorBlack
 		msg.FgColor = gocui.ColorYellow
 		msg.Editable = false
-		msg.Wrap = false
+		msg.Wrap = true
 		msg.Overwrite = false
 		msg.Autoscroll = true
 	}
@@ -692,14 +697,7 @@ func main() {
 		log.Fatal(errors.New("Cannot stat sardir"))
 	}
 
-	g, err := gocui.NewGui(gocui.OutputNormal)
-	if err != nil {
-		fmt.Printf("Cannot run gocui user interface")
-		log.Fatal(err)
-	}
-	defer g.Close()
-
-	// Open up V4 & V6 scokets for listening on the Saratoga Port
+	// Open up V4 & V6 sockets for listening on the Saratoga Port
 	v4mcastaddr := net.UDPAddr{
 		Port: sarnet.Port(),
 		IP:   net.ParseIP(sarnet.IPv4Multicast),
@@ -719,18 +717,35 @@ func main() {
 	}
 	sarflags.MTU = iface.MTU
 
+	// Set up the gocui interface and start the mainloop
+	g, err := gocui.NewGui(gocui.OutputNormal)
+	if err != nil {
+		fmt.Printf("Cannot run gocui user interface")
+		log.Fatal(err)
+	}
+	defer g.Close()
+
+	g.Cursor = true
+	g.SetManagerFunc(layout)
+	if err := keybindings(g); err != nil {
+		log.Panicln(err)
+	}
+
 	// When will we return from listening for v6 frames
 	v6listenquit := make(chan error)
 
 	// Listen to Unicast & Multicast v6
 	v6mcastcon, err := net.ListenMulticastUDP("udp6", iface, &v6mcastaddr)
 	if err != nil {
-		fmt.Println("Saratoga Unable to Listen on IPv6 Multicast")
+		screen.Fprintln(g, "msg", "green_black", "Saratoga Unable to Listen on IPv6 Multicast")
+		// fmt.Println("Saratoga Unable to Listen on IPv6 Multicast")
 		log.Fatal(err)
 	} else {
 		sarnet.SetMulticastLoop(v6mcastcon, "IPv6")
 		go listen(g, v6mcastcon, v6listenquit)
-		fmt.Println("Saratoga IPv6 Multicast Server started on", sarnet.UDPinfo(&v6mcastaddr))
+
+		screen.Fprintln(g, "msg", "green_black", "Saratoga IPv6 Multicast Server started on",
+			sarnet.UDPinfo(&v6mcastaddr))
 	}
 
 	// When will we return from listening for v4 frames
@@ -739,45 +754,37 @@ func main() {
 	// Listen to Unicast & Multicast v4
 	v4mcastcon, err := net.ListenMulticastUDP("udp4", iface, &v4mcastaddr)
 	if err != nil {
-		fmt.Println("Saratoga Unable to Listen on IPv4 Multicast")
+		screen.Fprintln(g, "msg", "green_black", "Saratoga Unable to Listen on IPv4 Multicast")
 		log.Fatal(err)
 	} else {
 		sarnet.SetMulticastLoop(v4mcastcon, "IPv4")
 		go listen(g, v4mcastcon, v4listenquit)
-		fmt.Println("Saratoga IPv4 Multicast Server started on", sarnet.UDPinfo(&v4mcastaddr))
+		screen.Fprintln(g, "msg", "green_black", "Saratoga IPv4 Multicast Server started on",
+			sarnet.UDPinfo(&v4mcastaddr))
 	}
 
-	fmt.Printf("Saratoga Directory is %s\n", sardir)
-	fmt.Printf("Available space is %d MB\n\n", (uint64(fs.Bsize)*fs.Bavail)/1024/1024)
+	screen.Fprintf(g, "msg", "green_black", "Saratoga Directory is %s\n", sardir)
+	screen.Fprintf(g, "msg", "green_black", "Available space is %d MB\n",
+		(uint64(fs.Bsize)*fs.Bavail)/1024/1024)
 
 	// Show Host Interfaces & Address's
 	ifis, _ := net.Interfaces()
 	for _, ifi := range ifis {
 		if ifi.Name == os.Args[1] || ifi.Name == "lo0" {
-			fmt.Println(ifi.Name, "MTU", ifi.MTU, ifi.Flags.String(), ":")
+			screen.Fprintln(g, "msg", "green_black", ifi.Name, "MTU", ifi.MTU, ifi.Flags.String(), ":")
 			adrs, _ := ifi.Addrs()
 			for _, adr := range adrs {
 				if strings.Contains(adr.Network(), "ip") {
-					fmt.Println("\t Unicast ", adr.String(), adr.Network())
+					screen.Fprintln(g, "msg", "green_black", "\t Unicast ", adr.String(), adr.Network())
 				}
 			}
 			madrs, _ := ifi.MulticastAddrs()
 			for _, madr := range madrs {
 				if strings.Contains(madr.Network(), "ip") {
-					fmt.Println("\t Multicast ", madr.String(), madr.Network())
+					screen.Fprintln(g, "msg", "green_black", "\t Multicast ", madr.String(), madr.Network())
 				}
 			}
 		}
-	}
-
-	fmt.Println("Sleeping for 3 seconds so you can check out the interfaces")
-	time.Sleep(3 * time.Second)
-
-	// Set up the gocui interface and start the mainloop
-	g.Cursor = true
-	g.SetManagerFunc(layout)
-	if err := keybindings(g); err != nil {
-		log.Panicln(err)
 	}
 
 	// The Base calling functions for Saratoga live in cli.go so look there first!
