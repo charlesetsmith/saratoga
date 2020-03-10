@@ -555,7 +555,7 @@ func ls(g *gocui.Gui, args []string) {
 // Display all of the peer information learned frm beacons
 func peers(g *gocui.Gui, args []string) {
 	if len(beacon.Peers) == 0 {
-		screen.Fprintln(g, "msg", "purple_black", "No Peers")
+		screen.Fprintln(g, "msg", "magenta_black", "No Peers")
 		return
 	}
 	// Table format

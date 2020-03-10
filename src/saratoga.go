@@ -119,8 +119,8 @@ var Sarwg sync.WaitGroup
 func getLine(g *gocui.Gui, v *gocui.View) error {
 
 	// Our new x position will always be after the prompt + 3 for []: chars
-	xpos := len(cli.Cprompt) + len(strconv.Itoa(cli.CurLine)) + 3
 	if FirstPass {
+		xpos := len(cli.Cprompt) + len(strconv.Itoa(cli.CurLine)) + 3
 		cli.CurLine = 0
 		screen.Fprintf(g, "cmd", "yellow_black", "%s[%d]:", cli.Cprompt, cli.CurLine)
 		v.SetCursor(xpos, 0)
@@ -128,7 +128,7 @@ func getLine(g *gocui.Gui, v *gocui.View) error {
 	}
 	cx, cy := v.Cursor()
 	line, _ := v.Line(cy)
-	screen.Fprintf(g, "msg", "red_black", "cx=%d cy=%d line=%s\n", cx, cy, line)
+	// screen.Fprintf(g, "msg", "red_black", "cx=%d cy=%d line=%s\n", cx, cy, line)
 	command := strings.SplitN(line, ":", 2)
 	if command[1] == "" { // We have just hit enter - do nothing
 		return nil
@@ -145,11 +145,13 @@ func getLine(g *gocui.Gui, v *gocui.View) error {
 	if command[1] == "exit" || command[1] == "quit" {
 		// Sarwg.Wait()
 		err := quit(g, v)
+		// THIS IS A KLUDGE FIX IT WITH A CHANNEL
 		log.Fatal("\nSaratoga Exit. Bye!", err)
 	}
 	Commands = append(Commands, command[1])
 
 	cli.CurLine++
+	xpos := len(cli.Cprompt) + len(strconv.Itoa(cli.CurLine)) + 3
 	// screen.Fprintf(g, "msg", "magenta_black", "CurLine=%d <%s>\n", cli.CurLine, command[1])
 	if cx > MaxX-2 { // We are about to move beyond X
 		screen.Fprintln(g, "msg", "red_black", "cx too big", cx)
@@ -164,13 +166,15 @@ func getLine(g *gocui.Gui, v *gocui.View) error {
 			screen.Fprintln(g, "msg", "red_black", "SetOrigin Error:", err)
 			return err
 		}
-		// Reset the cursor to last line in v
+		// Set the cursor to last line in v
 		if verr := v.SetCursor(xpos, cy); verr != nil {
 			screen.Fprintln(g, "msg", "red_black", "Setcursor out of bounds:", verr)
 		}
 	}
-	screen.Fprintln(g, "msg", "yellow_black", "MaxY=", MaxY, "Number Cmd View Lines=", CmdLines)
-	screen.Fprintf(g, "cmd", "yellow_black", "\n\r%s[%d]:", cli.Cprompt, cli.CurLine)
+
+	// screen.Fprintln(g, "msg", "yellow_black", "MaxY=", MaxY, "Number Cmd View Lines=", CmdLines)
+	// Put up the new prompt on the next line
+	screen.Fprintf(g, "cmd", "yellow_black", "\n%s[%d]:", cli.Cprompt, cli.CurLine)
 	v.SetCursor(xpos, cy+1)
 	return nil
 }
