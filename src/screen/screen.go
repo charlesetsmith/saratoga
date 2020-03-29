@@ -58,19 +58,13 @@ var bg = map[string]string{
 	*/
 }
 
-// Viewinfo -- Data and info on view
+// Viewinfo -- Data and info on views (cmd & msg)
 type Viewinfo struct {
-	Commands []string
-	Prompt   string
-	Curline  int
-	Numlines int
+	Commands []string // History of commands
+	Prompt   string   // Command line prompt prefix
+	Curline  int      // What is my current line #
+	Numlines int      // How many lines do we have
 }
-
-// Cinfo - Information held on the cmd view
-var Cinfo Viewinfo
-
-// Minfo - Information held on the msg view
-var Minfo Viewinfo
 
 // Create ansi sequence for colour change with c format of fg_bg (e.g. red_black)
 func setcolour(c string) string {

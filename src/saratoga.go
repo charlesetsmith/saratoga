@@ -16,8 +16,6 @@ import (
 	"sync"
 	"syscall"
 
-	"screen"
-
 	"github.com/charlesetsmith/saratoga/src/beacon"
 	"github.com/charlesetsmith/saratoga/src/cli"
 	"github.com/charlesetsmith/saratoga/src/data"
@@ -25,6 +23,7 @@ import (
 	"github.com/charlesetsmith/saratoga/src/request"
 	"github.com/charlesetsmith/saratoga/src/sarflags"
 	"github.com/charlesetsmith/saratoga/src/sarnet"
+	"github.com/charlesetsmith/saratoga/src/screen"
 	"github.com/charlesetsmith/saratoga/src/status"
 	"github.com/charlesetsmith/saratoga/src/transfer"
 	"github.com/jroimartin/gocui"
@@ -55,7 +54,6 @@ func backSpace(g *gocui.Gui, v *gocui.View) error {
 	}
 	// Delete rune backwards
 	v.EditDelete(true)
-	// screen.Fprintln(g, "msg", "green_black", "Backspace:", "cx=", cx, "cy=", cy)
 	return nil
 }
 
@@ -82,9 +80,7 @@ func cursorRight(g *gocui.Gui, v *gocui.View) error {
 		return nil
 	}
 	// Move forward a character
-	if err := v.SetCursor(cx+1, cy); err != nil {
-		// screen.Fprintln(g, "msg", "red_black", "RightArrow:", "cx=", cx, "cy=", cy, "error=", err)
-	}
+	v.SetCursor(cx+1, cy)
 	return nil
 }
 
@@ -129,23 +125,16 @@ func cursorUp(g *gocui.Gui, v *gocui.View) error {
 	if v != nil {
 		ox, oy := v.Origin()
 		cx, cy := v.Cursor()
-		// screen.Fprintln(g, "msg", "blue_black", "ox=", ox, "oy=", oy, "cx=", cx, "cy=", cy)
 		err = v.SetCursor(cx, cy-1)
 		if err != nil && oy > 0 { // Reset the origin
-			// screen.Fprintln(g, "msg", "yellow_black", "Reset Origin ", "err=", err, "oy=", oy)
 			if err := v.SetOrigin(ox, oy-1); err != nil {
-				// screen.Fprintln(g, "msg", "red_black", "cursorUp SetOrigin Error:", err)
 				return err
 			}
 			ox, oy = v.Origin()
-			// screen.Fprintln(g, "msg", "red_black", "Reset Origin to:", "ox=", ox, "oy=", oy)
 		}
 		_, cy = v.Cursor()
-		if line, err := v.Line(cy); err != nil {
-			// screen.Fprintln(g, "msg", "red_black", "cy=", cy, "line=", line)
-		} else {
+		if line, err := v.Line(cy); err == nil {
 			v.SetCursor(len(line), cy)
-			// screen.Fprintln(g, "msg", "green_black", "line=<", line, ">cy=", cy)
 		}
 	}
 	return nil
@@ -180,14 +169,13 @@ func getLine(g *gocui.Gui, v *gocui.View) error {
 		// Sarwg.Wait()
 		err := quit(g, v)
 		// THIS IS A KLUDGE FIX IT WITH A CHANNEL
-		log.Fatal("\nGocui Exit. Bye!", err)
+		log.Fatal("\nGocui Kludge Exit. Bye!", err)
 	}
 
 	Cinfo.Curline++
 	// Our new x position will always be after the prompt + 3 for []: chars
 	xpos := len(Cinfo.Prompt) + len(strconv.Itoa(Cinfo.Curline)) + 3
 	// Have we scrolled past the length of v, if so reset the origin
-
 	if err := v.SetCursor(xpos, cy+1); err != nil {
 		// screen.Fprintln(g, "msg", "red_black", "We Scrolled past length of v", err)
 		_, oy := v.Origin()
@@ -288,7 +276,7 @@ func layout(g *gocui.Gui) error {
 		cmd.Overwrite = true
 		cmd.Wrap = true
 	}
-	// This is the message view window - All sorts of status & error messages go here
+	// This is the message view window - Status & error messages go here
 	if msg, err = g.SetView("msg", 0, 0, maxX-1, maxY-maxY/ratio); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
@@ -302,11 +290,6 @@ func layout(g *gocui.Gui) error {
 		msg.Overwrite = false
 		msg.Autoscroll = true
 	}
-
-	// Make sure we have valid Msg & Cmd views
-	// if msg, err = g.SetCurrentView("msg"); err != nil {
-	//      return err
-	// }
 
 	// All inputs happen via the cmd view
 	if cmd, err = g.SetCurrentView("cmd"); err != nil {
@@ -443,7 +426,7 @@ func starxhandler(g *gocui.Gui, s status.Status, conn *net.UDPConn, remoteAddr *
 	return "success"
 }
 
-// Listen -- Go routing for recieving IPv4 & IPv6 for an incoming frames and shunt them off to the
+// Listen -- Go routine for recieving IPv4 & IPv6 for an incoming frames and shunt them off to the
 // correct frame handlers
 func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 
@@ -722,7 +705,7 @@ func main() {
 	sarflags.Cli.Timeout.Transfer = conf.Timeout.Transfer // Seconds
 	sarflags.Cli.Datacnt = conf.Datacounter               // # Data frames between request for status
 	sarflags.Cli.Timezone = conf.Timezone                 // TImezone to use for logs
-	Cinfo.Prompt = conf.Prompt
+	Cinfo.Prompt = conf.Prompt                            // Prompt Prefix in cmd
 	sarflags.Climu.Unlock()
 	/* for f := range sarflags.Cli.Global {
 		if !sarflags.Valid(f, sarflags.Global[f]) {
@@ -788,13 +771,11 @@ func main() {
 	v6mcastcon, err := net.ListenMulticastUDP("udp6", iface, &v6mcastaddr)
 	if err != nil {
 		screen.Fprintln(g, "msg", "green_black", "Saratoga Unable to Listen on IPv6 Multicast")
-		// fmt.Println("Saratoga Unable to Listen on IPv6 Multicast")
 		log.Fatal(err)
 	} else {
 		sarnet.SetMulticastLoop(v6mcastcon, "IPv6")
 		go listen(g, v6mcastcon, v6listenquit)
-
-		screen.Fprintln(g, "msg", "green_black", "Saratoga IPv6 Multicast Server started on",
+		screen.Fprintln(g, "msg", "green_black", "Saratoga IPv6 Multicast Listener started on",
 			sarnet.UDPinfo(&v6mcastaddr))
 	}
 
@@ -809,7 +790,7 @@ func main() {
 	} else {
 		sarnet.SetMulticastLoop(v4mcastcon, "IPv4")
 		go listen(g, v4mcastcon, v4listenquit)
-		screen.Fprintln(g, "msg", "green_black", "Saratoga IPv4 Multicast Server started on",
+		screen.Fprintln(g, "msg", "green_black", "Saratoga IPv4 Multicast Listener started on",
 			sarnet.UDPinfo(&v4mcastaddr))
 	}
 
