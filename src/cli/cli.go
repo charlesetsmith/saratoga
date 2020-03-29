@@ -15,9 +15,6 @@ import (
 	"github.com/jroimartin/gocui"
 )
 
-// CurLine -- Current line number in buffer
-var CurLine int
-
 // Remove an entry in a slice of strings by index #
 func removeIndex(s []string, index int) []string {
 	ret := make([]string, 0)
@@ -1331,10 +1328,10 @@ func Docmd(g *gocui.Gui, s string) {
 				fn(g, vals)
 				return
 			}
-			screen.Fprintln(g, "msg", "red_black", "Cannot execute:", vals[0])
+			screen.Fprintln(g, "msg", "bwhite_red", "Cannot execute:", vals[0])
 			return
 		}
 	}
-	screen.Fprintln(g, "msg", "red_black", "Invalid command:", vals[0])
+	screen.Fprintln(g, "msg", "bwhite_red", "Invalid command:", vals[0])
 	return
 }

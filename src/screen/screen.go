@@ -38,14 +38,15 @@ var fg = map[string]string{
 
 // Background Colours (b=bright)
 var bg = map[string]string{
-	"black":    "40",
-	"red":      "41",
-	"green":    "42",
-	"yellow":   "43",
-	"blue":     "44",
-	"magenta":  "45",
-	"cyan":     "46",
-	"white":    "47",
+	"black":   "40",
+	"red":     "41",
+	"green":   "42",
+	"yellow":  "43",
+	"blue":    "44",
+	"magenta": "45",
+	"cyan":    "46",
+	"white":   "47",
+	/* These do not work, they should
 	"bblack":   "100",
 	"bred":     "101",
 	"bgreen":   "102",
@@ -54,20 +55,54 @@ var bg = map[string]string{
 	"bmagenta": "105",
 	"bcyan":    "016",
 	"bwhite":   "107",
+	*/
 }
+
+// Viewinfo -- Data and info on view
+type Viewinfo struct {
+	Commands []string
+	Prompt   string
+	Curline  int
+	Numlines int
+}
+
+// Cinfo - Information held on the cmd view
+var Cinfo Viewinfo
+
+// Minfo - Information held on the msg view
+var Minfo Viewinfo
 
 // Create ansi sequence for colour change with c format of fg_bg (e.g. red_black)
 func setcolour(c string) string {
+
+	var fgok bool
+	var bgok bool
 
 	if c == "off" {
 		return ansiprefix + ansioff + ansipostfix
 	}
 	sequence := strings.Split(c, "_")
+
+	// CHeck that the colors are OK
 	if len(sequence) == 2 {
+		for c := range fg {
+			if sequence[0] == c {
+				fgok = true
+				break
+			}
+		}
+		for c := range bg {
+			if sequence[1] == c {
+				bgok = true
+				break
+			}
+		}
+	}
+	if fgok && bgok {
 		return ansiprefix + fg[sequence[0]] + ansiseparator + bg[sequence[1]] + ansipostfix
 	}
-	// Is an error so make it jump out at us
-	return ansiprefix + fg["bred"] + ansiseparator + bg["bwhite"] + ansipostfix
+	// Error so make it jump out at us
+	return ansiprefix + fg["bwhite"] + ansiseparator + bg["red"] + ansipostfix
 }
 
 // Fprintf out in ANSII escape sequenace colour
