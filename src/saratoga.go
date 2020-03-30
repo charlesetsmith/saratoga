@@ -299,14 +299,9 @@ func layout(g *gocui.Gui) error {
 	if FirstPass {
 		cmd.SetCursor(0, 0)
 		xpos := len(Cinfo.Prompt) + len(strconv.Itoa(Cinfo.Curline)) + 3
-		ypos := 0
 		Cinfo.Curline = 0
 		screen.Fprintf(g, "cmd", "yellow_black", "%s[%d]:", Cinfo.Prompt, Cinfo.Curline)
-		screen.Fprintf(g, "msg", "cyan_black", "x=%d y=%d\n", xpos, ypos)
 		cmd.SetCursor(xpos, 0)
-		cx, cy := cmd.Cursor()
-		screen.Fprintf(g, "msg", "cyan_black", "xpos=%d ypos=%d cx=%d cy=%d\n",
-			xpos, ypos, cx, cy)
 		FirstPass = false
 	}
 	return nil
