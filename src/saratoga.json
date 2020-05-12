@@ -13,6 +13,7 @@
 	"timezone" :       	"utc",
 	"sardir" :		    "~/sardir",
         "prompt" :          "saratoga",
+        "ppad"  :   3,
 	"timeout" : {
 		"metadata" : 	55,
 		"request" :  	56,

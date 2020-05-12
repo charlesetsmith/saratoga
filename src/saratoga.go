@@ -35,6 +35,11 @@ var Cinfo screen.Viewinfo
 // Minfo - Information held on the msg view
 var Minfo screen.Viewinfo
 
+// Return the length of the prompt
+func promptlen(v screen.Viewinfo) int {
+	return len(v.Prompt) + len(strconv.Itoa(v.Curline)) + v.Ppad
+}
+
 func switchView(g *gocui.Gui, v *gocui.View) error {
 	var err error
 
@@ -46,10 +51,13 @@ func switchView(g *gocui.Gui, v *gocui.View) error {
 	return err
 }
 
-// Handle Backspace or Delete
+// Backspace or Delete
 func backSpace(g *gocui.Gui, v *gocui.View) error {
+	if g == nil || v == nil {
+		log.Fatal("backSpace - g or v is nil")
+	}
 	cx, _ := v.Cursor()
-	if cx <= len(Cinfo.Prompt)+len(strconv.Itoa(Cinfo.Curline))+3 { // Dont move
+	if cx <= promptlen(Cinfo) { // Dont move we are at the prompt
 		return nil
 	}
 	// Delete rune backwards
@@ -57,85 +65,87 @@ func backSpace(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
-// Handle Left Arrow Move
+// Handle Left Arrow Move -- All good
 func cursorLeft(g *gocui.Gui, v *gocui.View) error {
+	if g == nil || v == nil {
+		log.Fatal("cursorLeft - g or v is nil")
+	}
 	cx, cy := v.Cursor()
-	if cx <= len(Cinfo.Prompt)+len(strconv.Itoa(Cinfo.Curline))+3 { // Dont move
+	if cx <= promptlen(Cinfo) { // Dont move
 		return nil
 	}
 	// Move back a character
 	if err := v.SetCursor(cx-1, cy); err != nil {
-		screen.Fprintln(g, "msg", "bwhite_red", "LeftArrow:", "cx=", cx, "cy=", cy, "error=", err)
+		screen.Fprintln(g, "msg", "bwhite_black", "LeftArrow:", "cx=", cx, "cy=", cy, "error=", err)
 	}
 	return nil
 }
 
 // Handle Right Arrow Move - All good
 func cursorRight(g *gocui.Gui, v *gocui.View) error {
+	if g == nil || v == nil {
+		log.Fatal("cursorRight - g or v is nil")
+	}
 	cx, cy := v.Cursor()
 	line, _ := v.Line(cy)
-	// screen.Fprintln(g, "msg", "blue_black", "RightArrow:", "cx=", cx, "cy=", cy, "linelen=", len(line))
 	if cx >= len(line)-1 { // We are at the end of line do nothing
 		v.SetCursor(len(line), cy)
 		return nil
 	}
 	// Move forward a character
-	v.SetCursor(cx+1, cy)
-	return nil
-}
-
-// Handle down cursor - Not quite right yet
-func cursorDown(g *gocui.Gui, v *gocui.View) error {
-	var err error
-
-	if v != nil {
-		cx, cy := v.Cursor()
-
-		// screen.Fprintln(g, "msg", "blue_black", "lines=", len(v.BufferLines()),
-		// 	"cx=", cx, "cy=", cy)
-		err = v.SetCursor(cx, cy+1)
-		if err != nil {
-			ox, oy := v.Origin()
-			// screen.Fprintln(g, "msg", "yellow_black", "Reset Origin ", "err=", err, "oy=", oy)
-			if err := v.SetOrigin(ox, oy+1); err != nil {
-				// screen.Fprintln(g, "msg", "red_black", "cursorDown SetOrigin Error:", err)
-				return err
-			}
-			ox, oy = v.Origin()
-			// screen.Fprintln(g, "msg", "red_black", "Reset Origin to:", "ox=", ox, "oy=", oy)
-		}
-		_, cy = v.Cursor()
-		if line, err := v.Line(cy); err != nil {
-
-			// screen.Fprintln(g, "msg", "red_black", "cy=", cy, "line=", line, "err=", err)
-			v.SetCursor(len(v.BufferLines()[cy-1]), cy-1)
-		} else {
-			// screen.Fprintln(g, "msg", "red_black", "blip")
-			v.SetCursor(len(line), cy)
-		}
-		// screen.Fprintln(g, "msg", "green_black", "line=<", line, ">cy=", cy)
+	if err := v.SetCursor(cx+1, cy); err != nil {
+		screen.Fprintln(g, "msg", "bwhite_red", "RightArrow:", "cx=", cx, "cy=", cy, "error=", err)
 	}
 	return nil
 }
 
-// Handle up cursor
-func cursorUp(g *gocui.Gui, v *gocui.View) error {
-	var err error
+// Handle down cursor -- All good!
+// well not quite, still issue if we scroll down before hitting return
+func cursorDown(g *gocui.Gui, v *gocui.View) error {
+	if g == nil || v == nil {
+		log.Fatal("cursorDown - g or v is nil")
+	}
+	_, oy := v.Origin()
+	cx, cy := v.Cursor()
 
-	if v != nil {
-		ox, oy := v.Origin()
-		cx, cy := v.Cursor()
-		err = v.SetCursor(cx, cy-1)
-		if err != nil && oy > 0 { // Reset the origin
-			if err := v.SetOrigin(ox, oy-1); err != nil {
-				return err
-			}
-			ox, oy = v.Origin()
+	// Don't move down if we are at the last line in current views Bufferlines
+	if oy+cy >= len(v.BufferLines())-1 {
+		return nil
+	}
+	err := v.SetCursor(cx, cy+1)
+	if err != nil { // Reset the origin
+		if err := v.SetOrigin(0, oy+1); err != nil { // changed ox to 0
+			screen.Fprintf(g, "msg", "bwhite_red", "SetOrigin error=%s", err)
+			return err
 		}
-		_, cy = v.Cursor()
-		if line, err := v.Line(cy); err == nil {
-			v.SetCursor(len(line), cy)
+
+	}
+	// Move the cursor to the end of the current line
+	_, cy = v.Cursor()
+	if line, err := v.Line(cy); err == nil {
+		v.SetCursor(len(line), cy)
+	}
+	return nil
+}
+
+// Handle up cursor -- All good!
+func cursorUp(g *gocui.Gui, v *gocui.View) error {
+	if g == nil || v == nil {
+		log.Fatal("cursorUp - g or v is nil")
+	}
+	_, oy := v.Origin()
+	cx, cy := v.Cursor()
+	err := v.SetCursor(cx, cy-1)
+	if err != nil && oy > 0 { // Reset the origin
+		if err := v.SetOrigin(0, oy-1); err != nil { // changed ox to 0
+			screen.Fprintf(g, "msg", "bwhite_red", "SetOrigin error=%s", err)
+			return err
 		}
+	}
+	// Move the cursor to the end of the current line
+	_, cy = v.Cursor()
+	if line, err := v.Line(cy); err == nil {
+		v.SetCursor(len(line), cy)
 	}
 	return nil
 }
@@ -148,12 +158,15 @@ var Sarwg sync.WaitGroup
 
 // This is where we process command line inputs after a CR entered
 func getLine(g *gocui.Gui, v *gocui.View) error {
+	if g == nil || v == nil {
+		log.Fatal("getLine - g or v is nil")
+	}
 	// Find out where we are
 	_, cy := v.Cursor()
 	// Get the line
 	line, _ := v.Line(cy)
 	// screen.Fprintf(g, "msg", "red_black", "cx=%d cy=%d lines=%d line=%s\n",
-	// len(v.BufferLines()), cx, cy, line)
+	//      len(v.BufferLines()), cx, cy, line)
 	command := strings.SplitN(line, ":", 2)
 	if command[1] == "" { // We have just hit enter - do nothing
 		return nil
@@ -169,29 +182,30 @@ func getLine(g *gocui.Gui, v *gocui.View) error {
 		// Sarwg.Wait()
 		err := quit(g, v)
 		// THIS IS A KLUDGE FIX IT WITH A CHANNEL
-		log.Fatal("\nGocui Kludge Exit. Bye!", err)
+		log.Fatal("\nGocui Exit. Bye!", err)
 	}
 
 	Cinfo.Curline++
 	// Our new x position will always be after the prompt + 3 for []: chars
-	xpos := len(Cinfo.Prompt) + len(strconv.Itoa(Cinfo.Curline)) + 3
+	xpos := promptlen(Cinfo)
 	// Have we scrolled past the length of v, if so reset the origin
+
 	if err := v.SetCursor(xpos, cy+1); err != nil {
 		// screen.Fprintln(g, "msg", "red_black", "We Scrolled past length of v", err)
 		_, oy := v.Origin()
 		// screen.Fprintf(g, "msg", "red_black", "Origin reset ox=%d oy=%d\n", ox, oy)
-		if err := v.SetOrigin(xpos, oy+1); err != nil {
-			screen.Fprintln(g, "msg", "bwhite_red", "SetOrigin Error:", err)
+		if err := v.SetOrigin(0, oy+1); err != nil { // changed xpos to 0
+			// screen.Fprintln(g, "msg", "red_black", "SetOrigin Error:", err)
 			return err
 		}
 		// Set the cursor to last line in v
 		if verr := v.SetCursor(xpos, cy); verr != nil {
-			screen.Fprintln(g, "msg", "bwhite_red", "Setcursor out of bounds:", verr)
+			screen.Fprintln(g, "msg", "bwite_red", "Setcursor out of bounds:", verr)
 		}
 		// cx, cy := v.Cursor()
 		// screen.Fprintf(g, "msg", "red_black", "cx=%d cy=%d line=%s\n", cx, cy, line)
 	}
-	// Put up the new prompt on the next line of format prompt[numb]:
+	// Put up the new prompt on the next line
 	screen.Fprintf(g, "cmd", "yellow_black", "\n%s[%d]:", Cinfo.Prompt, Cinfo.Curline)
 	return nil
 }
@@ -631,6 +645,7 @@ type Config struct {
 	Timezone    string   // What timezone is to be used in timestamps: utc
 	Sardir      string   // What is the default directory for saratoga files
 	Prompt      string   // Command line prompt: saratoga
+	Ppad        int      // Padding length in prompt for []:
 	Timeout     Timeouts // Various Timers
 	Datacounter int      // How many data frames received before a status is requested
 }
@@ -701,6 +716,8 @@ func main() {
 	sarflags.Cli.Datacnt = conf.Datacounter               // # Data frames between request for status
 	sarflags.Cli.Timezone = conf.Timezone                 // TImezone to use for logs
 	Cinfo.Prompt = conf.Prompt                            // Prompt Prefix in cmd
+	Cinfo.Ppad = conf.Ppad                                // For []: in prompt
+
 	sarflags.Climu.Unlock()
 	/* for f := range sarflags.Cli.Global {
 		if !sarflags.Valid(f, sarflags.Global[f]) {

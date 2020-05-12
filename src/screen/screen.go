@@ -63,6 +63,7 @@ type Viewinfo struct {
 	Commands []string // History of commands
 	Prompt   string   // Command line prompt prefix
 	Curline  int      // What is my current line #
+	Ppad     int      // Number of pad characters around prompt e.g. prompt[99]: would be 3
 	Numlines int      // How many lines do we have
 }
 
