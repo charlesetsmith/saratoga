@@ -69,7 +69,7 @@ func WriteErrStatus(g *gocui.Gui, flags string, session uint32, conn *net.UDPCon
 	return "success"
 }
 
-// WriteStatus -- compose & semd status frames
+// WriteStatus -- compose & send status frames
 // Our connection to the client is conn
 // We assemble Status using sflags
 // We transmit status immediately

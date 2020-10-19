@@ -699,7 +699,7 @@ func main() {
 		sarflags.Cli.Global["descriptor"] = "d64"
 	default: // All else leave it as the default based upon Maxint size
 	}
-	// Give them the defauls set in saratoga JSON congig
+	// Give them the defauls set in saratoga JSON config
 	sarflags.Cli.Global["csumtype"] = conf.Csumtype
 	sarflags.Cli.Global["freespace"] = conf.Freespace
 	sarflags.Cli.Global["txwilling"] = conf.Txwilling

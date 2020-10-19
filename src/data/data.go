@@ -198,7 +198,7 @@ func (d *Data) Put() ([]byte, error) {
 	return frame, nil
 }
 
-// Print - Print out details of Beacon struct
+// Print - Print out full details of Data struct
 func (d Data) Print() string {
 	sflag := fmt.Sprintf("Data: 0x%x\n", d.Header)
 	dflags := sarflags.Values("data")
@@ -215,7 +215,7 @@ func (d Data) Print() string {
 	return sflag
 }
 
-// ShortPrint - Print out details of Beacon struct
+// ShortPrint - Print out minimal details of Data struct
 func (d Data) ShortPrint() string {
 	sflag := fmt.Sprintf("Data: 0x%x ", d.Header)
 	dflags := sarflags.Values("data")
