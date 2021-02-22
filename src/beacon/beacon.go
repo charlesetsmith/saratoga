@@ -214,6 +214,11 @@ func (b Beacon) Print() string {
 	return sflag
 }
 
+// ShortPrint - Quick printout of Beacon struct
+func (b Beacon) ShortPrint() string {
+	return b.Print()
+}
+
 // Send - Send a IPv4 or IPv6 beacon to a server
 func (b *Beacon) Send(g *gocui.Gui, addr string, count uint, interval uint, errflag chan string) {
 

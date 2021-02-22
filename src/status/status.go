@@ -231,3 +231,8 @@ func (s Status) Print() string {
 	}
 	return sflag
 }
+
+// ShortPrint - Quick print out of Status struct
+func (s Status) ShortPrint() string {
+	return s.Print()
+}

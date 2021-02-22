@@ -204,3 +204,8 @@ func (m MetaData) Print() string {
 	sflag += fmt.Sprintf("%s", m.Dir.Print())
 	return sflag
 }
+
+// ShortPrint - Print out details of MetaData struct
+func (m MetaData) ShortPrint() string {
+	return m.Print()
+}
