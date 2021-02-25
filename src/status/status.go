@@ -68,6 +68,30 @@ func (s *Status) New(flags string, session uint32, progress uint64, inrespto uin
 	return nil
 }
 
+// Make - Construct a status frame with a given header
+func (s *Status) Make(header uint32, session uint32, progress uint64, inrespto uint64, holes holes.Holes) error {
+
+	var err error
+
+	if header, err = sarflags.Set(header, "version", "v1"); err != nil {
+		return err
+	}
+	if header, err = sarflags.Set(header, "frametype", "status"); err != nil {
+		return err
+	}
+
+	s.Header = header
+	s.Session = session
+	s.Progress = progress
+	s.Inrespto = inrespto
+	for i := range holes {
+		s.Holes[i].Start = holes[i].Start
+		s.Holes[i].End = holes[i].End
+	}
+
+	return nil
+}
+
 // Put - Encode the Saratoga Status frame
 func (s Status) Put() ([]byte, error) {
 

@@ -53,8 +53,7 @@ func (r *Request) New(flags string, session uint32, fname string, auth []byte) e
 	return nil
 }
 
-// Make - Construct a request frame with a given header - return byte slice of frame
-// Flags is of format "flagname1=flagval1,flagname2=flagval2...
+// Make - Construct a request frame with a given header
 func (r *Request) Make(header uint32, session uint32, fname string, auth []byte) error {
 
 	var err error
