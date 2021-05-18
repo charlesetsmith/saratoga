@@ -5,16 +5,16 @@ import (
 )
 
 // ****************************************************************************************
-// THE HOLE HANDLER - All you can do is Add to a slice if Fills or Getholes from it
+// THE HOLE HANDLER - All you can do is Add to a slice of Fills or Getholes from it
 // A Fills slice states what data has been received.
 // A complete Fill will have a single slice entry of [0,n] where n is the total length
-// of the data buffer being transferred - NOTE It is an int struc so for uint64 size
+// of the data buffer being transferred - NOTE It is an int struct so for uint64 size
 // transfers there will be multiple buffers. i.e. You transfer the buffer size, wait for
 // it to have a slice size of [0,buffersize] i.e. all holes filled and then move on to the next
 // buffer
 // ****************************************************************************************
 
-// Hole -- Beggining and End of a hole
+// Hole -- Begining and End of a hole
 // e.g. [0,1] Hole starts at index 0 up to 1 so is 1 byte long
 // e.g. [5,7] Hole starts at index 5 up to 7 so is 2 bytes long
 // Start is "from" and End is "up to but not including"
@@ -24,6 +24,7 @@ type Hole struct {
 }
 
 // Holes - Slices of Hole or Fill
+// The MUST be sorted, thats why Add has a sort in it to reorder the Holes
 type Holes []Hole
 
 // Removes an entry from Holes slice
@@ -67,7 +68,7 @@ func (fills Holes) optimise() Holes {
 // So in the End we have a slice that has a single entry that contains the complete block [0,n]
 // that means we have everything and there are no holes
 func (fills Holes) Add(start int, end int) Holes {
-	if end <= start { // Error check it jsut in case
+	if end <= start { // Error check it just in case
 		return fills
 	}
 	fill := Hole{start, end}
@@ -85,7 +86,7 @@ func (fills Holes) Add(start int, end int) Holes {
 }
 
 // Getholes - return the slice of actual holes from Fills
-// THis is used to construct the Holes in Status Frames
+// This is used to construct the Holes in Status Frames
 func (fills Holes) Getholes() Holes {
 	var holes []Hole
 
