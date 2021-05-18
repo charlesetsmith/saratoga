@@ -148,186 +148,187 @@ const fieldmsb = 1
 // The 1 element (fieldmsb) value in the uint32[2] is the bit offset from the front.
 // This is all in network byte order
 var flagbits = map[string][2]uint32{
-	"version":       [2]uint32{3, 0},
-	"frametype":     [2]uint32{5, 3},
-	"descriptor":    [2]uint32{2, 8},
-	"stream":        [2]uint32{1, 11},
-	"transfer":      [2]uint32{2, 10},
-	"reqtstamp":     [2]uint32{1, 12},
-	"progress":      [2]uint32{1, 12},
-	"txwilling":     [2]uint32{2, 12},
-	"udptype":       [2]uint32{1, 13},
-	"metadatarecvd": [2]uint32{1, 13},
-	"allholes":      [2]uint32{1, 14},
-	"reqtype":       [2]uint32{8, 24},
-	"rxwilling":     [2]uint32{2, 14},
-	"reqholes":      [2]uint32{1, 15},
-	"fileordir":     [2]uint32{1, 15},
-	"reqstatus":     [2]uint32{1, 15},
-	"udplite":       [2]uint32{1, 16},
-	"eod":           [2]uint32{1, 16},
-	"freespace":     [2]uint32{1, 17},
-	"freespaced":    [2]uint32{2, 18},
-	"csumlen":       [2]uint32{4, 24},
-	"csumtype":      [2]uint32{4, 28},
-	"errcode":       [2]uint32{8, 24},
+	"version":       {3, 0},
+	"frametype":     {5, 3},
+	"descriptor":    {2, 8},
+	"stream":        {1, 11},
+	"transfer":      {2, 10},
+	"reqtstamp":     {1, 12},
+	"progress":      {1, 12},
+	"txwilling":     {2, 12},
+	"udptype":       {1, 13},
+	"metadatarecvd": {1, 13},
+	"allholes":      {1, 14},
+	"reqtype":       {8, 24},
+	"rxwilling":     {2, 14},
+	"reqholes":      {1, 15},
+	"fileordir":     {1, 15},
+	"reqstatus":     {1, 15},
+	"udplite":       {1, 16},
+	"eod":           {1, 16},
+	"freespace":     {1, 17},
+	"freespaced":    {2, 18},
+	"csumlen":       {4, 24},
+	"csumtype":      {4, 28},
+	"errcode":       {8, 24},
 }
 
 // Map of which flags are applicable to which frame types
 var flagframe = map[string][]string{
-	"version":       []string{"beacon", "request", "metadata", "data", "status"},
-	"frametype":     []string{"beacon", "request", "metadata", "data", "status"},
-	"descriptor":    []string{"beacon", "request", "metadata", "data", "status"},
-	"stream":        []string{"beacon", "request"},
-	"transfer":      []string{"metadata", "data"},
-	"reqtstamp":     []string{"data", "status"},
-	"progress":      []string{"metadata"},
-	"txwilling":     []string{"beacon"},
-	"udptype":       []string{"metadata"},
-	"metadatarecvd": []string{"status"},
-	"allholes":      []string{"status"},
-	"reqtype":       []string{"request"},
-	"rxwilling":     []string{"beacon"},
-	"reqholes":      []string{"status"},
-	"fileordir":     []string{"request"},
-	"reqstatus":     []string{"data"},
-	"udplite":       []string{"beacon", "request"},
-	"eod":           []string{"data"},
-	"freespace":     []string{"beacon"},
-	"freespaced":    []string{"beacon"},
-	"csumlen":       []string{"metadata"},
-	"csumtype":      []string{"metadata"},
-	"errcode":       []string{"status"},
+	"version":       {"beacon", "request", "metadata", "data", "status"},
+	"frametype":     {"beacon", "request", "metadata", "data", "status"},
+	"descriptor":    {"beacon", "request", "metadata", "data", "status"},
+	"stream":        {"beacon", "request"},
+	"transfer":      {"metadata", "data"},
+	"reqtstamp":     {"data", "status"},
+	"progress":      {"metadata"},
+	"txwilling":     {"beacon"},
+	"udptype":       {"metadata"},
+	"metadatarecvd": {"status"},
+	"allholes":      {"status"},
+	"reqtype":       {"request"},
+	"rxwilling":     {"beacon"},
+	"reqholes":      {"status"},
+	"fileordir":     {"request"},
+	"reqstatus":     {"data"},
+	"udplite":       {"beacon", "request"},
+	"eod":           {"data"},
+	"freespace":     {"beacon"},
+	"freespaced":    {"beacon"},
+	"csumlen":       {"metadata"},
+	"csumtype":      {"metadata"},
+	"errcode":       {"status"},
 }
 
-/*
- Frame types with applicable flags:
-	"beacon": "version", "frametype", "descriptor", "stream", "txwilling", "rxwilling", "udplite", "freespace", "freespaced"
-	"request": "version", "frametype", "descriptor", "stream", "reqtype", "fileordir", "udplite"
-	"metadata": "version", "frametype", "descriptor, "transfer", "progress", "udptype", "csumlen", "csumtype"
-	"data": "version", "frametype", "descriptor", "transfer", "reqtstamp", "reqstatus", "eod"
-	"status": "version", "frametype", "descriptor", "reqtstamp", "metadatarecvd", "allholes", "reqholes", "errcode"
-*/
+// Map of which frametypes are applicable to which flags
+var frameflag = map[string][]string{
+	"beacon":   {"version", "frametype", "descriptor", "stream", "txwilling", "rxwilling", "udplite", "freespace", "freespaced"},
+	"request":  {"version", "frametype", "descriptor", "stream", "reqtype", "fileordir", "udplite"},
+	"metadata": {"version", "frametype", "descriptor", "transfer", "progress", "udptype", "csumlen", "csumtype"},
+	"data":     {"version", "frametype", "descriptor", "transfer", "reqtstamp", "reqstatus", "eod"},
+	"status":   {"version", "frametype", "descriptor", "reqtstamp", "metadatarecvd", "allholes", "reqholes", "errcode"},
+}
 
 type flaginfo struct {
 	name string
 	val  uint32
 }
 
+// Map of the flags and thier respective values
 var flagvals = map[string][]flaginfo{
-	"version": []flaginfo{ // "beacon", "request", "metadata", "data", "status"
-		flaginfo{name: "v0", val: 0},
-		flaginfo{name: "v1", val: 1},
+	"version": { // "beacon", "request", "metadata", "data", "status"
+		flaginfo{name: "v0", val: 0x0},
+		flaginfo{name: "v1", val: 0x1},
 	},
-	"frametype": []flaginfo{ // "beacon", "request", "metadata", "data", "status"
-		flaginfo{name: "beacon", val: 0},
-		flaginfo{name: "request", val: 1},
-		flaginfo{name: "metadata", val: 2},
-		flaginfo{name: "data", val: 3},
-		flaginfo{name: "status", val: 4},
+	"frametype": { // "beacon", "request", "metadata", "data", "status"
+		flaginfo{name: "beacon", val: 0x0},
+		flaginfo{name: "request", val: 0x1},
+		flaginfo{name: "metadata", val: 0x2},
+		flaginfo{name: "data", val: 0x3},
+		flaginfo{name: "status", val: 0x4},
 	},
-	"descriptor": []flaginfo{ // "beacon", "request", "metadata", "data", "status"
-		flaginfo{name: "d16", val: 0},
-		flaginfo{name: "d32", val: 1},
-		flaginfo{name: "d64", val: 2},
+	"descriptor": { // "beacon", "request", "metadata", "data", "status"
+		flaginfo{name: "d16", val: 0x0},
+		flaginfo{name: "d32", val: 0x1},
+		flaginfo{name: "d64", val: 0x2},
 		// flaginfo{name: "d128", val: 3}, INVALID AT THIS TIME WAIT FOR 128 bit int's
 	},
-	"stream": []flaginfo{ // "beacon", "request"
-		flaginfo{name: "no", val: 0},
-		flaginfo{name: "yes", val: 1},
+	"stream": { // "beacon", "request"
+		flaginfo{name: "no", val: 0x0},
+		flaginfo{name: "yes", val: 0x1},
 	},
-	"transfer": []flaginfo{ // "metadata", "data"
-		flaginfo{name: "file", val: 0},
-		flaginfo{name: "directory", val: 1},
-		flaginfo{name: "bundle", val: 2},
-		flaginfo{name: "stream", val: 3},
+	"transfer": { // "metadata", "data"
+		flaginfo{name: "file", val: 0x0},
+		flaginfo{name: "directory", val: 0x1},
+		flaginfo{name: "bundle", val: 0x2},
+		flaginfo{name: "stream", val: 0x3},
 	},
-	"reqtstamp": []flaginfo{ // "data", "status"
-		flaginfo{name: "no", val: 0},
-		flaginfo{name: "yes", val: 1},
+	"reqtstamp": { // "data", "status"
+		flaginfo{name: "no", val: 0x0},
+		flaginfo{name: "yes", val: 0x1},
 	},
-	"progress": []flaginfo{ // "metadata"
-		flaginfo{name: "inprogress", val: 0},
-		flaginfo{name: "terminated", val: 1},
+	"progress": { // "metadata"
+		flaginfo{name: "inprogress", val: 0x0},
+		flaginfo{name: "terminated", val: 0x1},
 	},
-	"txwilling": []flaginfo{ // "beacon"
-		flaginfo{name: "no", val: 0},
-		flaginfo{name: "invalid", val: 1},
-		flaginfo{name: "capable", val: 2},
-		flaginfo{name: "yes", val: 3},
+	"txwilling": { // "beacon"
+		flaginfo{name: "no", val: 0x0},
+		flaginfo{name: "invalid", val: 0x1},
+		flaginfo{name: "capable", val: 0x2},
+		flaginfo{name: "yes", val: 0x3},
 	},
-	"udptype": []flaginfo{ // "metadata"
-		flaginfo{name: "udponly", val: 0},
-		flaginfo{name: "udplite", val: 1},
+	"udptype": { // "metadata"
+		flaginfo{name: "udponly", val: 0x0},
+		flaginfo{name: "udplite", val: 0x1},
 	},
-	"metadatarecvd": []flaginfo{ // "status
-		flaginfo{name: "yes", val: 0},
-		flaginfo{name: "no", val: 1},
+	"metadatarecvd": { // "status
+		flaginfo{name: "yes", val: 0x0},
+		flaginfo{name: "no", val: 0x1},
 	},
-	"allholes": []flaginfo{ // "status"
-		flaginfo{name: "yes", val: 0},
-		flaginfo{name: "no", val: 1},
+	"allholes": { // "status"
+		flaginfo{name: "yes", val: 0x0},
+		flaginfo{name: "no", val: 0x1},
 	},
-	"reqtype": []flaginfo{ // "request"
-		flaginfo{name: "noaction", val: 0},
-		flaginfo{name: "get", val: 1},
-		flaginfo{name: "put", val: 2},
-		flaginfo{name: "getdelete", val: 3},
-		flaginfo{name: "putdelete", val: 4},
-		flaginfo{name: "delete", val: 5},
-		flaginfo{name: "getdir", val: 6},
+	"reqtype": { // "request"
+		flaginfo{name: "noaction", val: 0x0},
+		flaginfo{name: "get", val: 0x1},
+		flaginfo{name: "put", val: 0x2},
+		flaginfo{name: "getdelete", val: 0x3},
+		flaginfo{name: "putdelete", val: 0x4},
+		flaginfo{name: "delete", val: 0x5},
+		flaginfo{name: "getdir", val: 0x6},
 	},
-	"rxwilling": []flaginfo{ // "beacon"
-		flaginfo{name: "no", val: 0},
-		//		flaginfo{name: "invalid", val: 1},
-		flaginfo{name: "capable", val: 2},
-		flaginfo{name: "yes", val: 3},
+	"rxwilling": { // "beacon"
+		flaginfo{name: "no", val: 0x0},
+		//		flaginfo{name: "invalid", val: 0x1},
+		flaginfo{name: "capable", val: 0x2},
+		flaginfo{name: "yes", val: 0x3},
 	},
-	"reqholes": []flaginfo{ // "status"
-		flaginfo{name: "requested", val: 0},
-		flaginfo{name: "voluntarily", val: 1},
+	"reqholes": { // "status"
+		flaginfo{name: "requested", val: 0x0},
+		flaginfo{name: "voluntarily", val: 0x1},
 	},
-	"fileordir": []flaginfo{ // "request"
-		flaginfo{name: "file", val: 0},
-		flaginfo{name: "directory", val: 1},
+	"fileordir": { // "request"
+		flaginfo{name: "file", val: 0x0},
+		flaginfo{name: "directory", val: 0x1},
 	},
-	"reqstatus": []flaginfo{ // "data"
-		flaginfo{name: "no", val: 0},
-		flaginfo{name: "yes", val: 1},
+	"reqstatus": { // "data"
+		flaginfo{name: "no", val: 0x0},
+		flaginfo{name: "yes", val: 0x1},
 	},
-	"udplite": []flaginfo{ // "beacon", "request"
-		flaginfo{name: "no", val: 0},
-		flaginfo{name: "yes", val: 1},
+	"udplite": { // "beacon", "request"
+		flaginfo{name: "no", val: 0x0},
+		flaginfo{name: "yes", val: 0x1},
 	},
-	"eod": []flaginfo{ // "data"
-		flaginfo{name: "no", val: 0},
-		flaginfo{name: "yes", val: 1},
+	"eod": { // "data"
+		flaginfo{name: "no", val: 0x0},
+		flaginfo{name: "yes", val: 0x1},
 	},
-	"freespace": []flaginfo{ // "beacon"
-		flaginfo{name: "no", val: 0},
-		flaginfo{name: "yes", val: 1},
+	"freespace": { // "beacon"
+		flaginfo{name: "no", val: 0x0},
+		flaginfo{name: "yes", val: 0x1},
 	},
-	"freespaced": []flaginfo{ // "beacon"
-		flaginfo{name: "d16", val: 0},
-		flaginfo{name: "d32", val: 1},
-		flaginfo{name: "d64", val: 2},
-		// flaginfo{name: "d128", val: 3}, INVALID AT THIS TIME WIAT FOR 128 bit ints
+	"freespaced": { // "beacon"
+		flaginfo{name: "d16", val: 0x0},
+		flaginfo{name: "d32", val: 0x1},
+		flaginfo{name: "d64", val: 0x2},
+		// flaginfo{name: "d128", val: 0x3}, INVALID AT THIS TIME WIAT FOR 128 bit ints
 	},
-	"csumlen": []flaginfo{ // "metadata"
-		flaginfo{name: "none", val: 0},
-		flaginfo{name: "crc32", val: 1},
-		// flaginfo{name: "invalid2", val: 2},
-		// flaginfo{name: "invalid3", val: 3},
-		flaginfo{name: "md5", val: 4},
-		flaginfo{name: "sha1", val: 5},
+	"csumlen": { // "metadata"
+		flaginfo{name: "none", val: 0x0},
+		flaginfo{name: "crc32", val: 0x1},
+		// flaginfo{name: "invalid2", val: 0x2},
+		// flaginfo{name: "invalid3", val: 0x3},
+		flaginfo{name: "md5", val: 0x4},
+		flaginfo{name: "sha1", val: 0x5},
 	},
-	"csumtype": []flaginfo{ // "metadata"
-		flaginfo{name: "none", val: 0},
-		flaginfo{name: "crc32", val: 1},
-		flaginfo{name: "md5", val: 2},
-		flaginfo{name: "sha1", val: 3},
+	"csumtype": { // "metadata"
+		flaginfo{name: "none", val: 0x0},
+		flaginfo{name: "crc32", val: 0x1},
+		flaginfo{name: "md5", val: 0x2},
+		flaginfo{name: "sha1", val: 0x3},
 	},
-	"errcode": []flaginfo{ // "status"
+	"errcode": { // "status"
 		flaginfo{name: "success", val: 0x0},     // Process the status and continue
 		flaginfo{name: "unspecified", val: 0x1}, // All others immediately kill the transfer
 		flaginfo{name: "cantsend", val: 0x2},
@@ -588,11 +589,11 @@ const dflagsize uint16 = 16
 // The 1 element (fieldmsb) value in the uint16[2] is the bit offset from the front.
 // This is all in network byte order
 var dflagbits = map[string][2]uint16{
-	"sod":        [2]uint16{1, 0},
-	"property":   [2]uint16{2, 6},
-	"descriptor": [2]uint16{2, 8},
-	//	"reserved":    [2]uint16{1, 10},
-	"reliability": [2]uint16{1, 13},
+	"sod":        {1, 0},
+	"property":   {2, 6},
+	"descriptor": {2, 8},
+	//	"reserved":    {1, 10},
+	"reliability": {1, 13},
 }
 
 type dflaginfo struct {
@@ -601,27 +602,27 @@ type dflaginfo struct {
 }
 
 var dflagvals = map[string][]dflaginfo{
-	"sod": []dflaginfo{
-		dflaginfo{name: "sod", val: 1},
+	"sod": {
+		dflaginfo{name: "sod", val: 0x1},
 	},
-	"property": []dflaginfo{
-		dflaginfo{name: "normalfile", val: 0},
-		dflaginfo{name: "normaldirectory", val: 1},
-		dflaginfo{name: "specialfile", val: 2},
-		dflaginfo{name: "specialdirectory", val: 3},
+	"property": {
+		dflaginfo{name: "normalfile", val: 0x0},
+		dflaginfo{name: "normaldirectory", val: 0x1},
+		dflaginfo{name: "specialfile", val: 0x2},
+		dflaginfo{name: "specialdirectory", val: 0x3},
 	},
-	"descriptor": []dflaginfo{
-		dflaginfo{name: "d16", val: 0},
-		dflaginfo{name: "d32", val: 1},
-		dflaginfo{name: "d64", val: 2},
-		// dflaginfo{name: "d128", val: 3}, INVALID AS OF THIS TIME WAIT FOR 128 bit int's
+	"descriptor": {
+		dflaginfo{name: "d16", val: 0x0},
+		dflaginfo{name: "d32", val: 0x1},
+		dflaginfo{name: "d64", val: 0x2},
+		// dflaginfo{name: "d128", val: 0x3}, INVALID AS OF THIS TIME WAIT FOR 128 bit int's
 	},
-	//	"reserved": []dflaginfo{
-	//		dflaginfo{name: "reserved", val: 0},
+	//	"reserved": {
+	//		dflaginfo{name: "reserved", val: 0x0},
 	//	},
-	"reliability": []dflaginfo{
-		dflaginfo{name: "yes", val: 0},
-		dflaginfo{name: "no", val: 1},
+	"reliability": {
+		dflaginfo{name: "yes", val: 0x0},
+		dflaginfo{name: "no", val: 0x1},
 	},
 }
 
@@ -774,7 +775,7 @@ const tflagsize uint8 = 8
 // The 1 element (fieldmsb) value in the uint8[2] is the bit offset from the front.
 // This is all in network byte order
 var tflagbits = map[string][2]uint8{
-	"timestamp": [2]uint8{8, 0},
+	"timestamp": {8, 0},
 }
 
 type tflaginfo struct {
@@ -783,13 +784,13 @@ type tflaginfo struct {
 }
 
 var tflagvals = map[string][]tflaginfo{
-	"timestamp": []tflaginfo{
-		tflaginfo{name: "localinterp", val: 0},
-		tflaginfo{name: "posix32", val: 1},
-		tflaginfo{name: "posix64", val: 2},
-		tflaginfo{name: "posix32_32", val: 3},
-		tflaginfo{name: "posix64_32", val: 4},
-		tflaginfo{name: "epoch2000_32", val: 5},
+	"timestamp": {
+		tflaginfo{name: "localinterp", val: 0x0},
+		tflaginfo{name: "posix32", val: 0x1},
+		tflaginfo{name: "posix64", val: 0x2},
+		tflaginfo{name: "posix32_32", val: 0x3},
+		tflaginfo{name: "posix64_32", val: 0x4},
+		tflaginfo{name: "epoch2000_32", val: 0x5},
 	},
 }
 

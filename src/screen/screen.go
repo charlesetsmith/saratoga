@@ -11,21 +11,22 @@ import (
 )
 
 // Ansi Colour Escape Sequences
-var ansiprefix = "\033["
-var ansipostfix = "m"
-var ansiseparator = ";"
-var ansioff = "0" // "\033[0m"
+const ansiprefix = "\033["
+const ansipostfix = "m"
+const ansiseparator = ";"
+const ansioff = "0" // "\033[0m"
 
 // Foreground colours (b=bright)
 var fg = map[string]string{
-	"black":    "30",
-	"red":      "31",
-	"green":    "32",
-	"yellow":   "33",
-	"blue":     "34",
-	"magenta":  "35",
-	"cyan":     "36",
-	"white":    "37",
+	"black":   "30",
+	"red":     "31",
+	"green":   "32",
+	"yellow":  "33",
+	"blue":    "34",
+	"magenta": "35",
+	"cyan":    "36",
+	"white":   "37",
+	// Bright foreground
 	"bblack":   "30;1",
 	"bred":     "31;1",
 	"bgreen":   "32;1",
@@ -46,7 +47,7 @@ var bg = map[string]string{
 	"magenta": "45",
 	"cyan":    "46",
 	"white":   "47",
-	/* These do not work, they should
+	/* Bright background These do not work, they should
 	"bblack":   "100",
 	"bred":     "101",
 	"bgreen":   "102",
@@ -63,7 +64,7 @@ type Viewinfo struct {
 	Commands []string // History of commands
 	Prompt   string   // Command line prompt prefix
 	Curline  int      // What is my current line #
-	Ppad     int      // Number of pad characters around prompt e.g. prompt[99]: would be 3
+	Ppad     int      // Number of pad characters around prompt e.g. prompt[99]: would be 3 for the []:
 	Numlines int      // How many lines do we have
 }
 
@@ -78,7 +79,7 @@ func setcolour(c string) string {
 	}
 	sequence := strings.Split(c, "_")
 
-	// CHeck that the colors are OK
+	// Check that the colors are OK
 	if len(sequence) == 2 {
 		for c := range fg {
 			if sequence[0] == c {

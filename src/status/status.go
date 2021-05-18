@@ -129,7 +129,7 @@ func (s Status) Put() ([]byte, error) {
 		pos = 24
 	}
 	switch dsize {
-	case 2:
+	case 2: // d16 bit descriptor
 		binary.BigEndian.PutUint16(frame[pos:pos+dsize], uint16(s.Progress))
 		pos += dsize
 		binary.BigEndian.PutUint16(frame[pos:pos+dsize], uint16(s.Inrespto))
@@ -140,7 +140,7 @@ func (s Status) Put() ([]byte, error) {
 			binary.BigEndian.PutUint16(frame[pos:pos+dsize], uint16(s.Holes[i].End))
 			pos += dsize
 		}
-	case 4:
+	case 4: // d32 bit descriptor
 		binary.BigEndian.PutUint32(frame[pos:pos+dsize], uint32(s.Progress))
 		pos += dsize
 		binary.BigEndian.PutUint32(frame[pos:pos+4], uint32(s.Inrespto))
@@ -151,7 +151,7 @@ func (s Status) Put() ([]byte, error) {
 			binary.BigEndian.PutUint32(frame[pos:pos+dsize], uint32(s.Holes[i].End))
 			pos += dsize
 		}
-	case 8:
+	case 8: // d64 bit descriptor
 		binary.BigEndian.PutUint64(frame[pos:pos+dsize], uint64(s.Progress))
 		pos += dsize
 		binary.BigEndian.PutUint64(frame[pos:pos+dsize], uint64(s.Inrespto))
