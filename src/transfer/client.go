@@ -27,7 +27,7 @@ import (
 type CTransfer struct {
 	direction string // "client|server"
 	ttype     string // CTransfer type "get,getrm,put,putrm,blindput,rm"
-	tstamp    string // TImestamp type used in transfer
+	tstamp    string // Timestamp type "localinterp,posix32,posix64,posix32_32,posix64_32,epoch2000_32"
 	session   uint32 // Session ID - This is the unique key
 	peer      net.IP // Remote Host
 	filename  string // File name to get from remote host

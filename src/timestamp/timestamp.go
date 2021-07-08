@@ -14,7 +14,7 @@ type Timestamp struct {
 	header uint8
 	secs   uint64
 	nsecs  uint64
-	local  []byte
+	local  string // If we dont have a defined timestamp type then just return what is in flag string
 }
 
 // New - Construct a timestamp - return byte slice of time
@@ -32,9 +32,6 @@ func (t *Timestamp) New(flag string, ts time.Time) error {
 	t.header = header
 
 	switch flag {
-	case "localinterp":
-		t.local = make([]byte, 15)
-		copy(t.local, "LOCALINTERPXXXX")
 	case "posix32":
 		secs := ts.Unix()
 		t.secs = uint64(secs)
@@ -42,12 +39,12 @@ func (t *Timestamp) New(flag string, ts time.Time) error {
 			return errors.New("posix32:Seconds exceed 32 bits")
 		}
 		t.nsecs = 0
-		t.local = nil
+		t.local = ""
 	case "posix64":
 		secs := ts.Unix()
 		t.secs = uint64(secs)
 		t.nsecs = 0
-		t.local = nil
+		t.local = ""
 	case "posix32_32":
 		nsecs := ts.UnixNano()
 		t.secs = uint64(nsecs / 1e9)
@@ -55,7 +52,7 @@ func (t *Timestamp) New(flag string, ts time.Time) error {
 		if t.secs > sarflags.MaxUint32 {
 			return errors.New("posix32_32:Seconds exceed 32 bits")
 		}
-		t.local = nil
+		t.local = ""
 	case "posix64_32":
 		nsecs := ts.UnixNano()
 		t.secs = uint64(nsecs / 1e9)
@@ -63,7 +60,7 @@ func (t *Timestamp) New(flag string, ts time.Time) error {
 		if t.nsecs > sarflags.MaxUint32 {
 			return errors.New("posix64_32:Remainder exceed 32 bits")
 		}
-		t.local = nil
+		t.local = ""
 	case "epoch2000_32":
 		epoch2k, _ := time.Parse(time.RFC3339, "2000-01-01T00:00:00Z")
 		secs := ts.Unix()
@@ -73,8 +70,9 @@ func (t *Timestamp) New(flag string, ts time.Time) error {
 			return errors.New("epoch2000_32:Seconds out of bounds")
 		}
 		t.nsecs = 0
-		t.local = nil
-	default: // Dont know this timestamp type
+		t.local = ""
+	default: // localinterp Dont know this timestamp type so whatever is in flag is used
+		t.local = flag
 		e := "Invalid timestamp type " + flag
 		return errors.New(e)
 	}
@@ -88,8 +86,6 @@ func (t Timestamp) Put() []byte {
 
 	tstamp[0] = byte(t.header)
 	switch sarflags.NameT(t.header) {
-	case "localinterp":
-		copy(tstamp[1:], t.local)
 	case "posix32":
 		binary.BigEndian.PutUint32(tstamp[1:5], uint32(t.secs))
 		copy(tstamp[5:], "")
@@ -107,7 +103,8 @@ func (t Timestamp) Put() []byte {
 	case "epoch2000_32":
 		binary.BigEndian.PutUint32(tstamp[1:5], uint32(t.secs))
 		copy(tstamp[5:], "")
-	default: // Dont know this timestamp type
+	default: // Dont know this timestamp type so is local but only first 15 bytes
+		copy(tstamp[1:15], t.local)
 	}
 	return tstamp
 }
@@ -127,36 +124,30 @@ func (t *Timestamp) Get(tstamp []byte) error {
 
 	t.header = tstamp[0]
 	switch sarflags.GetTStr(t.header) {
-	case "localinterp":
-		copy(t.local, tstamp[1:])
-		t.secs = 0
-		t.nsecs = 0
-		t.local = make([]byte, 15)
-		copy(t.local, tstamp[1:])
 	case "posix32":
 		t.secs = uint64(binary.BigEndian.Uint32(tstamp[1:5]))
 		t.nsecs = 0
-		t.local = nil
+		t.local = ""
 	case "posix64":
 		t.secs = uint64(binary.BigEndian.Uint64(tstamp[1:9]))
 		t.nsecs = 0
-		t.local = nil
+		t.local = ""
 	case "posix32_32":
 		t.secs = uint64(binary.BigEndian.Uint32(tstamp[1:5]))
 		t.nsecs = uint64(binary.BigEndian.Uint32(tstamp[5:9]))
-		t.local = nil
+		t.local = ""
 	case "posix64_32":
 		t.secs = uint64(binary.BigEndian.Uint64(tstamp[1:9]))
 		t.nsecs = uint64(binary.BigEndian.Uint32(tstamp[9:13]))
-		t.local = nil
+		t.local = ""
 	case "epoch2000_32":
 		t.secs = uint64(binary.BigEndian.Uint32(tstamp[1:5]))
 		t.nsecs = 0
-		t.local = nil
+		t.local = ""
 	default:
 		t.secs = 0
 		t.nsecs = 0
-		t.local = nil
+		t.local = string(tstamp[1:15])
 		return errors.New("timestamp.Get: Invalid Timestamp")
 	}
 	return nil
@@ -186,6 +177,6 @@ func (t Timestamp) Print() string {
 		ti = ti.UTC()
 		return ti.Format("Mon Jan _2 15:04:05 2006 UTC")
 	default:
-		return "LOCALINTERP"
+		return t.local
 	}
 }
