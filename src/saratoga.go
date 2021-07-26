@@ -641,7 +641,7 @@ type Config struct {
 	Reqtstamp   string   // Request timestamps: yes,no
 	Reqstatus   string   // Request status frame to be sent/received: yes,no
 	Udplite     string   // Is UDP Lite supported: yes,no
-	Timestamp   string   // What is the default timestamp format: posix64
+	Timestamp   string   // What is the default timestamp format: anything for local,posix32,posix32_323,posix64,posix64_32,epoch2000_32,
 	Timezone    string   // What timezone is to be used in timestamps: utc
 	Sardir      string   // What is the default directory for saratoga files
 	Prompt      string   // Command line prompt: saratoga

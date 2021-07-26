@@ -73,8 +73,6 @@ func (t *Timestamp) New(flag string, ts time.Time) error {
 		t.local = ""
 	default: // localinterp Dont know this timestamp type so whatever is in flag is used
 		t.local = flag
-		e := "Invalid timestamp type " + flag
-		return errors.New(e)
 	}
 	return nil
 }
