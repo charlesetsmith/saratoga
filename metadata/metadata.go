@@ -7,9 +7,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/charlesetsmith/saratoga/src/dirent"
-	"github.com/charlesetsmith/saratoga/src/frames"
-	"github.com/charlesetsmith/saratoga/src/sarflags"
+	"github.com/charlesetsmith/saratoga/dirent"
+	"github.com/charlesetsmith/saratoga/frames"
+	"github.com/charlesetsmith/saratoga/sarflags"
 )
 
 // MetaData -- Holds MetaData frame information

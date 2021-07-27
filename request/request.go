@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charlesetsmith/saratoga/src/sarflags"
+	"github.com/charlesetsmith/saratoga/sarflags"
 )
 
 // Request -- Holds Request frame information

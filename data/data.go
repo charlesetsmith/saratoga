@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charlesetsmith/saratoga/src/sarflags"
-	"github.com/charlesetsmith/saratoga/src/timestamp"
+	"github.com/charlesetsmith/saratoga/sarflags"
+	"github.com/charlesetsmith/saratoga/timestamp"
 )
 
 // Data -- Holds Data frame information

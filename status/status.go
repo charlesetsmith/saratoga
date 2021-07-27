@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charlesetsmith/saratoga/src/holes"
-	"github.com/charlesetsmith/saratoga/src/sarflags"
-	"github.com/charlesetsmith/saratoga/src/timestamp"
+	"github.com/charlesetsmith/saratoga/holes"
+	"github.com/charlesetsmith/saratoga/sarflags"
+	"github.com/charlesetsmith/saratoga/timestamp"
 )
 
 // Status -- Status of the transfer and holes

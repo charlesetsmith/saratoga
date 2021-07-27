@@ -10,7 +10,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/charlesetsmith/saratoga/src/sarflags"
+	"github.com/charlesetsmith/saratoga/sarflags"
 )
 
 // IEEE - polynomial used for CRC32

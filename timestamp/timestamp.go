@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charlesetsmith/saratoga/src/sarflags"
+	"github.com/charlesetsmith/saratoga/sarflags"
 )
 
 // Timestamp -- Holds Beacon tstamp information

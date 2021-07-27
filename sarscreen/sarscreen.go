@@ -1,6 +1,6 @@
 // Handle screen outputs for views in colours
 
-package screen
+package sarscreen
 
 import (
 	"fmt"

@@ -7,11 +7,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/charlesetsmith/saratoga/src/beacon"
-	"github.com/charlesetsmith/saratoga/src/sarflags"
-	"github.com/charlesetsmith/saratoga/src/sarnet"
-	"github.com/charlesetsmith/saratoga/src/screen"
-	"github.com/charlesetsmith/saratoga/src/transfer"
+	"github.com/charlesetsmith/saratoga/beacon"
+	"github.com/charlesetsmith/saratoga/sarflags"
+	"github.com/charlesetsmith/saratoga/sarnet"
+	"github.com/charlesetsmith/saratoga/sarscreen"
+	"github.com/charlesetsmith/saratoga/transfer"
 	"github.com/jroimartin/gocui"
 )
 

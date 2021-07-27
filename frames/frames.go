@@ -1,6 +1,6 @@
 package frames
 
-import "github.com/charlesetsmith/saratoga/src/holes"
+import "github.com/charlesetsmith/saratoga/holes"
 
 // Frame - Handler for different frames
 // 	beacon, data, metadata, request, status

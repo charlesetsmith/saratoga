@@ -12,14 +12,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/charlesetsmith/saratoga/src/data"
-	"github.com/charlesetsmith/saratoga/src/holes"
-	"github.com/charlesetsmith/saratoga/src/metadata"
-	"github.com/charlesetsmith/saratoga/src/request"
-	"github.com/charlesetsmith/saratoga/src/sarflags"
-	"github.com/charlesetsmith/saratoga/src/sarnet"
-	"github.com/charlesetsmith/saratoga/src/screen"
-	"github.com/charlesetsmith/saratoga/src/status"
+	"github.com/charlesetsmith/saratoga/data"
+	"github.com/charlesetsmith/saratoga/holes"
+	"github.com/charlesetsmith/saratoga/metadata"
+	"github.com/charlesetsmith/saratoga/request"
+	"github.com/charlesetsmith/saratoga/sarflags"
+	"github.com/charlesetsmith/saratoga/sarnet"
+	"github.com/charlesetsmith/saratoga/screen"
+	"github.com/charlesetsmith/saratoga/status"
 	"github.com/jroimartin/gocui"
 )
 

@@ -7,9 +7,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/charlesetsmith/saratoga/src/sarflags"
-	"github.com/charlesetsmith/saratoga/src/sys"
-	"github.com/charlesetsmith/saratoga/src/timestamp"
+	"github.com/charlesetsmith/saratoga/sarflags"
+	"github.com/charlesetsmith/saratoga/sys"
+	"github.com/charlesetsmith/saratoga/timestamp"
 )
 
 // DirEnt -- Directory Entry
