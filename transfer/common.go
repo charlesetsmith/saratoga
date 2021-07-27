@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/charlesetsmith/saratoga/sarflags"
-	"github.com/charlesetsmith/testgocui/sarscreen"
+	"github.com/charlesetsmith/saratoga/sarscreen"
 	"github.com/jroimartin/gocui"
 )
 

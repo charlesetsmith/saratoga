@@ -66,23 +66,23 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 
 	timeout := time.Duration(sarflags.Cli.Timeout.Status) * time.Second
 	for {
-		screen.Fprintln(g, "msg", "blue_black", "Waiting to Read a Status Frame on",
+		sarscreen.Fprintln(g, "msg", "blue_black", "Waiting to Read a Status Frame on",
 			conn.LocalAddr().String())
 		conn.SetReadDeadline(time.Now().Add(timeout))
 		rlen, err := conn.Read(rbuf)
 		if err != nil {
-			screen.Fprintln(g, "msg", "blue_black", "Timeout on Status Read",
+			sarscreen.Fprintln(g, "msg", "blue_black", "Timeout on Status Read",
 				":", err.Error())
 			errflag <- "cantreceive"
 			return
 		}
 		// We have a status so grab it
-		screen.Fprintln(g, "msg", "blue_black", "Client Read a Frame len", rlen, "bytes")
+		sarscreen.Fprintln(g, "msg", "blue_black", "Client Read a Frame len", rlen, "bytes")
 		rframe := make([]byte, rlen)
 		copy(rframe, rbuf[:rlen])
 		header := binary.BigEndian.Uint32(rframe[:4])
 		if sarflags.GetStr(header, "version") != "v1" { // Make sure we are Version 1
-			screen.Fprintln(g, "msg", "red_black", "Not Saratoga Version 1 Frame from ",
+			sarscreen.Fprintln(g, "msg", "red_black", "Not Saratoga Version 1 Frame from ",
 				t.peer.String())
 			errflag <- "badpacket"
 			return
@@ -94,7 +94,7 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 				errflag <- errf
 				return
 			}
-			screen.Fprintln(g, "msg", "blue_black", "Client Status Read:", errf)
+			sarscreen.Fprintln(g, "msg", "blue_black", "Client Status Read:", errf)
 		} else { // Not a status frame
 			errflag <- "badpacket"
 			return
@@ -118,7 +118,7 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 		// We have "success" so Decode into a Status
 		var st status.Status
 		if err := st.Get(rframe); err != nil {
-			screen.Fprintln(g, "msg", "red_black", "Bad Status with error:", err)
+			sarscreen.Fprintln(g, "msg", "red_black", "Bad Status with error:", err)
 			errflag <- "badstatus"
 			return
 		}
@@ -131,7 +131,7 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 		pos <- proins
 
 		if st.Progress == filelen {
-			screen.Fprintln(g, "msg", "blue_black", "File",
+			sarscreen.Fprintln(g, "msg", "blue_black", "File",
 				t.filename, "length", filelen, "successfully transferred")
 			errflag <- "success"
 		}
@@ -171,7 +171,7 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 				}
 			}
 		}
-		screen.Fprintln(g, "msg", "blue_black", "File",
+		sarscreen.Fprintln(g, "msg", "blue_black", "File",
 			t.filename, "length", filelen, "successfully processed status")
 		errflag <- "success"
 		return
@@ -196,7 +196,7 @@ func senddata(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 
 	// Allocate a read buffer for a data frame
 	rbuf := make([]byte, dpaylen(dflags))
-	screen.Fprintln(g, "msg", "yellow_black", "Data Maxpayload=", dpaylen(dflags))
+	sarscreen.Fprintln(g, "msg", "yellow_black", "Data Maxpayload=", dpaylen(dflags))
 	for { // Just blast away and send the complete file asking for a status every 100 frames sent
 		nread, err := t.fp.ReadAt(rbuf, int64(curpos))
 		if err != nil && err != io.EOF {
@@ -278,7 +278,7 @@ func Doclient(t *CTransfer, g *gocui.Gui, errstr chan string) {
 				go fn(t, g, errflag)
 				retcode := <-errflag
 				close(errflag)
-				screen.Fprintln(g, "msg", "yellow_black", "Doclient completed with errstr:", retcode)
+				sarscreen.Fprintln(g, "msg", "yellow_black", "Doclient completed with errstr:", retcode)
 				errstr <- retcode
 				return
 			}
@@ -296,7 +296,7 @@ func (t *CTransfer) CNew(g *gocui.Gui, ttype string, ip string, fname string) er
 			if addr.Equal(i.peer) && fname == i.filename {
 				emsg := fmt.Sprintf("CTransfer for %s to %s is currently in progress, cannnot add transfer",
 					fname, i.peer.String())
-				screen.Fprintln(g, "msg", "red_black", emsg)
+				sarscreen.Fprintln(g, "msg", "red_black", emsg)
 				return errors.New(emsg)
 			}
 		}
@@ -315,10 +315,10 @@ func (t *CTransfer) CNew(g *gocui.Gui, ttype string, ip string, fname string) er
 		msg = fmt.Sprintf("Added %s CTransfer to %s %s",
 			t.ttype, t.peer.String(), t.filename)
 		CTransfers = append(CTransfers, *t)
-		screen.Fprintln(g, "msg", "green_black", msg)
+		sarscreen.Fprintln(g, "msg", "green_black", msg)
 		return nil
 	}
-	screen.Fprintln(g, "msg", "red_black", "CTransfer not added, invalid IP address", ip)
+	sarscreen.Fprintln(g, "msg", "red_black", "CTransfer not added, invalid IP address", ip)
 	return errors.New("Invalid IP Address")
 }
 
@@ -399,7 +399,7 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 		strings.TrimLeft(t.filename, string(os.PathSeparator))
 	if t.fp, err = os.Open(fname); err != nil {
 		t.fp = fp
-		screen.Fprintln(g, "msg", "red_black", "Cannot open", fname)
+		sarscreen.Fprintln(g, "msg", "red_black", "Cannot open", fname)
 		errflag <- "filenotfound"
 		return
 	}
@@ -407,7 +407,7 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	tdesc := filedescriptor(fname) // CTransfer descriptor to be used
 
 	if pos, err = t.fp.Seek(0, io.SeekStart); err != nil {
-		screen.Fprintln(g, "msg", "red_black", "Cannot seek to", pos)
+		sarscreen.Fprintln(g, "msg", "red_black", "Cannot seek to", pos)
 		errflag <- "badoffset"
 		return
 	}
@@ -438,9 +438,9 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	rflags := "reqtype=put,fileordir=file,"
 	rflags += sarflags.Setglobal("request")
 	rflags = replaceflag(rflags, tdesc)
-	screen.Fprintln(g, "msg", "magenta_black", "Request Flags <", rflags, ">")
+	sarscreen.Fprintln(g, "msg", "magenta_black", "Request Flags <", rflags, ">")
 	if err = r.New(rflags, t.session, t.filename, nil); err != nil {
-		screen.Fprintln(g, "msg", "red_black", "Cannot create request", err.Error())
+		sarscreen.Fprintln(g, "msg", "red_black", "Cannot create request", err.Error())
 		conn.Close()
 		errflag <- "badrequest"
 		return
@@ -457,8 +457,8 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 		errflag <- "cantsend"
 		return
 	}
-	screen.Fprintln(g, "msg", "green_black", "Sent:", t.Print())
-	screen.Fprintln(g, "msg", "green_black", "CTransfer Request Sent to",
+	sarscreen.Fprintln(g, "msg", "green_black", "Sent:", t.Print())
+	sarscreen.Fprintln(g, "msg", "green_black", "CTransfer Request Sent to",
 		t.peer.String())
 
 	// Create the metadata & send
@@ -467,9 +467,9 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	mflags := "transfer=file,progress=inprogress,"
 	mflags += sarflags.Setglobal("metadata")
 	mflags = replaceflag(mflags, tdesc)
-	screen.Fprintln(g, "msg", "magenta_black", "Metadata Flags <", mflags, ">")
+	sarscreen.Fprintln(g, "msg", "magenta_black", "Metadata Flags <", mflags, ">")
 	if err = m.New(mflags, t.session, t.filename); err != nil {
-		screen.Fprintln(g, "msg", "red_black", "Cannot create metadata", err.Error())
+		sarscreen.Fprintln(g, "msg", "red_black", "Cannot create metadata", err.Error())
 		conn.Close()
 		errflag <- "badrequest"
 		return
@@ -493,7 +493,7 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	dflags := "transfer=file,eod=no,"
 	dflags += sarflags.Setglobal("data")
 	dflags = replaceflag(dflags, tdesc)
-	screen.Fprintln(g, "msg", "magenta_black", "Data Flags <", dflags, ">")
+	sarscreen.Fprintln(g, "msg", "magenta_black", "Data Flags <", dflags, ">")
 
 	statuserr := make(chan string, 1)  // The return channel holding the saratoga errflag
 	datapos := make(chan [2]uint64, 1) // The return channel from readstatus with progress & inrespto
@@ -510,7 +510,7 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 		case serr := <-statuserr:
 			var progress, inrespto uint64
 			if n, _ := fmt.Sscanf(serr, "%d %d", &progress, &inrespto); n == 2 {
-				screen.Fprintln(g, "msg", "magenta_black", "Progress=", progress, "Inrespto=", inrespto)
+				sarscreen.Fprintln(g, "msg", "magenta_black", "Progress=", progress, "Inrespto=", inrespto)
 				var dpos [2]uint64
 				// Send on datapos channel to senddata the latest progress & inrespto indicators
 				dpos[0] = progress
@@ -528,7 +528,7 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 				return
 			}
 		case dpos := <-datapos:
-			screen.Fprintln(g, "msg", "magenta_black", "Read Data Pos=", dpos)
+			sarscreen.Fprintln(g, "msg", "magenta_black", "Read Data Pos=", dpos)
 			// default: // the select is non-blocking, fall through
 			// screen.Fprintf(g, "msg", "magenta_black", "*")
 		}
@@ -546,7 +546,7 @@ func cputblind(t *CTransfer, g *gocui.Gui, errflag chan string) {
 		string(os.PathSeparator) +
 		strings.TrimLeft(t.filename, string(os.PathSeparator))
 	if t.fp, err = os.Open(fname); err != nil {
-		screen.Fprintln(g, "msg", "red_black", "Cannot open", fname)
+		sarscreen.Fprintln(g, "msg", "red_black", "Cannot open", fname)
 		errflag <- "filenotfound"
 		return
 	}
@@ -554,7 +554,7 @@ func cputblind(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	tdesc := filedescriptor(fname) // CTransfer descriptor to be used
 
 	if pos, err = t.fp.Seek(0, io.SeekStart); err != nil {
-		screen.Fprintln(g, "msg", "red_black", "Cannot seek to", pos)
+		sarscreen.Fprintln(g, "msg", "red_black", "Cannot seek to", pos)
 		errflag <- "badoffset"
 		return
 	}
@@ -580,7 +580,7 @@ func cputblind(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	mflags += sarflags.Setglobal("metadata")
 	mflags = replaceflag(mflags, tdesc)
 	if err = m.New(mflags, t.session, t.filename); err != nil {
-		screen.Fprintln(g, "msg", "red_black", "Cannot create metadata", err.Error())
+		sarscreen.Fprintln(g, "msg", "red_black", "Cannot create metadata", err.Error())
 		errflag <- "badrequest"
 		return
 	}
@@ -595,8 +595,8 @@ func cputblind(t *CTransfer, g *gocui.Gui, errflag chan string) {
 		errflag <- "cantsend"
 		return
 	}
-	screen.Fprintln(g, "msg", "green_black", "Sent:", t.Print())
-	screen.Fprintln(g, "msg", "green_black", "CTransfer Metadata Sent for blind put to",
+	sarscreen.Fprintln(g, "msg", "green_black", "Sent:", t.Print())
+	sarscreen.Fprintln(g, "msg", "green_black", "CTransfer Metadata Sent for blind put to",
 		t.peer.String())
 	errflag <- "success"
 	return
@@ -611,14 +611,14 @@ func cputrm(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	errcode := <-rmerrflag
 	if errcode == "success" {
 		fname := strings.TrimRight(os.Getenv("SARDIR"), "/") + "/" + t.filename
-		screen.Fprintln(g, "msg", "green_black", "Successfully put file", fname)
+		sarscreen.Fprintln(g, "msg", "green_black", "Successfully put file", fname)
 		// All good so remove the local file
 		if os.Remove(fname) != nil {
-			screen.Fprintln(g, "msg", "red_black", "Cannot remove local file", fname)
+			sarscreen.Fprintln(g, "msg", "red_black", "Cannot remove local file", fname)
 			errflag <- "didnotdelete"
 			return
 		}
-		screen.Fprintln(g, "msg", "red_black", "Local file", fname, "removed")
+		sarscreen.Fprintln(g, "msg", "red_black", "Local file", fname, "removed")
 	}
 	errflag <- errcode
 	return
