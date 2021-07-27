@@ -14,7 +14,7 @@ import (
 
 	"github.com/charlesetsmith/saratoga/sarflags"
 	"github.com/charlesetsmith/saratoga/sarnet"
-	"github.com/charlesetsmith/saratoga/screen"
+	"github.com/charlesetsmith/saratoga/sarscreen"
 	"github.com/charlesetsmith/saratoga/timestamp"
 	"github.com/jroimartin/gocui"
 )
