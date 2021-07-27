@@ -7,8 +7,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/charlesetsmith/saratoga/src/sarflags"
-	"github.com/charlesetsmith/saratoga/src/screen"
+	"github.com/charlesetsmith/saratoga/sarflags"
+	"github.com/charlesetsmith/saratoga/sarscreen"
 	"github.com/jroimartin/gocui"
 )
 

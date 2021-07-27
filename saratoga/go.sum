@@ -1,0 +1,16 @@
+github.com/charlesetsmith/saratoga v0.0.0-20210727104058-aff16e4d0503 h1:AdAJZQD8pDgJ4wxFV0s5FhfGws9LsG749+iRpi/YXO0=
+github.com/charlesetsmith/saratoga v0.0.0-20210727104058-aff16e4d0503/go.mod h1:2F2VfpnIC1Tp9KrEjcVjOEHagjlb6S3YeQLvIcLRxl0=
+github.com/charlesetsmith/saratoga/beacon v0.0.0-20210727104058-aff16e4d0503 h1:R7UeU8XtBoHlYuHOHtC9WRd76d3GKlpTOsdTJLwc+Nk=
+github.com/charlesetsmith/saratoga/beacon v0.0.0-20210727104058-aff16e4d0503/go.mod h1:wT2H8M3trIhRhZanHkq9kAxgvI3ky9tD0LmCixAWqKE=
+github.com/charlesetsmith/saratoga/sarnet v0.0.0-20210727104058-aff16e4d0503 h1:sk3/5laF2jTKH0eRUXWtgz52Uo9AjGe2ETCbtkz3puY=
+github.com/charlesetsmith/saratoga/sarnet v0.0.0-20210727104058-aff16e4d0503/go.mod h1:JtOCHsXSb45m5E17afXq6NxOJV5d8m+XmVVoRA12SuY=
+github.com/charlesetsmith/saratoga/sarscreen v0.0.0-20210727104058-aff16e4d0503 h1:rmfB5HB3ZXwxXVwn0oPkL6lywSxTgaVCWm60jpIjx+U=
+github.com/charlesetsmith/saratoga/sarscreen v0.0.0-20210727104058-aff16e4d0503/go.mod h1:iCXl09wVenqcTOPZUlY2tJbuIBAWCYu+vNPz/6Dauto=
+github.com/charlesetsmith/saratoga/timestamp v0.0.0-20210727104058-aff16e4d0503 h1:i8YGQXWyYrKoiiBn86Uc5SOlZvxcktkAhblYWKK3FJA=
+github.com/charlesetsmith/saratoga/timestamp v0.0.0-20210727104058-aff16e4d0503/go.mod h1:RWo5CbsSGjWk5+un/pVpWgqJ1TCcUh6IoFEkSmuj4h4=
+github.com/jroimartin/gocui v0.4.0 h1:52jnalstgmc25FmtGcWqa0tcbMEWS6RpFLsOIO+I+E8=
+github.com/jroimartin/gocui v0.4.0/go.mod h1:7i7bbj99OgFHzo7kB2zPb8pXLqMBSQegY7azfqXMkyY=
+github.com/mattn/go-runewidth v0.0.9 h1:Lm995f3rfxdpd6TSmuVCHVb/QhupuXlYr8sCI/QdE+0=
+github.com/mattn/go-runewidth v0.0.9/go.mod h1:H031xJmbD/WCDINGzjvQ9THkh0rPKHF+m2gUSrubnMI=
+github.com/nsf/termbox-go v1.1.1 h1:nksUPLCb73Q++DwbYUBEglYBRPZyoXJdrj5L+TkjyZY=
+github.com/nsf/termbox-go v1.1.1/go.mod h1:T0cTdVuOwf7pHQNtfhnEbzHbcNyCEcVU4YPpouCbVxo=

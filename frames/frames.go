@@ -14,10 +14,9 @@ type Frame interface {
 	NewStatus(flags string, session uint32, progress uint64, inrespto uint64, holes holes.Holes) error
 	NewBeacon(flags string) error
 	NewMetaData(flags string, session uint32, fname string) error
-	
+
 	MakeData(header uint32, session uint32, offset uint64, payload []byte) error
 	MakeRequest(header uint32, session uint32, fname string, auth []byte) error
 	MakeStatus(header uint32, session uint32, progress uint64, inrespto uint64, holes holes.Holes) error
 	MakeBeacon(header uint32, eid string, freespace uint64) error
-	
 }

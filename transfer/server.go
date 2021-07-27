@@ -7,14 +7,14 @@ import (
 	"os"
 	"sync"
 
-	"github.com/charlesetsmith/saratoga/src/dirent"
-	"github.com/charlesetsmith/saratoga/src/holes"
-	"github.com/charlesetsmith/saratoga/src/metadata"
-	"github.com/charlesetsmith/saratoga/src/request"
-	"github.com/charlesetsmith/saratoga/src/sarflags"
-	"github.com/charlesetsmith/saratoga/src/screen"
-	"github.com/charlesetsmith/saratoga/src/status"
-	"github.com/charlesetsmith/saratoga/src/timestamp"
+	"github.com/charlesetsmith/saratoga/dirent"
+	"github.com/charlesetsmith/saratoga/holes"
+	"github.com/charlesetsmith/saratoga/metadata"
+	"github.com/charlesetsmith/saratoga/request"
+	"github.com/charlesetsmith/saratoga/sarflags"
+	"github.com/charlesetsmith/saratoga/sarscreen"
+	"github.com/charlesetsmith/saratoga/status"
+	"github.com/charlesetsmith/saratoga/timestamp"
 	"github.com/jroimartin/gocui"
 )
 
@@ -151,7 +151,7 @@ func SNew(g *gocui.Gui, ttype string, r request.Request, ip string, session uint
 			if addr.Equal(i.Peer) && session == i.Session {
 				emsg := fmt.Sprintf("STransfer for session %d to %s is currently in progress, cannnot add transfer",
 					session, i.Peer.String())
-				screen.Fprintln(g, "msg", "red_black", emsg)
+				sarscreen.Fprintln(g, "msg", "red_black", emsg)
 				return errors.New(emsg)
 			}
 		}
@@ -170,10 +170,10 @@ func SNew(g *gocui.Gui, ttype string, r request.Request, ip string, session uint
 		msg := fmt.Sprintf("Added %s Transfer to %s session %d",
 			t.Ttype, t.Peer.String(), t.Session)
 		STransfers = append(STransfers, t)
-		screen.Fprintln(g, "msg", "green_black", msg)
+		sarscreen.Fprintln(g, "msg", "green_black", msg)
 		return nil
 	}
-	screen.Fprintln(g, "msg", "red_black", "CTransfer not added, invalid IP address", ip)
+	sarscreen.Fprintln(g, "msg", "red_black", "CTransfer not added, invalid IP address", ip)
 	return errors.New("Invalid IP Address")
 }
 
@@ -197,7 +197,7 @@ func (t *STransfer) SChange(g *gocui.Gui, m metadata.MetaData) error {
 		return errors.New(emsg)
 	}
 	t.Havemeta = true
-	screen.Fprintln(g, "msg", "yellow_black", "Added metadata to transfer and file buffer size", len(t.Data))
+	sarscreen.Fprintln(g, "msg", "yellow_black", "Added metadata to transfer and file buffer size", len(t.Data))
 	Strmu.Unlock()
 	return nil
 }
