@@ -1,8 +1,8 @@
-// +build linux
+// +build darwin
 
-package sys
+// For Apple Darwin Systems
 
-// For Linux systems
+package sarsys
 
 import (
 	"os"
@@ -49,19 +49,21 @@ func (du *DiskUsage) Usage() float32 {
 	return float32(du.Used()) / float32(du.Size())
 }
 
-// FIleTime - Holds Amend, Modification & Creation Times
+// FileTime - Holds Amend, Modification & Creation Times
 type FileTime struct {
 	Atime time.Time // Access
 	Mtime time.Time // Modification
 	Ctime time.Time // Creation
 }
 
-// NewTime - times of file on linux
+// NewTime - times of file on Darwin
 func (ft *FileTime) NewTime(fi os.FileInfo) {
+	// Special handling to get a ctime
+	// THIS IS PLATFORM DEPENDENT!!!!!
 	stat := fi.Sys().(*syscall.Stat_t)
-	ft.Atime = time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec))
+	ft.Atime = time.Unix(int64(stat.Atimespec.Sec), int64(stat.Atimespec.Nsec))
+	// Mtime
+	// ft.Mtime = time.Unix(int64(stat.Mtimespec.Sec), int64(stat.Mtimespec.Nsec))
 	ft.Mtime = fi.ModTime()
-	// ft.Mtime = time.Unix(int64(stat.Mtim.Sec), int64(stat_t.Mtim.Nsec))
-	ft.Ctime = time.Unix(int64(stat.Ctim.Sec), int64(stat.Ctim.Nsec))
-	return
+	ft.Ctime = time.Unix(int64(stat.Ctimespec.Sec), int64(stat.Ctimespec.Nsec))
 }
