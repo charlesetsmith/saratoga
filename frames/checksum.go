@@ -13,7 +13,7 @@ import (
 	"github.com/charlesetsmith/saratoga/sarflags"
 )
 
-// IEEE - polynomial used for CRC32
+// Polynomials used for CRC32
 const (
 	// IEEE is by far and away the most common CRC-32 polynomial.
 	// Used by ethernet (IEEE 802.3), v.42, fddi, gzip, zip, png, ...
