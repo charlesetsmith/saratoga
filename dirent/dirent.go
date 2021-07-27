@@ -7,8 +7,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/charlesetsmith/oldsaratoga/src/sys"
 	"github.com/charlesetsmith/saratoga/sarflags"
-	"github.com/charlesetsmith/saratoga/sys"
 	"github.com/charlesetsmith/saratoga/timestamp"
 )
 
