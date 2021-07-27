@@ -266,7 +266,7 @@ func (b *Beacon) Send(g *gocui.Gui, addr string, count uint, interval uint, errf
 	var i uint
 	for i = 0; i < count; i++ {
 		_, err = conn.Write(frame)
-		screen.Fprintf(g, "msg", "green_black", "Beacon %d to %s\n", i+1, addr)
+		sarscreen.Fprintf(g, "msg", "green_black", "Beacon %d to %s\n", i+1, addr)
 		select { // We may need to add some more channel i/o here so use select
 		default:
 			time.Sleep(time.Duration(interval) * time.Second)
@@ -281,9 +281,9 @@ func (b *Beacon) Handler(g *gocui.Gui, from *net.UDPAddr) string {
 	// screen.Fprintln(g, "msg", "yellow_black", b.Print())
 	// We add / alter the peer information
 	if b.NewPeer(from) == true {
-		screen.Fprintln(g, "msg", "yellow_black", "Added/Changed Peer", from.String())
+		sarscreen.Fprintln(g, "msg", "yellow_black", "Added/Changed Peer", from.String())
 	} else {
-		screen.Fprintln(g, "msg", "yellow_black", "No new peer")
+		sarscreen.Fprintln(g, "msg", "yellow_black", "No new peer")
 	}
 	return "success"
 }
