@@ -9,8 +9,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/charlesetsmith/oldsaratoga/src/sys"
 	"github.com/charlesetsmith/saratoga/sarflags"
+	"github.com/charlesetsmith/saratoga/sarsys"
 	"github.com/charlesetsmith/saratoga/timestamp"
 )
 
@@ -35,7 +35,7 @@ func (d *DirEnt) StatFile(name string) (err error) {
 
 	d.Size = uint64(fi.Size())
 
-	var ft sys.FileTime
+	var ft sarsys.FileTime
 	ft.NewTime(fi)
 
 	// Mtime

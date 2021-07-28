@@ -1,8 +1,8 @@
 // +build linux
 
-package sarsys
-
 // For Linux systems
+
+package sarsys
 
 import (
 	"os"

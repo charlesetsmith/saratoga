@@ -1,8 +1,8 @@
 // +build windows
 
-package sarsys
-
 // For Windows Systems
+
+package sarsys
 
 import (
 	"os"
