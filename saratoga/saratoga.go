@@ -171,8 +171,10 @@ func getLine(g *gocui.Gui, v *gocui.View) error {
 	if command[1] == "" { // We have just hit enter - do nothing
 		return nil
 	}
+	// Save the command into history
 	Cinfo.Commands = append(Cinfo.Commands, command[1])
 
+	// Spawn a go and run the command
 	go func(*gocui.Gui, string) {
 		// defer Sarwg.Done()
 		cli.Docmd(g, command[1])
@@ -182,7 +184,7 @@ func getLine(g *gocui.Gui, v *gocui.View) error {
 		// Sarwg.Wait()
 		err := quit(g, v)
 		// THIS IS A KLUDGE FIX IT WITH A CHANNEL
-		log.Fatal("\nGocui Exit. Bye!", err)
+		log.Fatal("\nGocui Exit. Bye!\n", err)
 	}
 
 	Cinfo.Curline++
@@ -312,10 +314,10 @@ func layout(g *gocui.Gui) error {
 	// Display the prompt without the \n first time around
 	if FirstPass {
 		cmd.SetCursor(0, 0)
-		xpos := len(Cinfo.Prompt) + len(strconv.Itoa(Cinfo.Curline)) + 3
 		Cinfo.Curline = 0
-		sarscreen.Fprintf(g, "cmd", "yellow_black", "%s[%d]:", Cinfo.Prompt, Cinfo.Curline)
-		cmd.SetCursor(xpos, 0)
+		prompt := fmt.Sprintf("%s[%d]:", Cinfo.Prompt, Cinfo.Curline)
+		sarscreen.Fprintf(g, "cmd", "yellow_black", prompt)
+		cmd.SetCursor(promptlen(Cinfo), 0)
 		FirstPass = false
 	}
 	return nil
@@ -739,7 +741,7 @@ func main() {
 
 	var fs syscall.Statfs_t
 	if err := syscall.Statfs(sardir, &fs); err != nil {
-		log.Fatal(errors.New("Cannot stat sardir"))
+		log.Fatal(errors.New("cannot stat sardir"))
 	}
 
 	// Open up V4 & V6 sockets for listening on the Saratoga Port
@@ -842,7 +844,6 @@ func main() {
 	case err := <-errflag:
 		fmt.Println("Mainloop has quit:", err.Error())
 	}
-	return
 }
 
 // Go routine for command line loop
