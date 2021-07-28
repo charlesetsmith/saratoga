@@ -67,7 +67,7 @@ func sendbeacons(g *gocui.Gui, flags string, count uint, interval uint, host str
 				sarscreen.Fprintln(g, "msg", "red_black", "Error:", errcode,
 					"Unable to send beacon to ", addr)
 			}
-			// screen.Fprintln(g, "msg", "green_black", "Sent: ", txb.Print())
+			sarscreen.Fprintln(g, "msg", "green_black", "Sent: ", txb.Print())
 		}
 	}
 	return

@@ -1,0 +1,4 @@
+github.com/charlesetsmith/saratoga/holes v0.0.0-20210728070526-75de3a3b09e3 h1:KbbP0+uUcBoMkZlRS242dV5HmFCeYRQ9WJuERpDlxQo=
+github.com/charlesetsmith/saratoga/holes v0.0.0-20210728070526-75de3a3b09e3/go.mod h1:FolBySBqHe+s8Rd9q8duaNl/L8Zp6l9CwosXOIMeMv0=
+github.com/charlesetsmith/saratoga/sarflags v0.0.0-20210728070526-75de3a3b09e3 h1:vLaL4TUskrNF2kZQN/UYKdRswcpiWuswqCkHTnzeF2E=
+github.com/charlesetsmith/saratoga/sarflags v0.0.0-20210728070526-75de3a3b09e3/go.mod h1:dGverSAag+6JnnbQi1nN9rEF6InGSv/tIXMvRZZ5xCQ=
