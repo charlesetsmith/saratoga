@@ -1,4 +1,4 @@
-// Handling Directory Entry Structure for Saaratoga
+// Handling Directory Entry Structure for Saratoga
 
 package dirent
 
