@@ -1,3 +1,5 @@
+// Checksum Handling of Files
+
 package frames
 
 import (

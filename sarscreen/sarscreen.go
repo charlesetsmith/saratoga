@@ -1,4 +1,4 @@
-// Handle screen outputs for views in colours
+// Handle screen outputs for views in colours for Saratoga
 
 package sarscreen
 

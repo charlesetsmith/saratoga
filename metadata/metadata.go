@@ -1,3 +1,5 @@
+// Metadata Frame Handling
+
 package metadata
 
 import (

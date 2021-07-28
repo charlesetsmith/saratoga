@@ -1,3 +1,5 @@
+// Handling Directory Entry Structure for Saaratoga
+
 package dirent
 
 import (

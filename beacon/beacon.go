@@ -1,3 +1,5 @@
+// Beacon Frame Handler
+
 package beacon
 
 import (

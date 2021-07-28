@@ -1,3 +1,5 @@
+// Frame Handling Interface
+
 package frames
 
 import "github.com/charlesetsmith/saratoga/holes"

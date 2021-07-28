@@ -1,4 +1,4 @@
-// Saratoga Interactive Client
+// Saratoga Interactive Client - Main
 
 package main
 
