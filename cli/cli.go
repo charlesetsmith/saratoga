@@ -36,6 +36,7 @@ func removeValue(s []string, val string) []string {
 }
 
 // Only append to a string slice if it is unique
+/* THIS IS NOT USED YET
 func appendunique(slice []string, i string) []string {
 	for _, ele := range slice {
 		if ele == i {
@@ -44,6 +45,7 @@ func appendunique(slice []string, i string) []string {
 	}
 	return append(slice, i)
 }
+*/
 
 // Send count beacons to host
 func sendbeacons(g *gocui.Gui, flags string, count uint, interval uint, host string) {
@@ -70,7 +72,6 @@ func sendbeacons(g *gocui.Gui, flags string, count uint, interval uint, host str
 			sarscreen.Fprintln(g, "msg", "green_black", "Sent: ", txb.Print())
 		}
 	}
-	return
 }
 
 /* ********************************************************************************* */
@@ -105,10 +106,10 @@ func cmdbeacon(g *gocui.Gui, args []string) {
 		} else {
 			sarscreen.Fprintln(g, "msg", "green_black", "Single Beacon to be sent")
 		}
-		if clibeacon.v4mcast == true {
+		if clibeacon.v4mcast {
 			sarscreen.Fprintln(g, "msg", "green_black", "Sending IPv4 multicast beacons")
 		}
-		if clibeacon.v6mcast == true {
+		if clibeacon.v6mcast {
 			sarscreen.Fprintln(g, "msg", "green_black", "Sending IPv6 multicast beacons")
 		}
 		if len(clibeacon.host) > 0 {
@@ -117,7 +118,7 @@ func cmdbeacon(g *gocui.Gui, args []string) {
 				sarscreen.Fprintln(g, "msg", "green_black", "\t", i)
 			}
 		}
-		if clibeacon.v4mcast == false && clibeacon.v6mcast == false &&
+		if !clibeacon.v4mcast && !clibeacon.v6mcast &&
 			len(clibeacon.host) == 0 {
 			sarscreen.Fprintln(g, "msg", "green_black", "No beacons currently being sent")
 		}
@@ -273,7 +274,7 @@ func descriptor(g *gocui.Gui, args []string) {
 				break
 			}
 			sarscreen.Fprintln(g, "msg", "red_black", "128 bit descriptors not supported on this platform")
-			break
+
 		case "d16":
 			if sarflags.MaxUint > sarflags.MaxUint16 {
 				sarflags.Cli.Global["descriptor"] = "d16"
@@ -402,7 +403,7 @@ func get(g *gocui.Gui, args []string) {
 	if len(args) == 3 {
 		var t transfer.CTransfer
 		if err := t.CNew(g, "get", args[1], args[2]); err != nil {
-
+			return
 		}
 		return
 	}
@@ -422,7 +423,8 @@ func getdir(g *gocui.Gui, args []string) {
 	if len(args) == 3 {
 		var t transfer.CTransfer
 		if err := t.CNew(g, "getdir", args[1], args[2]); err != nil {
-
+			sarscreen.Fprintln(g, "msg", "green_black", cmd["getdir"][0])
+			sarscreen.Fprintln(g, "msg", "green_black", cmd["getdir"][1])
 		}
 		return
 	}
@@ -442,7 +444,9 @@ func getrm(g *gocui.Gui, args []string) {
 	if len(args) == 3 {
 		var t transfer.CTransfer
 		if err := t.CNew(g, "getrm", args[1], args[2]); err != nil {
-
+			sarscreen.Fprintln(g, "msg", "green_black", cmd["getrm"][0])
+			sarscreen.Fprintln(g, "msg", "green_black", cmd["getrm"][1])
+			return
 		}
 		return
 	}
@@ -596,7 +600,7 @@ func peers(g *gocui.Gui, args []string) {
 			beacon.Peers[key].Maxdesc,
 			beacon.Peers[key].Created.Print(),
 			beacon.Peers[key].Updated.Print())
-		sslice = append(sslice, fmt.Sprintf("%s", pinfo))
+		sslice = append(sslice, pinfo)
 	}
 	sort.Sort(sslice)
 
@@ -604,7 +608,7 @@ func peers(g *gocui.Gui, args []string) {
 	sbuf += fmt.Sprintf(sfmt, "IP", "GB", "EID", "Des", "Date Created", "Date Modified")
 	sbuf += sborder
 	for key := 0; key < len(sslice); key++ {
-		sbuf += fmt.Sprintf("%s", sslice[key])
+		sbuf += sslice[key]
 	}
 	sbuf += sborder
 	sarscreen.Fprintln(g, "msg", "magenta_black", sbuf)
@@ -717,7 +721,8 @@ func putrm(g *gocui.Gui, args []string) {
 				sarscreen.Fprintln(g, "msg", "red_black", "Error:", errcode,
 					"Unable to send file: ", t.Print())
 			} else {
-				// NOW REMOVE THE LOCAL FILE AS IT SUCCEEDED
+				sarscreen.Fprintln(g, "msg", "red_black",
+					"Put and now removing (NOT) file: ", t.Print())
 			}
 		}
 		return
@@ -769,8 +774,10 @@ func rm(g *gocui.Gui, args []string) {
 	}
 	if len(args) == 3 {
 		var t transfer.CTransfer
-		if err := t.CNew(g, "rm", args[1], args[2]); err != nil {
 
+		if err := t.CNew(g, "rm", args[1], args[2]); err != nil {
+			sarscreen.Fprintln(g, "msg", "green_black", cmd["rm"][0])
+			sarscreen.Fprintln(g, "msg", "green_black", cmd["rm"][1])
 		}
 		return
 	}
@@ -792,7 +799,8 @@ func rmdir(g *gocui.Gui, args []string) {
 	if len(args) == 3 {
 		var t transfer.CTransfer
 		if err := t.CNew(g, "rmdir", args[1], args[2]); err != nil {
-
+			sarscreen.Fprintln(g, "msg", "green_black", cmd["rmdir"][0])
+			sarscreen.Fprintln(g, "msg", "green_black", cmd["rmdir"][1])
 		}
 		return
 	}
@@ -816,7 +824,6 @@ func rmtran(g *gocui.Gui, args []string) {
 	} else {
 		sarscreen.Fprintln(g, "msg", "red_black", "No such transfer: ", ttype, addr, fname)
 	}
-	return
 }
 
 // Are we willing to transmit files
@@ -1123,7 +1130,6 @@ func usage(g *gocui.Gui, args []string) {
 		sbuf += fmt.Sprintf("%s\n", sslice[key])
 	}
 	sarscreen.Fprintln(g, "msg", "magenta_black", sbuf)
-	return
 }
 
 /* ************************************************************************** */
@@ -1335,5 +1341,4 @@ func Docmd(g *gocui.Gui, s string) {
 		}
 	}
 	sarscreen.Fprintln(g, "msg", "bwhite_red", "Invalid command:", vals[0])
-	return
 }
