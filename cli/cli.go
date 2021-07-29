@@ -615,7 +615,7 @@ func peers(g *gocui.Gui, args []string) {
 }
 
 // Cprompt - Command line prompt
-var Cprompt = "saratoga"
+var Cprompt = "saratoga" // If not set in saratoga.json set it to saratoga
 
 // put/send a file to a destination
 func put(g *gocui.Gui, args []string) {
