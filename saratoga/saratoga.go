@@ -632,6 +632,7 @@ func main() {
 		return
 	}
 
+	// Read in JSON config file and parse it into the Config structure.
 	if err := config.ReadConfig(os.Args[1]); err != nil {
 		fmt.Println("Cannot open saratoga config file", os.Args[1], ":", err)
 		return

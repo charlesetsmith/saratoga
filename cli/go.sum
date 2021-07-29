@@ -1,5 +1,7 @@
 github.com/charlesetsmith/saratoga/beacon v0.0.0-20210728070526-75de3a3b09e3 h1:/ugPfXS+2jD95FHHoMvGj9VK485n8zzkP6bmi7KbNUU=
 github.com/charlesetsmith/saratoga/beacon v0.0.0-20210728070526-75de3a3b09e3/go.mod h1:wT2H8M3trIhRhZanHkq9kAxgvI3ky9tD0LmCixAWqKE=
+github.com/charlesetsmith/saratoga/config v0.0.0-20210729131352-dd6137f0575f h1:+N64TRkzX7EGOYRM3O+0XJTNHmVSFc/feRx6wDRiD4M=
+github.com/charlesetsmith/saratoga/config v0.0.0-20210729131352-dd6137f0575f/go.mod h1:Ij92eTk9XTh9PcW/b8WY+RFhgC+VgQ5aWhv1fppzevY=
 github.com/charlesetsmith/saratoga/data v0.0.0-20210728070526-75de3a3b09e3 h1:/dqS+RMWfnSZVpbFTxF68YY7JNc3VbcK0GrBU8SieaQ=
 github.com/charlesetsmith/saratoga/data v0.0.0-20210728070526-75de3a3b09e3/go.mod h1:Myv7Xz/6P1Uzw4Aw9udnrSYEC0i4v5wXT2zU2IUjKmU=
 github.com/charlesetsmith/saratoga/dirent v0.0.0-20210728070526-75de3a3b09e3 h1:gvWAluUeq4LZUq2ZcoNg05tcvXCJ9IIXLJtxsZTIa8s=

@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/charlesetsmith/saratoga/beacon v0.0.0-20210728070526-75de3a3b09e3
+	github.com/charlesetsmith/saratoga/config v0.0.0-20210729131352-dd6137f0575f
 	github.com/charlesetsmith/saratoga/sarflags v0.0.0-20210728070526-75de3a3b09e3
 	github.com/charlesetsmith/saratoga/sarnet v0.0.0-20210728074131-25506818d495
 	github.com/charlesetsmith/saratoga/sarscreen v0.0.0-20210728074131-25506818d495
