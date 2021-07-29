@@ -1,7 +1,5 @@
 github.com/charlesetsmith/saratoga/beacon v0.0.0-20210728070526-75de3a3b09e3 h1:/ugPfXS+2jD95FHHoMvGj9VK485n8zzkP6bmi7KbNUU=
 github.com/charlesetsmith/saratoga/beacon v0.0.0-20210728070526-75de3a3b09e3/go.mod h1:wT2H8M3trIhRhZanHkq9kAxgvI3ky9tD0LmCixAWqKE=
-github.com/charlesetsmith/saratoga/config v0.0.0-20210729131352-dd6137f0575f h1:+N64TRkzX7EGOYRM3O+0XJTNHmVSFc/feRx6wDRiD4M=
-github.com/charlesetsmith/saratoga/config v0.0.0-20210729131352-dd6137f0575f/go.mod h1:Ij92eTk9XTh9PcW/b8WY+RFhgC+VgQ5aWhv1fppzevY=
 github.com/charlesetsmith/saratoga/data v0.0.0-20210728070526-75de3a3b09e3 h1:/dqS+RMWfnSZVpbFTxF68YY7JNc3VbcK0GrBU8SieaQ=
 github.com/charlesetsmith/saratoga/data v0.0.0-20210728070526-75de3a3b09e3/go.mod h1:Myv7Xz/6P1Uzw4Aw9udnrSYEC0i4v5wXT2zU2IUjKmU=
 github.com/charlesetsmith/saratoga/dirent v0.0.0-20210728070526-75de3a3b09e3 h1:gvWAluUeq4LZUq2ZcoNg05tcvXCJ9IIXLJtxsZTIa8s=
@@ -14,6 +12,8 @@ github.com/charlesetsmith/saratoga/metadata v0.0.0-20210728070526-75de3a3b09e3 h
 github.com/charlesetsmith/saratoga/metadata v0.0.0-20210728070526-75de3a3b09e3/go.mod h1:fk6F1Qq04d4F7hK1QGSY4OMJzLv2tn6c6jFy1Jw8gSQ=
 github.com/charlesetsmith/saratoga/request v0.0.0-20210728070526-75de3a3b09e3 h1:65OUrHWI0mWbqRL8KgyD1gLbblhd1WWPE4p3/PRW2nM=
 github.com/charlesetsmith/saratoga/request v0.0.0-20210728070526-75de3a3b09e3/go.mod h1:8rCirKGxD9Ah8ArMHQRgb03G+7nfEshR1dRLFnqhR/Q=
+github.com/charlesetsmith/saratoga/sarconfig v0.0.0-20210729144656-265d8c9823c6 h1:kcVkiiaEQX7wsK6j3CkiETOg0gXlK2UC9qygdJv/reI=
+github.com/charlesetsmith/saratoga/sarconfig v0.0.0-20210729144656-265d8c9823c6/go.mod h1:OWF0jTRB/W1OBzWUQdMEuFEr3uiKAEISJyXFrqJZJ3g=
 github.com/charlesetsmith/saratoga/sarflags v0.0.0-20210728070526-75de3a3b09e3 h1:vLaL4TUskrNF2kZQN/UYKdRswcpiWuswqCkHTnzeF2E=
 github.com/charlesetsmith/saratoga/sarflags v0.0.0-20210728070526-75de3a3b09e3/go.mod h1:dGverSAag+6JnnbQi1nN9rEF6InGSv/tIXMvRZZ5xCQ=
 github.com/charlesetsmith/saratoga/sarnet v0.0.0-20210728070526-75de3a3b09e3/go.mod h1:JtOCHsXSb45m5E17afXq6NxOJV5d8m+XmVVoRA12SuY=

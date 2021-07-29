@@ -3,8 +3,6 @@ github.com/charlesetsmith/saratoga/beacon v0.0.0-20210729114111-f0d5a5cd1cc3 h1:
 github.com/charlesetsmith/saratoga/beacon v0.0.0-20210729114111-f0d5a5cd1cc3/go.mod h1:/am2nE4gBTIeB9lLniSCsf57Khow9PcMPerw6rmDGv4=
 github.com/charlesetsmith/saratoga/cli v0.0.0-20210729114111-f0d5a5cd1cc3 h1:HBeM58D4UVG6QS+yy1z4U0q0usNnLSl5AYygyHr91Xc=
 github.com/charlesetsmith/saratoga/cli v0.0.0-20210729114111-f0d5a5cd1cc3/go.mod h1:vuDQtcHL7C764v90Lyb6rqATQ/4X8reh6cTwBv7jnSw=
-github.com/charlesetsmith/saratoga/config v0.0.0-20210729114111-f0d5a5cd1cc3 h1:Pw3M2wjRBOO0W+guxD7eqFoekZ/FCBdLdcUI+Fb88V8=
-github.com/charlesetsmith/saratoga/config v0.0.0-20210729114111-f0d5a5cd1cc3/go.mod h1:Ij92eTk9XTh9PcW/b8WY+RFhgC+VgQ5aWhv1fppzevY=
 github.com/charlesetsmith/saratoga/data v0.0.0-20210728070526-75de3a3b09e3/go.mod h1:Myv7Xz/6P1Uzw4Aw9udnrSYEC0i4v5wXT2zU2IUjKmU=
 github.com/charlesetsmith/saratoga/data v0.0.0-20210729114111-f0d5a5cd1cc3 h1:++aT0nSkyPYKV7fAJJUjocC/N4iyq36ExMqgi6yWCKg=
 github.com/charlesetsmith/saratoga/data v0.0.0-20210729114111-f0d5a5cd1cc3/go.mod h1:mTD7bEIn3WQvaPkrydDLgyUyHyklh3UqERDdBX+LVFA=
@@ -20,6 +18,8 @@ github.com/charlesetsmith/saratoga/metadata v0.0.0-20210729114111-f0d5a5cd1cc3/g
 github.com/charlesetsmith/saratoga/request v0.0.0-20210728070526-75de3a3b09e3/go.mod h1:8rCirKGxD9Ah8ArMHQRgb03G+7nfEshR1dRLFnqhR/Q=
 github.com/charlesetsmith/saratoga/request v0.0.0-20210729114111-f0d5a5cd1cc3 h1:LdcHKdyUp/qButP7V82AKJRPjObltEoiusBmU1WYtS0=
 github.com/charlesetsmith/saratoga/request v0.0.0-20210729114111-f0d5a5cd1cc3/go.mod h1:Lg6Zsp6PFSBw/KQ+8q5qmMRgdf5jcR+1+qNeDu0kQBw=
+github.com/charlesetsmith/saratoga/sarconfig v0.0.0-20210729144656-265d8c9823c6 h1:kcVkiiaEQX7wsK6j3CkiETOg0gXlK2UC9qygdJv/reI=
+github.com/charlesetsmith/saratoga/sarconfig v0.0.0-20210729144656-265d8c9823c6/go.mod h1:OWF0jTRB/W1OBzWUQdMEuFEr3uiKAEISJyXFrqJZJ3g=
 github.com/charlesetsmith/saratoga/sarflags v0.0.0-20210728070526-75de3a3b09e3/go.mod h1:dGverSAag+6JnnbQi1nN9rEF6InGSv/tIXMvRZZ5xCQ=
 github.com/charlesetsmith/saratoga/sarflags v0.0.0-20210729114111-f0d5a5cd1cc3 h1:OHxj523X/7jNTmEiJHtzzcTTUfStd9qEFQCaWX0YP5U=
 github.com/charlesetsmith/saratoga/sarflags v0.0.0-20210729114111-f0d5a5cd1cc3/go.mod h1:KaiURxMyR+ZAqhzn0qAMqWhck0Xa3OoTg71Am4Qcitk=
