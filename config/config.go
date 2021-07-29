@@ -47,7 +47,7 @@ type Config struct {
 var Conf Config
 
 // Read  in the JSON Config data
-func ReadConf(fname string) error {
+func ReadConfig(fname string) error {
 	var confdata []byte
 	var err error
 
