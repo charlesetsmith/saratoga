@@ -4,10 +4,8 @@ package main
 
 import (
 	"encoding/binary"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -634,16 +632,8 @@ func main() {
 		return
 	}
 
-	var confdata []byte
-	var err error
-
-	// Read  in the JSON Config data
-	if confdata, err = ioutil.ReadFile(os.Args[1]); err != nil {
+	if err := config.ReadConf(os.Args[1]); err != nil {
 		fmt.Println("Cannot open saratoga config file", os.Args[1], ":", err)
-		return
-	}
-	if err := json.Unmarshal(confdata, &config.Conf); err != nil {
-		fmt.Println("Cannot read saratoga config file", os.Args[1], ":", err)
 		return
 	}
 
@@ -733,6 +723,7 @@ func main() {
 	}
 	// What Interface are we receiving Multicasts on
 	var iface *net.Interface
+	var err error
 
 	iface, err = net.InterfaceByName(os.Args[2])
 	if err != nil {

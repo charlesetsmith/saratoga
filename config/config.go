@@ -1,5 +1,12 @@
 package config
 
+import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"os"
+)
+
 // Timeouts - JSON Config Default Global Timeout Settings
 type Timeouts struct {
 	Metadata int // If no Metadata is received after x seconds cancel transfer
@@ -38,3 +45,19 @@ type Config struct {
 
 // Holds json decoded data in the Config struct
 var Conf Config
+
+// Read  in the JSON Config data
+func ReadConf(fname string) error {
+	var confdata []byte
+	var err error
+
+	if confdata, err = ioutil.ReadFile(fname); err != nil {
+		fmt.Println("Cannot open saratoga config file", os.Args[1], ":", err)
+		return err
+	}
+	if err = json.Unmarshal(confdata, &Conf); err != nil {
+		fmt.Println("Cannot read saratoga config file", os.Args[1], ":", err)
+		return err
+	}
+	return nil
+}
