@@ -22,7 +22,7 @@ type Cmds struct {
 	Help  string
 }
 
-// Config - JSON Config Default Global Settings
+// Config - JSON Config Default Global Settings & Commands
 type Config struct {
 	Descriptor  string   // Default Descriptor: d16,d32,d64
 	Csumtype    string   // Default Checksum type: none
