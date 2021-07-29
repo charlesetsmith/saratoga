@@ -632,7 +632,7 @@ func main() {
 		return
 	}
 
-	if err := config.ReadConf(os.Args[1]); err != nil {
+	if err := config.ReadConfig(os.Args[1]); err != nil {
 		fmt.Println("Cannot open saratoga config file", os.Args[1], ":", err)
 		return
 	}
