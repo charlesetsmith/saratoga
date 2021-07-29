@@ -71,12 +71,12 @@
 		{
 			"cmd" : "getdir",
 			"usage" : "getdir [<peer> <dirname>]",
-			"help" : "get a directlory listing from a peer"
+			"help" : "get a directory listing from a peer"
 		},
 		{
 			"cmd" : "getrm",
 			"usage" : "getrm [<peer> <filename>",
-			"help" : "get a file from a peer and remove it from peer when successful"
+			"help" : "get a file from a peer and remove it from peer when successfully transferred"
 		},
 		{
 			"cmd" : "help",
@@ -96,7 +96,7 @@
 		{
 			"cmd" :  "interval",
 			"usage" : "interval [seconds]",
-			"help" : "set interval between beacons"
+			"help" : "set interval between sending beacons"
 		},
 		{
 			"cmd" : "ls",
