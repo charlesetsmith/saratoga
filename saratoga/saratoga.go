@@ -18,6 +18,7 @@ import (
 
 	"github.com/charlesetsmith/saratoga/beacon"
 	"github.com/charlesetsmith/saratoga/cli"
+	"github.com/charlesetsmith/saratoga/config"
 	"github.com/charlesetsmith/saratoga/data"
 	"github.com/charlesetsmith/saratoga/metadata"
 	"github.com/charlesetsmith/saratoga/request"
@@ -624,34 +625,6 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 	}
 }
 
-// Timeouts - JSON Config Default Global Timeout Settings
-type Timeouts struct {
-	Metadata int // If no Metadata is received after x seconds cancel transfer
-	Request  int // If no request is received after x seconds cancel transfer
-	Status   int // Send a status every x seconds
-	Transfer int // If no data has been received after x seconds cancel transfer
-}
-
-// Config - JSON Config Default Global Settings
-type Config struct {
-	Descriptor  string   // Default Descriptor: d16,d32,d64
-	Csumtype    string   // Default Checksum type: none
-	Freespace   string   // Is freespace tp be advertised: yes,no
-	Txwilling   string   // Can files/streams be sent: yes,no
-	Rxwilling   string   // Can files/streams be received: yes,no
-	Stream      string   // Can files/streams be transmitted: yes,no
-	Reqtstamp   string   // Request timestamps: yes,no
-	Reqstatus   string   // Request status frame to be sent/received: yes,no
-	Udplite     string   // Is UDP Lite supported: yes,no
-	Timestamp   string   // What is the default timestamp format: anything for local,posix32,posix32_323,posix64,posix64_32,epoch2000_32,
-	Timezone    string   // What timezone is to be used in timestamps: utc
-	Sardir      string   // What is the default directory for saratoga files
-	Prompt      string   // Command line prompt: saratoga
-	Ppad        int      // Padding length in prompt for []:
-	Timeout     Timeouts // Various Timers
-	Datacounter int      // How many data frames received before a status is requested
-}
-
 // Main
 func main() {
 
@@ -662,7 +635,6 @@ func main() {
 	}
 
 	var confdata []byte
-	var conf Config
 	var err error
 
 	// Read  in the JSON Config data
@@ -670,7 +642,7 @@ func main() {
 		fmt.Println("Cannot open saratoga config file", os.Args[1], ":", err)
 		return
 	}
-	if err := json.Unmarshal(confdata, &conf); err != nil {
+	if err := json.Unmarshal(confdata, &config.Conf); err != nil {
 		fmt.Println("Cannot read saratoga config file", os.Args[1], ":", err)
 		return
 	}
@@ -690,7 +662,7 @@ func main() {
 	} else {
 		sarflags.Cli.Global["descriptor"] = "d64"
 	}
-	switch conf.Descriptor {
+	switch config.Conf.Descriptor {
 	case "d16": // Everything must support at least d16
 		sarflags.Cli.Global["descriptor"] = "d16"
 	case "d32": // Only d32 & d64 support a d32
@@ -702,23 +674,28 @@ func main() {
 	default: // All else leave it as the default based upon Maxint size
 	}
 	// Give them the defaults set in saratoga JSON config
-	sarflags.Cli.Global["csumtype"] = conf.Csumtype
-	sarflags.Cli.Global["freespace"] = conf.Freespace
-	sarflags.Cli.Global["txwilling"] = conf.Txwilling
-	sarflags.Cli.Global["rxwilling"] = conf.Rxwilling
-	sarflags.Cli.Global["stream"] = conf.Stream
-	sarflags.Cli.Global["reqtstamp"] = conf.Reqtstamp
-	sarflags.Cli.Global["reqstatus"] = conf.Reqstatus
-	sarflags.Cli.Global["udplite"] = conf.Udplite
-	sarflags.Cli.Timestamp = conf.Timestamp               // Default timestamp type to use
-	sarflags.Cli.Timeout.Metadata = conf.Timeout.Metadata // Seconds
-	sarflags.Cli.Timeout.Request = conf.Timeout.Request   // Seconds
-	sarflags.Cli.Timeout.Status = conf.Timeout.Status     // Seconds
-	sarflags.Cli.Timeout.Transfer = conf.Timeout.Transfer // Seconds
-	sarflags.Cli.Datacnt = conf.Datacounter               // # Data frames between request for status
-	sarflags.Cli.Timezone = conf.Timezone                 // TImezone to use for logs
-	Cinfo.Prompt = conf.Prompt                            // Prompt Prefix in cmd
-	Cinfo.Ppad = conf.Ppad                                // For []: in prompt
+	sarflags.Cli.Global["csumtype"] = config.Conf.Csumtype
+	sarflags.Cli.Global["freespace"] = config.Conf.Freespace
+	sarflags.Cli.Global["txwilling"] = config.Conf.Txwilling
+	sarflags.Cli.Global["rxwilling"] = config.Conf.Rxwilling
+	sarflags.Cli.Global["stream"] = config.Conf.Stream
+	sarflags.Cli.Global["reqtstamp"] = config.Conf.Reqtstamp
+	sarflags.Cli.Global["reqstatus"] = config.Conf.Reqstatus
+	sarflags.Cli.Global["udplite"] = config.Conf.Udplite
+	sarflags.Cli.Timestamp = config.Conf.Timestamp               // Default timestamp type to use
+	sarflags.Cli.Timeout.Metadata = config.Conf.Timeout.Metadata // Seconds
+	sarflags.Cli.Timeout.Request = config.Conf.Timeout.Request   // Seconds
+	sarflags.Cli.Timeout.Status = config.Conf.Timeout.Status     // Seconds
+	sarflags.Cli.Timeout.Transfer = config.Conf.Timeout.Transfer // Seconds
+	sarflags.Cli.Datacnt = config.Conf.Datacounter               // # Data frames between request for status
+	sarflags.Cli.Timezone = config.Conf.Timezone                 // TImezone to use for logs
+	Cinfo.Prompt = config.Conf.Prompt                            // Prompt Prefix in cmd
+	Cinfo.Ppad = config.Conf.Ppad                                // For []: in prompt
+
+	fmt.Println(len(config.Conf.Commands))
+	for key, name := range config.Conf.Commands {
+		fmt.Println(key, name)
+	}
 
 	sarflags.Climu.Unlock()
 	/* for f := range sarflags.Cli.Global {
@@ -731,7 +708,7 @@ func main() {
 
 	// Get the default directory for sarotaga transfers from environment
 	if sardir = os.Getenv("SARDIR"); sardir == "" {
-		sardir = conf.Sardir // If no env variable set then set it to conf file value
+		sardir = config.Conf.Sardir // If no env variable set then set it to conf file value
 	}
 	// Move to it
 	if err := os.Chdir(sardir); err != nil {
