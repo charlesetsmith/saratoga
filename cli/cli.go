@@ -617,22 +617,6 @@ func peers(g *gocui.Gui, args []string) {
 // Cprompt - Command line prompt
 var Cprompt = "saratoga"
 
-func prompt(g *gocui.Gui, args []string) {
-	if len(args) == 1 {
-		sarscreen.Fprintln(g, "msg", "green_black", "Current prompt is", Cprompt)
-		return
-	}
-	if len(args) == 2 && args[1] == "?" { // usage
-		sarscreen.Fprintln(g, "msg", "green_black", cmd["prompt"][0])
-		sarscreen.Fprintln(g, "msg", "green_black", cmd["prompt"][1])
-		return
-	}
-	if len(args) == 2 {
-		Cprompt = args[1]
-		return
-	}
-}
-
 // put/send a file to a destination
 func put(g *gocui.Gui, args []string) {
 
@@ -1155,7 +1139,6 @@ var cmdhandler = map[string]cmdfunc{
 	"interval":   interval,
 	"ls":         ls,
 	"peers":      peers,
-	"prompt":     prompt,
 	"put":        put,
 	"putblind":   putblind,
 	"putrm":      putrm,
@@ -1245,10 +1228,6 @@ var cmd = map[string][2]string{
 	"peers": {
 		"peers",
 		"list current peers found",
-	},
-	"prompt": {
-		"prompt [<prompt>]",
-		"set or show current prompt",
 	},
 	"put": {
 		"put <peer> <filename>",

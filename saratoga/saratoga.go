@@ -43,11 +43,12 @@ func promptlen(v sarscreen.Viewinfo) int {
 func switchView(g *gocui.Gui, v *gocui.View) error {
 	var err error
 
-	if v.Name() == "cmd" {
-		v, err = g.SetCurrentView("msg")
-		return err
+	switch v.Name() {
+	case "cmd":
+		_, err = g.SetCurrentView("msg")
+	case "msg":
+		_, err = g.SetCurrentView("cmd")
 	}
-	v, err = g.SetCurrentView("cmd")
 	return err
 }
 
@@ -188,12 +189,11 @@ func getLine(g *gocui.Gui, v *gocui.View) error {
 	}
 
 	Cinfo.Curline++
-	// Our new x position will always be after the prompt + 3 for []: chars
 	xpos := promptlen(Cinfo)
 	// Have we scrolled past the length of v, if so reset the origin
 
 	if err := v.SetCursor(xpos, cy+1); err != nil {
-		// sarscreen.Fprintln(g, "msg", "red_black", "We Scrolled past length of v", err)
+		sarscreen.Fprintln(g, "msg", "red_black", "We Scrolled past length of v", err)
 		_, oy := v.Origin()
 		// sarscreen.Fprintf(g, "msg", "red_black", "Origin reset ox=%d oy=%d\n", ox, oy)
 		if err := v.SetOrigin(0, oy+1); err != nil { // changed xpos to 0
@@ -204,8 +204,8 @@ func getLine(g *gocui.Gui, v *gocui.View) error {
 		if verr := v.SetCursor(xpos, cy); verr != nil {
 			sarscreen.Fprintln(g, "msg", "bwite_red", "Setcursor out of bounds:", verr)
 		}
-		// cx, cy := v.Cursor()
-		// sarscreen.Fprintf(g, "msg", "red_black", "cx=%d cy=%d line=%s\n", cx, cy, line)
+		cx, cy := v.Cursor()
+		sarscreen.Fprintf(g, "msg", "red_black", "cx=%d cy=%d line=%s\n", cx, cy, line)
 	}
 	// Put up the new prompt on the next line
 	sarscreen.Fprintf(g, "cmd", "yellow_black", "\n%s[%d]:", Cinfo.Prompt, Cinfo.Curline)

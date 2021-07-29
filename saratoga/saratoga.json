@@ -12,8 +12,8 @@
 	"timestamp" :       "posix64",
 	"timezone" :       	"utc",
 	"sardir" :		    "~/sardir",
-    "prompt" :          "saratoga",
-    "ppad"  :   3,
+    "prompt" :          "chas",
+    "ppad"  :   		3,
 	"timeout" : {
 		"metadata" : 	55,
 		"request" :  	56,
