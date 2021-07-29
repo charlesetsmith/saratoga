@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/charlesetsmith/saratoga/beacon"
-	"github.com/charlesetsmith/saratoga/config"
+	"github.com/charlesetsmith/saratoga/sarconfig"
 	"github.com/charlesetsmith/saratoga/sarflags"
 	"github.com/charlesetsmith/saratoga/sarnet"
 	"github.com/charlesetsmith/saratoga/sarscreen"
@@ -458,10 +458,10 @@ func help(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
 		var sslice sort.StringSlice
 
-		for key := range config.Conf.Commands {
+		for key := range sarconfig.Conf.Commands {
 			sslice = append(sslice, fmt.Sprintf("%s - %s",
-				config.Conf.Commands[key].Cmd,
-				config.Conf.Commands[key].Help))
+				sarconfig.Conf.Commands[key].Cmd,
+				sarconfig.Conf.Commands[key].Help))
 		}
 		sort.Sort(sslice)
 		var sbuf string
@@ -474,11 +474,11 @@ func help(g *gocui.Gui, args []string) {
 	if len(args) == 2 {
 		if args[1] == "?" {
 			var sslice sort.StringSlice
-			for key := range config.Conf.Commands {
+			for key := range sarconfig.Conf.Commands {
 				sslice = append(sslice, fmt.Sprintf("%s - %s\n  %s",
-					config.Conf.Commands[key].Cmd,
-					config.Conf.Commands[key].Help,
-					config.Conf.Commands[key].Usage))
+					sarconfig.Conf.Commands[key].Cmd,
+					sarconfig.Conf.Commands[key].Help,
+					sarconfig.Conf.Commands[key].Usage))
 			}
 			sort.Sort(sslice)
 			var sbuf string
@@ -489,11 +489,11 @@ func help(g *gocui.Gui, args []string) {
 			return
 		}
 	}
-	for key := range config.Conf.Commands {
-		if config.Conf.Commands[key].Cmd == "help" {
+	for key := range sarconfig.Conf.Commands {
+		if sarconfig.Conf.Commands[key].Cmd == "help" {
 			sarscreen.Fprintln(g, "msg", "red_black", fmt.Sprintf("%s - %s",
-				config.Conf.Commands[key].Cmd,
-				config.Conf.Commands[key].Help))
+				sarconfig.Conf.Commands[key].Cmd,
+				sarconfig.Conf.Commands[key].Help))
 		}
 	}
 }
@@ -1114,18 +1114,18 @@ func txwilling(g *gocui.Gui, args []string) {
 }
 
 func prhelp(c string) string {
-	for key := range config.Conf.Commands {
-		if config.Conf.Commands[key].Cmd == c {
-			return config.Conf.Commands[key].Help
+	for key := range sarconfig.Conf.Commands {
+		if sarconfig.Conf.Commands[key].Cmd == c {
+			return sarconfig.Conf.Commands[key].Help
 		}
 	}
 	return "Invalid Command"
 }
 
 func prusage(c string) string {
-	for key := range config.Conf.Commands {
-		if config.Conf.Commands[key].Cmd == c {
-			return config.Conf.Commands[key].Usage
+	for key := range sarconfig.Conf.Commands {
+		if sarconfig.Conf.Commands[key].Cmd == c {
+			return sarconfig.Conf.Commands[key].Usage
 		}
 	}
 	return "Invalid Command"
@@ -1135,10 +1135,10 @@ func prusage(c string) string {
 func usage(g *gocui.Gui, args []string) {
 	var sslice sort.StringSlice
 
-	for key := range config.Conf.Commands {
+	for key := range sarconfig.Conf.Commands {
 		sslice = append(sslice, fmt.Sprintf("%s - %s",
-			config.Conf.Commands[key].Cmd,
-			config.Conf.Commands[key].Usage))
+			sarconfig.Conf.Commands[key].Cmd,
+			sarconfig.Conf.Commands[key].Usage))
 	}
 
 	sort.Sort(sslice)
@@ -1199,8 +1199,8 @@ func Docmd(g *gocui.Gui, s string) {
 	s = strings.TrimSpace(s)
 	vals := strings.Fields(s)
 	// Lookup the command and execute it
-	for key := range config.Conf.Commands {
-		if config.Conf.Commands[key].Cmd == vals[0] {
+	for key := range sarconfig.Conf.Commands {
+		if sarconfig.Conf.Commands[key].Cmd == vals[0] {
 			fn, ok := cmdhandler[vals[0]]
 			if ok {
 				fn(g, vals)
