@@ -1,4 +1,4 @@
-package config
+package sarconfig
 
 import (
 	"encoding/json"

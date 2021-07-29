@@ -16,10 +16,10 @@ import (
 
 	"github.com/charlesetsmith/saratoga/beacon"
 	"github.com/charlesetsmith/saratoga/cli"
-	"github.com/charlesetsmith/saratoga/config"
 	"github.com/charlesetsmith/saratoga/data"
 	"github.com/charlesetsmith/saratoga/metadata"
 	"github.com/charlesetsmith/saratoga/request"
+	"github.com/charlesetsmith/saratoga/sarconfig"
 	"github.com/charlesetsmith/saratoga/sarflags"
 	"github.com/charlesetsmith/saratoga/sarnet"
 	"github.com/charlesetsmith/saratoga/sarscreen"
@@ -633,7 +633,7 @@ func main() {
 	}
 
 	// Read in JSON config file and parse it into the Config structure.
-	if err := config.ReadConfig(os.Args[1]); err != nil {
+	if err := sarconfig.ReadConfig(os.Args[1]); err != nil {
 		fmt.Println("Cannot open saratoga config file", os.Args[1], ":", err)
 		return
 	}
@@ -653,7 +653,7 @@ func main() {
 	} else {
 		sarflags.Cli.Global["descriptor"] = "d64"
 	}
-	switch config.Conf.Descriptor {
+	switch sarconfig.Conf.Descriptor {
 	case "d16": // Everything must support at least d16
 		sarflags.Cli.Global["descriptor"] = "d16"
 	case "d32": // Only d32 & d64 support a d32
@@ -665,26 +665,26 @@ func main() {
 	default: // All else leave it as the default based upon Maxint size
 	}
 	// Give them the defaults set in saratoga JSON config
-	sarflags.Cli.Global["csumtype"] = config.Conf.Csumtype
-	sarflags.Cli.Global["freespace"] = config.Conf.Freespace
-	sarflags.Cli.Global["txwilling"] = config.Conf.Txwilling
-	sarflags.Cli.Global["rxwilling"] = config.Conf.Rxwilling
-	sarflags.Cli.Global["stream"] = config.Conf.Stream
-	sarflags.Cli.Global["reqtstamp"] = config.Conf.Reqtstamp
-	sarflags.Cli.Global["reqstatus"] = config.Conf.Reqstatus
-	sarflags.Cli.Global["udplite"] = config.Conf.Udplite
-	sarflags.Cli.Timestamp = config.Conf.Timestamp               // Default timestamp type to use
-	sarflags.Cli.Timeout.Metadata = config.Conf.Timeout.Metadata // Seconds
-	sarflags.Cli.Timeout.Request = config.Conf.Timeout.Request   // Seconds
-	sarflags.Cli.Timeout.Status = config.Conf.Timeout.Status     // Seconds
-	sarflags.Cli.Timeout.Transfer = config.Conf.Timeout.Transfer // Seconds
-	sarflags.Cli.Datacnt = config.Conf.Datacounter               // # Data frames between request for status
-	sarflags.Cli.Timezone = config.Conf.Timezone                 // TImezone to use for logs
-	Cinfo.Prompt = config.Conf.Prompt                            // Prompt Prefix in cmd
-	Cinfo.Ppad = config.Conf.Ppad                                // For []: in prompt
+	sarflags.Cli.Global["csumtype"] = sarconfig.Conf.Csumtype
+	sarflags.Cli.Global["freespace"] = sarconfig.Conf.Freespace
+	sarflags.Cli.Global["txwilling"] = sarconfig.Conf.Txwilling
+	sarflags.Cli.Global["rxwilling"] = sarconfig.Conf.Rxwilling
+	sarflags.Cli.Global["stream"] = sarconfig.Conf.Stream
+	sarflags.Cli.Global["reqtstamp"] = sarconfig.Conf.Reqtstamp
+	sarflags.Cli.Global["reqstatus"] = sarconfig.Conf.Reqstatus
+	sarflags.Cli.Global["udplite"] = sarconfig.Conf.Udplite
+	sarflags.Cli.Timestamp = sarconfig.Conf.Timestamp               // Default timestamp type to use
+	sarflags.Cli.Timeout.Metadata = sarconfig.Conf.Timeout.Metadata // Seconds
+	sarflags.Cli.Timeout.Request = sarconfig.Conf.Timeout.Request   // Seconds
+	sarflags.Cli.Timeout.Status = sarconfig.Conf.Timeout.Status     // Seconds
+	sarflags.Cli.Timeout.Transfer = sarconfig.Conf.Timeout.Transfer // Seconds
+	sarflags.Cli.Datacnt = sarconfig.Conf.Datacounter               // # Data frames between request for status
+	sarflags.Cli.Timezone = sarconfig.Conf.Timezone                 // TImezone to use for logs
+	Cinfo.Prompt = sarconfig.Conf.Prompt                            // Prompt Prefix in cmd
+	Cinfo.Ppad = sarconfig.Conf.Ppad                                // For []: in prompt
 
-	fmt.Println(len(config.Conf.Commands))
-	for key, name := range config.Conf.Commands {
+	fmt.Println(len(sarconfig.Conf.Commands))
+	for key, name := range sarconfig.Conf.Commands {
 		fmt.Println(key, name)
 	}
 
@@ -699,7 +699,7 @@ func main() {
 
 	// Get the default directory for sarotaga transfers from environment
 	if sardir = os.Getenv("SARDIR"); sardir == "" {
-		sardir = config.Conf.Sardir // If no env variable set then set it to conf file value
+		sardir = sarconfig.Conf.Sardir // If no env variable set then set it to conf file value
 	}
 	// Move to it
 	if err := os.Chdir(sardir); err != nil {
