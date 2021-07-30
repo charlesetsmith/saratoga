@@ -275,7 +275,6 @@ func descriptor(g *gocui.Gui, args []string) {
 				break
 			}
 			sarscreen.Fprintln(g, "msg", "red_black", "128 bit descriptors not supported on this platform")
-
 		case "d16":
 			if sarflags.MaxUint > sarflags.MaxUint16 {
 				sarflags.Cli.Global["descriptor"] = "d16"

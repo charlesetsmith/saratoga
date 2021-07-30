@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+
+	"github.com/charlesetsmith/saratoga/sarflags"
 )
 
 // Timeouts - JSON Config Default Global Timeout Settings
@@ -59,5 +61,25 @@ func ReadConfig(fname string) error {
 		fmt.Println("Cannot read saratoga config file", os.Args[1], ":", err)
 		return err
 	}
+
+	// Give default values to flags from saratoga JSON config
+	sarflags.Cli.Global["csumtype"] = Conf.Csumtype
+	sarflags.Cli.Global["freespace"] = Conf.Freespace
+	sarflags.Cli.Global["txwilling"] = Conf.Txwilling
+	sarflags.Cli.Global["rxwilling"] = Conf.Rxwilling
+	sarflags.Cli.Global["stream"] = Conf.Stream
+	sarflags.Cli.Global["reqtstamp"] = Conf.Reqtstamp
+	sarflags.Cli.Global["reqstatus"] = Conf.Reqstatus
+	sarflags.Cli.Global["udplite"] = Conf.Udplite
+	sarflags.Cli.Timestamp = Conf.Timestamp               // Default timestamp type to use
+	sarflags.Cli.Timeout.Metadata = Conf.Timeout.Metadata // Seconds
+	sarflags.Cli.Timeout.Request = Conf.Timeout.Request   // Seconds
+	sarflags.Cli.Timeout.Status = Conf.Timeout.Status     // Seconds
+	sarflags.Cli.Timeout.Transfer = Conf.Timeout.Transfer // Seconds
+	sarflags.Cli.Datacnt = Conf.Datacounter               // # Data frames between request for status
+	sarflags.Cli.Timezone = Conf.Timezone                 // TImezone to use for logs
+	sarflags.Cli.Prompt = Conf.Prompt                     // Prompt Prefix in cmd
+	sarflags.Cli.Ppad = Conf.Ppad                         // For []: in prompt = 3
+
 	return nil
 }

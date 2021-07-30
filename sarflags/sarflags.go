@@ -370,6 +370,8 @@ type Cliflags struct {
 	Timeout   Timeouts          // Various timeouts
 	Datacnt   int               // # data frames to send before a request flag is set
 	Timezone  string            // Timezone for logs utc or local time
+	Prompt    string            // Prompt
+	Ppad      int               // Length of Padding around Prompt []: = 3
 }
 
 // Cli - The CLI Flags that are entered in cli.go
