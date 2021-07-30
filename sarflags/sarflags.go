@@ -201,6 +201,7 @@ var flagframe = map[string][]string{
 }
 
 // Map of which frametypes are applicable to which flags
+/*
 var frameflag = map[string][]string{
 	"beacon":   {"version", "frametype", "descriptor", "stream", "txwilling", "rxwilling", "udplite", "freespace", "freespaced"},
 	"request":  {"version", "frametype", "descriptor", "stream", "reqtype", "fileordir", "udplite"},
@@ -208,7 +209,7 @@ var frameflag = map[string][]string{
 	"data":     {"version", "frametype", "descriptor", "transfer", "reqtstamp", "reqstatus", "eod"},
 	"status":   {"version", "frametype", "descriptor", "reqtstamp", "metadatarecvd", "allholes", "reqholes", "errcode"},
 }
-
+*/
 type flaginfo struct {
 	name string
 	val  uint32
