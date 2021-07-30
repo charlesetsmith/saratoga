@@ -632,6 +632,7 @@ func main() {
 		return
 	}
 
+	sarflags.Cli.Global = make(map[string]string)
 	// Read in JSON config file and parse it into the Config structure.
 	if err := sarconfig.ReadConfig(os.Args[1]); err != nil {
 		fmt.Println("Cannot open saratoga config file", os.Args[1], ":", err)
@@ -641,33 +642,10 @@ func main() {
 	// Grab my process ID
 	// Pid := os.Getpid()
 
-	// Global Flags set in cli
-	sarflags.Climu.Lock()
-	sarflags.Cli.Global = make(map[string]string)
-	// Give them some defaults
-	// Find the maximum supported descriptor
-	if sarflags.MaxUint <= sarflags.MaxUint16 {
-		sarflags.Cli.Global["descriptor"] = "d16"
-	} else if sarflags.MaxUint <= sarflags.MaxUint32 {
-		sarflags.Cli.Global["descriptor"] = "d32"
-	} else {
-		sarflags.Cli.Global["descriptor"] = "d64"
-	}
-	switch sarconfig.Conf.Descriptor {
-	case "d16": // Everything must support at least d16
-		sarflags.Cli.Global["descriptor"] = "d16"
-	case "d32": // Only d32 & d64 support a d32
-		if sarflags.Cli.Global["descriptor"] == "d32" || sarflags.Cli.Global["descriptor"] == "d64" {
-			sarflags.Cli.Global["descriptor"] = "d32"
-		}
-	case "d64": // Only d64 supports a d64 of course
-		sarflags.Cli.Global["descriptor"] = "d64"
-	default: // All else leave it as the default based upon Maxint size
-	}
-
 	fmt.Println("Sizes of Ints", sarflags.MaxUint)
 
-	sarflags.Climu.Unlock()
+	Cinfo.Prompt = sarflags.Cli.Prompt
+	Cinfo.Ppad = sarflags.Cli.Ppad
 
 	for f := range sarflags.Cli.Global {
 		if !sarflags.Valid(f, sarflags.Cli.Global[f]) {
@@ -675,21 +653,16 @@ func main() {
 			panic(ps)
 		}
 	}
-	var sardir string
 
-	// Get the default directory for sarotaga transfers from environment
-	if sardir = os.Getenv("SARDIR"); sardir == "" {
-		sardir = sarconfig.Conf.Sardir // If no env variable set then set it to conf file value
-	}
-	// Move to it
-	if err := os.Chdir(sardir); err != nil {
-		e := fmt.Sprintf("No such directory SARDIR=%s", sardir)
+	// Move to saratoga working directory
+	if err := os.Chdir(sarflags.Cli.Sardir); err != nil {
+		e := fmt.Sprintf("No such directory SARDIR=%s", sarflags.Cli.Sardir)
 		log.Fatal(errors.New(e))
 	}
 
 	var fs syscall.Statfs_t
-	if err := syscall.Statfs(sardir, &fs); err != nil {
-		log.Fatal(errors.New("cannot stat sardir"))
+	if err := syscall.Statfs(sarflags.Cli.Sardir, &fs); err != nil {
+		log.Fatal(errors.New("cannot stat saratoga working directory"))
 	}
 
 	// Open up V4 & V6 sockets for listening on the Saratoga Port
@@ -757,7 +730,7 @@ func main() {
 			sarnet.UDPinfo(&v4mcastaddr))
 	}
 
-	sarscreen.Fprintf(g, "msg", "green_black", "Saratoga Directory is %s\n", sardir)
+	sarscreen.Fprintf(g, "msg", "green_black", "Saratoga Directory is %s\n", sarflags.Cli.Sardir)
 	sarscreen.Fprintf(g, "msg", "green_black", "Available space is %d MB\n",
 		(uint64(fs.Bsize)*fs.Bavail)/1024/1024)
 	sarscreen.Fprintf(g, "msg", "green_black", "Sizes of Ints is %d\n", sarflags.MaxUint)

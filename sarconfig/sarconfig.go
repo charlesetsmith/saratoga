@@ -61,7 +61,7 @@ func ReadConfig(fname string) error {
 		fmt.Println("Cannot read saratoga config file", os.Args[1], ":", err)
 		return err
 	}
-
+	sarflags.Climu.Lock()
 	// Give default values to flags from saratoga JSON config
 	sarflags.Cli.Global["csumtype"] = Conf.Csumtype
 	sarflags.Cli.Global["freespace"] = Conf.Freespace
@@ -71,6 +71,7 @@ func ReadConfig(fname string) error {
 	sarflags.Cli.Global["reqtstamp"] = Conf.Reqtstamp
 	sarflags.Cli.Global["reqstatus"] = Conf.Reqstatus
 	sarflags.Cli.Global["udplite"] = Conf.Udplite
+	sarflags.Cli.Global["descriptor"] = Conf.Descriptor
 	sarflags.Cli.Timestamp = Conf.Timestamp               // Default timestamp type to use
 	sarflags.Cli.Timeout.Metadata = Conf.Timeout.Metadata // Seconds
 	sarflags.Cli.Timeout.Request = Conf.Timeout.Request   // Seconds
@@ -80,6 +81,16 @@ func ReadConfig(fname string) error {
 	sarflags.Cli.Timezone = Conf.Timezone                 // TImezone to use for logs
 	sarflags.Cli.Prompt = Conf.Prompt                     // Prompt Prefix in cmd
 	sarflags.Cli.Ppad = Conf.Ppad                         // For []: in prompt = 3
+
+	var sardir string
+
+	// Get the default directory for sarotaga transfers from environment
+	if sardir = os.Getenv("SARDIR"); sardir == "" {
+		sardir = Conf.Sardir // If no env variable set then set it to conf file value
+	}
+	sarflags.Cli.Sardir = sardir
+
+	sarflags.Climu.Unlock()
 
 	return nil
 }

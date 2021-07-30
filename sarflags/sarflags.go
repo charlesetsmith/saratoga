@@ -372,6 +372,7 @@ type Cliflags struct {
 	Timezone  string            // Timezone for logs utc or local time
 	Prompt    string            // Prompt
 	Ppad      int               // Length of Padding around Prompt []: = 3
+	Sardir    string            // Saratoga working directory
 }
 
 // Cli - The CLI Flags that are entered in cli.go
