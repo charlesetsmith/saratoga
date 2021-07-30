@@ -1,6 +1,6 @@
 {
 	"_comment" : "Refer to Config struct comments in saratoga.go",
-	"descriptor" :      "d32",
+	"descriptor" :      "d64",
 	"csumtype" :        "none",
 	"freespace" :       "yes",
 	"txwilling" :       "yes",

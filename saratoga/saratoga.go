@@ -664,6 +664,9 @@ func main() {
 		sarflags.Cli.Global["descriptor"] = "d64"
 	default: // All else leave it as the default based upon Maxint size
 	}
+
+	fmt.Println("Sizes of Ints", sarflags.MaxUint)
+
 	// Give them the defaults set in saratoga JSON config
 	sarflags.Cli.Global["csumtype"] = sarconfig.Conf.Csumtype
 	sarflags.Cli.Global["freespace"] = sarconfig.Conf.Freespace
@@ -683,18 +686,14 @@ func main() {
 	Cinfo.Prompt = sarconfig.Conf.Prompt                            // Prompt Prefix in cmd
 	Cinfo.Ppad = sarconfig.Conf.Ppad                                // For []: in prompt
 
-	fmt.Println(len(sarconfig.Conf.Commands))
-	for key, name := range sarconfig.Conf.Commands {
-		fmt.Println(key, name)
-	}
-
 	sarflags.Climu.Unlock()
-	/* for f := range sarflags.Cli.Global {
-		if !sarflags.Valid(f, sarflags.Global[f]) {
-			ps := "Invalid Flag:" + f + "=" + sarflags.Global[f]
+
+	for f := range sarflags.Cli.Global {
+		if !sarflags.Valid(f, sarflags.Cli.Global[f]) {
+			ps := "Invalid Flag:" + f + "=" + sarflags.Cli.Global[f]
 			panic(ps)
 		}
-	} */
+	}
 	var sardir string
 
 	// Get the default directory for sarotaga transfers from environment
@@ -780,6 +779,7 @@ func main() {
 	sarscreen.Fprintf(g, "msg", "green_black", "Saratoga Directory is %s\n", sardir)
 	sarscreen.Fprintf(g, "msg", "green_black", "Available space is %d MB\n",
 		(uint64(fs.Bsize)*fs.Bavail)/1024/1024)
+	sarscreen.Fprintf(g, "msg", "green_black", "Sizes of Ints is %d\n", sarflags.MaxUint)
 
 	// Show Host Interfaces & Address's
 	ifis, _ := net.Interfaces()
