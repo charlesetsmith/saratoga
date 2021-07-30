@@ -82,16 +82,22 @@ func ReadConfig(fname string) error {
 	sarflags.Cli.Prompt = Conf.Prompt                     // Prompt Prefix in cmd
 	sarflags.Cli.Ppad = Conf.Ppad                         // For []: in prompt = 3
 
-	var sardir string
-
 	// Get the default directory for sarotaga transfers from environment
 	// We default to what is in the environment variable otherwise what is in saratoga.json
+	var sardir string
 	if sardir = os.Getenv("SARDIR"); sardir == "" {
 		sardir = Conf.Sardir // If no env variable set then set it to conf file value
 	}
 	sarflags.Cli.Sardir = sardir
 
 	sarflags.Climu.Unlock()
+
+	for f := range sarflags.Cli.Global {
+		if !sarflags.Valid(f, sarflags.Cli.Global[f]) {
+			ps := "Invalid Flag:" + f + "=" + sarflags.Cli.Global[f]
+			panic(ps)
+		}
+	}
 
 	return nil
 }

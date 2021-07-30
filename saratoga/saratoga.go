@@ -642,22 +642,12 @@ func main() {
 	// Grab my process ID
 	// Pid := os.Getpid()
 
-	fmt.Println("Sizes of Ints", sarflags.MaxUint)
-
 	Cinfo.Prompt = sarflags.Cli.Prompt
 	Cinfo.Ppad = sarflags.Cli.Ppad
 
-	for f := range sarflags.Cli.Global {
-		if !sarflags.Valid(f, sarflags.Cli.Global[f]) {
-			ps := "Invalid Flag:" + f + "=" + sarflags.Cli.Global[f]
-			panic(ps)
-		}
-	}
-
 	// Move to saratoga working directory
 	if err := os.Chdir(sarflags.Cli.Sardir); err != nil {
-		e := fmt.Sprintf("No such directory SARDIR=%s", sarflags.Cli.Sardir)
-		log.Fatal(errors.New(e))
+		log.Fatal(fmt.Errorf("no such directory SARDIR=%s", sarflags.Cli.Sardir))
 	}
 
 	var fs syscall.Statfs_t
