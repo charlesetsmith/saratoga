@@ -85,6 +85,7 @@ func ReadConfig(fname string) error {
 	var sardir string
 
 	// Get the default directory for sarotaga transfers from environment
+	// We default to what is in the environment variable otherwise what is in saratoga.json
 	if sardir = os.Getenv("SARDIR"); sardir == "" {
 		sardir = Conf.Sardir // If no env variable set then set it to conf file value
 	}
