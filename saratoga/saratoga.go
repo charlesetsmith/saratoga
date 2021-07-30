@@ -667,25 +667,6 @@ func main() {
 
 	fmt.Println("Sizes of Ints", sarflags.MaxUint)
 
-	// Give them the defaults set in saratoga JSON config
-	sarflags.Cli.Global["csumtype"] = sarconfig.Conf.Csumtype
-	sarflags.Cli.Global["freespace"] = sarconfig.Conf.Freespace
-	sarflags.Cli.Global["txwilling"] = sarconfig.Conf.Txwilling
-	sarflags.Cli.Global["rxwilling"] = sarconfig.Conf.Rxwilling
-	sarflags.Cli.Global["stream"] = sarconfig.Conf.Stream
-	sarflags.Cli.Global["reqtstamp"] = sarconfig.Conf.Reqtstamp
-	sarflags.Cli.Global["reqstatus"] = sarconfig.Conf.Reqstatus
-	sarflags.Cli.Global["udplite"] = sarconfig.Conf.Udplite
-	sarflags.Cli.Timestamp = sarconfig.Conf.Timestamp               // Default timestamp type to use
-	sarflags.Cli.Timeout.Metadata = sarconfig.Conf.Timeout.Metadata // Seconds
-	sarflags.Cli.Timeout.Request = sarconfig.Conf.Timeout.Request   // Seconds
-	sarflags.Cli.Timeout.Status = sarconfig.Conf.Timeout.Status     // Seconds
-	sarflags.Cli.Timeout.Transfer = sarconfig.Conf.Timeout.Transfer // Seconds
-	sarflags.Cli.Datacnt = sarconfig.Conf.Datacounter               // # Data frames between request for status
-	sarflags.Cli.Timezone = sarconfig.Conf.Timezone                 // TImezone to use for logs
-	Cinfo.Prompt = sarconfig.Conf.Prompt                            // Prompt Prefix in cmd
-	Cinfo.Ppad = sarconfig.Conf.Ppad                                // For []: in prompt
-
 	sarflags.Climu.Unlock()
 
 	for f := range sarflags.Cli.Global {
