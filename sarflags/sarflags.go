@@ -415,7 +415,7 @@ type Config struct {
 }
 
 // Holds json decoded data in the Config struct
-var Conf Config
+var Conf = Config{}
 
 // Read  in the JSON Config data
 func ReadConfig(fname string) error {
@@ -472,6 +472,9 @@ func ReadConfig(fname string) error {
 		}
 	}
 
+	for xx := range Conf.Commands {
+		fmt.Println(Conf.Commands[xx].Cmd)
+	}
 	return nil
 }
 
