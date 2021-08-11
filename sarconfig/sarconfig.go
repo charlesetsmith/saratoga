@@ -87,6 +87,8 @@ func ReadConfig(fname string) error {
 	var sardir string
 	if sardir = os.Getenv("SARDIR"); sardir == "" {
 		sardir = Conf.Sardir // If no env variable set then set it to conf file value
+	} else {
+		fmt.Println("SARDIR environment variable is:", sardir)
 	}
 	sarflags.Cli.Sardir = sardir
 
