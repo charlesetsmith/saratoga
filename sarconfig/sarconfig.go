@@ -87,6 +87,7 @@ func ReadConfig(fname string) error {
 	var sardir string
 	if sardir = os.Getenv("SARDIR"); sardir == "" {
 		sardir = Conf.Sardir // If no env variable set then set it to conf file value
+		fmt.Println("SARDIR is set from saratoga.conf to:", sardir)
 	} else {
 		fmt.Println("SARDIR environment variable is:", sardir)
 	}
