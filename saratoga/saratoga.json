@@ -18,7 +18,9 @@
 		"metadata" : 	55,
 		"request" :  	56,
 		"status" :   	57,
-		"transfer" : 	58
+		"transfer" : 	58,
+		"binterval" :	3
+
 	},
 	"datacounter" :     100,
 	"commands" :

@@ -19,7 +19,6 @@ import (
 	"github.com/charlesetsmith/saratoga/data"
 	"github.com/charlesetsmith/saratoga/metadata"
 	"github.com/charlesetsmith/saratoga/request"
-	"github.com/charlesetsmith/saratoga/sarconfig"
 	"github.com/charlesetsmith/saratoga/sarflags"
 	"github.com/charlesetsmith/saratoga/sarnet"
 	"github.com/charlesetsmith/saratoga/sarscreen"
@@ -635,7 +634,7 @@ func main() {
 
 	sarflags.Cli.Global = make(map[string]string)
 	// Read in JSON config file and parse it into the Config structure.
-	if err := sarconfig.ReadConfig(os.Args[1]); err != nil {
+	if err := sarflags.ReadConfig(os.Args[1]); err != nil {
 		fmt.Println("Cannot open saratoga config file", os.Args[1], ":", err)
 		return
 	}

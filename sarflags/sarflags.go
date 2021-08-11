@@ -3,8 +3,12 @@
 package sarflags
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
+	"io/ioutil"
 	"log"
+	"os"
 	"strings"
 	"sync"
 )
@@ -381,6 +385,95 @@ var Cli = Cliflags{}
 
 // Climu - Protect CLI input flags
 var Climu sync.Mutex
+
+// Commands - JSON Config for command usage & help
+type Cmds struct {
+	Cmd   string
+	Usage string
+	Help  string
+}
+
+// Config - JSON Config Default Global Settings & Commands
+type Config struct {
+	Descriptor  string   // Default Descriptor: d16,d32,d64
+	Csumtype    string   // Default Checksum type: none
+	Freespace   string   // Is freespace tp be advertised: yes,no
+	Txwilling   string   // Can files/streams be sent: yes,no
+	Rxwilling   string   // Can files/streams be received: yes,no
+	Stream      string   // Can files/streams be transmitted: yes,no
+	Reqtstamp   string   // Request timestamps: yes,no
+	Reqstatus   string   // Request status frame to be sent/received: yes,no
+	Udplite     string   // Is UDP Lite supported: yes,no
+	Timestamp   string   // What is the default timestamp format: anything for local,posix32,posix32_323,posix64,posix64_32,epoch2000_32,
+	Timezone    string   // What timezone is to be used in timestamps: utc
+	Sardir      string   // What is the default directory for saratoga files
+	Prompt      string   // Command line prompt: saratoga
+	Ppad        int      // Padding length in prompt for []:
+	Timeout     Timeouts // Various Timers
+	Datacounter int      // How many data frames received before a status is requested
+	Commands    []Cmds   // Command name, usage & help
+}
+
+// Holds json decoded data in the Config struct
+var Conf Config
+
+// Read  in the JSON Config data
+func ReadConfig(fname string) error {
+	var confdata []byte
+	var err error
+
+	if confdata, err = ioutil.ReadFile(fname); err != nil {
+		fmt.Println("Cannot open saratoga config file", os.Args[1], ":", err)
+		return err
+	}
+	if err = json.Unmarshal(confdata, &Conf); err != nil {
+		fmt.Println("Cannot read saratoga config file", os.Args[1], ":", err)
+		return err
+	}
+	Climu.Lock()
+	// Give default values to flags from saratoga JSON config
+	Cli.Global["csumtype"] = Conf.Csumtype
+	Cli.Global["freespace"] = Conf.Freespace
+	Cli.Global["txwilling"] = Conf.Txwilling
+	Cli.Global["rxwilling"] = Conf.Rxwilling
+	Cli.Global["stream"] = Conf.Stream
+	Cli.Global["reqtstamp"] = Conf.Reqtstamp
+	Cli.Global["reqstatus"] = Conf.Reqstatus
+	Cli.Global["udplite"] = Conf.Udplite
+	Cli.Global["descriptor"] = Conf.Descriptor
+	Cli.Timestamp = Conf.Timestamp                 // Default timestamp type to use
+	Cli.Timeout.Metadata = Conf.Timeout.Metadata   // Seconds
+	Cli.Timeout.Request = Conf.Timeout.Request     // Seconds
+	Cli.Timeout.Status = Conf.Timeout.Status       // Seconds
+	Cli.Timeout.Transfer = Conf.Timeout.Transfer   // Seconds
+	Cli.Timeout.Binterval = Conf.Timeout.Binterval // Seconds between beacons
+	Cli.Datacnt = Conf.Datacounter                 // # Data frames between request for status
+	Cli.Timezone = Conf.Timezone                   // TImezone to use for logs
+	Cli.Prompt = Conf.Prompt                       // Prompt Prefix in cmd
+	Cli.Ppad = Conf.Ppad                           // For []: in prompt = 3
+
+	// Get the default directory for sarotaga transfers from environment
+	// We default to what is in the environment variable otherwise what is in saratoga.json
+	var sardir string
+	if sardir = os.Getenv("SARDIR"); sardir == "" {
+		sardir = Conf.Sardir // If no env variable set then set it to conf file value
+		fmt.Println("SARDIR is set from saratoga.conf to:", sardir)
+	} else {
+		fmt.Println("SARDIR environment variable is:", sardir)
+	}
+	Cli.Sardir = sardir
+
+	Climu.Unlock()
+
+	for f := range Cli.Global {
+		if !Valid(f, Cli.Global[f]) {
+			ps := "Invalid Flag:" + f + "=" + Cli.Global[f]
+			panic(ps)
+		}
+	}
+
+	return nil
+}
 
 // Valid - Check for valid flag and value
 func Valid(field string, info string) bool {
