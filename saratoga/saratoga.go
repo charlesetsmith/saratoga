@@ -444,6 +444,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 	framelen := 0
 	err := error(nil)
 	remoteAddr := new(net.UDPAddr)
+	sarscreen.Fprintln(g, "msg", "green_black", "Listen Remote Address:", remoteAddr)
 	for err == nil { // Loop forever grabbing frames
 		// Read into buf
 		framelen, remoteAddr, err = conn.ReadFromUDP(buf)
@@ -473,7 +474,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 		// Grab the Saratoga Header
 		header := binary.BigEndian.Uint32(frame[:4])
 		if sarflags.GetStr(header, "version") != "v1" { // Make sure we are Version 1
-			if header, err = sarflags.Set(0, "errno", "badpacket"); err != nil {
+			if _, err = sarflags.Set(0, "errno", "badpacket"); err != nil {
 				// Bad Packet send back a Status to the client
 				var se status.Status
 				_ = se.New("errcode=badpacket", 0, 0, 0, nil)
