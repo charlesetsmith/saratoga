@@ -368,8 +368,16 @@ type Timeouts struct {
 // GTimeout - timeouts for responses 0 means no timeout
 var GTimeout = Timeouts{}
 
+// Cmds - JSON Config for command usage & help
+type Cmds struct {
+	Cmd   string
+	Usage string
+	Help  string
+}
+
 // Cliflags - CLI Input flags
 type Cliflags struct {
+	Commands  []Cmds
 	Global    map[string]string // Global header flags set for frames
 	Timestamp string            // What timestamp to use
 	Timeout   Timeouts          // Various timeouts
@@ -385,13 +393,6 @@ var Cli = Cliflags{}
 
 // Climu - Protect CLI input flags
 var Climu sync.Mutex
-
-// Commands - JSON Config for command usage & help
-type Cmds struct {
-	Cmd   string
-	Usage string
-	Help  string
-}
 
 // Config - JSON Config Default Global Settings & Commands
 type Config struct {
@@ -473,10 +474,14 @@ func ReadConfig(fname string) error {
 	}
 
 	for xx := range Conf.Commands {
-		fmt.Println(Conf.Commands[xx].Cmd)
+		// Append the new command to the array of commands
+		Cli.Commands = append(Cli.Commands, Cli.Commands[xx])
+		// Copy it across from the JSON Config Structure
+		Cli.Commands[xx].Cmd = Conf.Commands[xx].Cmd
+		Cli.Commands[xx].Help = Conf.Commands[xx].Help
+		Cli.Commands[xx].Usage = Conf.Commands[xx].Usage
 	}
-	panic("DONE")
-	// return nil
+	return nil
 }
 
 // Valid - Check for valid flag and value
