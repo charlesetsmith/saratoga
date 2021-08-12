@@ -475,7 +475,8 @@ func ReadConfig(fname string) error {
 	for xx := range Conf.Commands {
 		fmt.Println(Conf.Commands[xx].Cmd)
 	}
-	return nil
+	panic("DONE")
+	// return nil
 }
 
 // Valid - Check for valid flag and value
