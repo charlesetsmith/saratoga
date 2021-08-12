@@ -638,6 +638,10 @@ func main() {
 		fmt.Println("Cannot open saratoga config file", os.Args[1], ":", err)
 		return
 	}
+	for xx := range sarflags.Cli.Commands {
+		fmt.Println(sarflags.Cli.Commands[xx].Cmd)
+	}
+	panic("WE ARE OK DONE!!!!!")
 
 	// Grab my process ID
 	// Pid := os.Getpid()
