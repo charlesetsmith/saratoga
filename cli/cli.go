@@ -91,12 +91,12 @@ type cmdBeacon struct {
 // clibeacon - Beacon commands
 var clibeacon cmdBeacon
 
-func cmdbeacon(g *gocui.Gui, args []string) {
+func cmdbeacon(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 
 	// var bmu sync.Mutex // Protects beacon.Beacon structure (EID)
 
-	clibeacon.flags = sarflags.Setglobal("beacon")      // Initialise Global Beacon flags
-	clibeacon.interval = sarflags.Cli.Timeout.Binterval // Set up the correct interval
+	clibeacon.flags = sarflags.Setglobal("beacon", c) // Initialise Global Beacon flags
+	clibeacon.interval = c.Timeout.Binterval          // Set up the correct interval
 
 	// Show current Cbeacon flags and lists - beacon
 	if len(args) == 1 {
@@ -128,19 +128,19 @@ func cmdbeacon(g *gocui.Gui, args []string) {
 	if len(args) == 2 {
 		switch args[1] {
 		case "?": // usage
-			sarscreen.Fprintln(g, "msg", "green_black", prusage("beacon"))
-			sarscreen.Fprintln(g, "msg", "green_black", prhelp("beacon"))
+			sarscreen.Fprintln(g, "msg", "green_black", prusage("beacon", c))
+			sarscreen.Fprintln(g, "msg", "green_black", prhelp("beacon", c))
 			return
 		case "off": // remove and disable all beacons
-			clibeacon.flags = sarflags.Setglobal("beacon")
+			clibeacon.flags = sarflags.Setglobal("beacon", c)
 			clibeacon.count = 0
-			clibeacon.interval = sarflags.Cli.Timeout.Binterval
+			clibeacon.interval = c.Timeout.Binterval
 			clibeacon.host = nil
 			sarscreen.Fprintln(g, "msg", "green_black", "Beacons Disabled")
 			return
 		case "v4": // V4 Multicast
 			sarscreen.Fprintln(g, "msg", "green_black", "Sending beacons to IPv4 Multicast")
-			clibeacon.flags = sarflags.Setglobal("beacon")
+			clibeacon.flags = sarflags.Setglobal("beacon", c)
 			clibeacon.v4mcast = true
 			clibeacon.count = 1
 			// Start up the beacon client sending count IPv4 beacons
@@ -148,7 +148,7 @@ func cmdbeacon(g *gocui.Gui, args []string) {
 			return
 		case "v6": // V6 Multicast
 			sarscreen.Fprintln(g, "msg", "green_black", "Sending beacons to IPv6 Multicast")
-			clibeacon.flags = sarflags.Setglobal("beacon")
+			clibeacon.flags = sarflags.Setglobal("beacon", c)
 			clibeacon.v6mcast = true
 			clibeacon.count = 1
 			// Start up the beacon client sending count IPv6 beacons
@@ -178,7 +178,7 @@ func cmdbeacon(g *gocui.Gui, args []string) {
 				}
 			} else {
 				sarscreen.Fprintln(g, "msg", "red_black", "Invalid IP Address:", args[i])
-				sarscreen.Fprintln(g, "cmd", "red_black", prusage("beacon"))
+				sarscreen.Fprintln(g, "cmd", "red_black", prusage("beacon", c))
 			}
 		}
 		return
@@ -212,18 +212,18 @@ func cmdbeacon(g *gocui.Gui, args []string) {
 	sarscreen.Fprintln(g, "msg", "green_black", "")
 }
 
-func cancel(g *gocui.Gui, args []string) {
+func cancel(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	sarscreen.Fprintln(g, "msg", "green_black", args)
 }
 
-func checksum(g *gocui.Gui, args []string) {
+func checksum(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	if len(args) == 1 {
-		sarscreen.Fprintln(g, "msg", "green_black", "Checksum", sarflags.Cli.Global["csumtype"])
+		sarscreen.Fprintln(g, "msg", "green_black", "Checksum", c.Global["csumtype"])
 		return
 	}
 	if len(args) == 2 && args[1] == "?" { // usage
-		sarscreen.Fprintln(g, "msg", "green_black", prusage("checksum"))
-		sarscreen.Fprintln(g, "msg", "green_black", prhelp("checksum"))
+		sarscreen.Fprintln(g, "msg", "green_black", prusage("checksum", c))
+		sarscreen.Fprintln(g, "msg", "green_black", prhelp("checksum", c))
 		return
 	}
 	sarflags.Climu.Lock()
@@ -231,29 +231,29 @@ func checksum(g *gocui.Gui, args []string) {
 	if len(args) == 2 {
 		switch args[1] {
 		case "off", "none":
-			sarflags.Cli.Global["csumtype"] = "none"
+			c.Global["csumtype"] = "none"
 		case "crc32":
-			sarflags.Cli.Global["csumtype"] = "crc32"
+			c.Global["csumtype"] = "crc32"
 		case "md5":
-			sarflags.Cli.Global["csumtype"] = "md5"
+			c.Global["csumtype"] = "md5"
 		case "sha1":
-			sarflags.Cli.Global["csumtype"] = "sha1"
+			c.Global["csumtype"] = "sha1"
 		default:
-			sarscreen.Fprintln(g, "cmd", "green_red", prusage("checksum"))
+			sarscreen.Fprintln(g, "cmd", "green_red", prusage("checksum", c))
 		}
 		return
 	}
-	sarscreen.Fprintln(g, "cmd", "green_red", prusage("checksum"))
+	sarscreen.Fprintln(g, "cmd", "green_red", prusage("checksum", c))
 }
 
-func descriptor(g *gocui.Gui, args []string) {
+func descriptor(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	if len(args) == 1 {
-		sarscreen.Fprintln(g, "msg", "green_black", "Descriptor", sarflags.Cli.Global["descriptor"])
+		sarscreen.Fprintln(g, "msg", "green_black", "Descriptor", c.Global["descriptor"])
 		return
 	}
 	if len(args) == 2 && args[1] == "?" { // usage
-		sarscreen.Fprintln(g, "msg", "green_black", prusage("descriptor"))
-		sarscreen.Fprintln(g, "msg", "green_black", prhelp("descriptor"))
+		sarscreen.Fprintln(g, "msg", "green_black", prusage("descriptor", c))
+		sarscreen.Fprintln(g, "msg", "green_black", prhelp("descriptor", c))
 		return
 	}
 	sarflags.Climu.Lock()
@@ -262,33 +262,33 @@ func descriptor(g *gocui.Gui, args []string) {
 		switch args[1] {
 		case "auto":
 			if sarflags.MaxUint <= sarflags.MaxUint16 {
-				sarflags.Cli.Global["descriptor"] = "d16"
+				c.Global["descriptor"] = "d16"
 				break
 			}
 			if sarflags.MaxUint <= sarflags.MaxUint32 {
-				sarflags.Cli.Global["descriptor"] = "d32"
+				c.Global["descriptor"] = "d32"
 				break
 			}
 			if sarflags.MaxUint <= sarflags.MaxUint64 {
-				sarflags.Cli.Global["descriptor"] = "d64"
+				c.Global["descriptor"] = "d64"
 				break
 			}
 			sarscreen.Fprintln(g, "msg", "red_black", "128 bit descriptors not supported on this platform")
 		case "d16":
 			if sarflags.MaxUint > sarflags.MaxUint16 {
-				sarflags.Cli.Global["descriptor"] = "d16"
+				c.Global["descriptor"] = "d16"
 			} else {
 				sarscreen.Fprintln(g, "msg", "red_black", "16 bit descriptors not supported on this platform")
 			}
 		case "d32":
 			if sarflags.MaxUint > sarflags.MaxUint32 {
-				sarflags.Cli.Global["descriptor"] = "d32"
+				c.Global["descriptor"] = "d32"
 			} else {
 				sarscreen.Fprintln(g, "msg", "red_black", "32 bit descriptors not supported on this platform")
 			}
 		case "d64":
 			if sarflags.MaxUint <= sarflags.MaxUint64 {
-				sarflags.Cli.Global["descriptor"] = "d64"
+				c.Global["descriptor"] = "d64"
 			} else {
 				sarscreen.Fprintln(g, "msg", "red_black", "64 bit descriptors are not supported on this platform")
 				sarscreen.Fprintln(g, "msg", "red_black", "MaxUint=", sarflags.MaxUint,
@@ -297,21 +297,21 @@ func descriptor(g *gocui.Gui, args []string) {
 		case "d128":
 			sarscreen.Fprintln(g, "msg", "red_black", "128 bit descriptors not supported on this platform")
 		default:
-			sarscreen.Fprintln(g, "msg", "red_black", "usage: ", prusage("descriptor"))
+			sarscreen.Fprintln(g, "msg", "red_black", "usage: ", prusage("descriptor", c))
 		}
-		sarscreen.Fprintln(g, "msg", "green_black", "Descriptor size is", sarflags.Cli.Global["descriptor"])
+		sarscreen.Fprintln(g, "msg", "green_black", "Descriptor size is", c.Global["descriptor"])
 		return
 	}
-	sarscreen.Fprintln(g, "msg", "red_black", "usage: ", prusage("descriptor"))
+	sarscreen.Fprintln(g, "msg", "red_black", "usage: ", prusage("descriptor", c))
 }
 
 // Cexit = Exit level to quit from saratoga
 var Cexit = -1
 
 // Quit saratoga
-func exit(g *gocui.Gui, args []string) {
+func exit(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	if len(args) > 2 { // usage
-		sarscreen.Fprintln(g, "msg", "red_black", prusage("exit"))
+		sarscreen.Fprintln(g, "msg", "red_black", prusage("exit", c))
 		return
 	}
 	if len(args) == 1 { // exit 0
@@ -322,8 +322,8 @@ func exit(g *gocui.Gui, args []string) {
 	if len(args) == 2 {
 		switch args[1] {
 		case "?": // Usage
-			sarscreen.Fprintln(g, "msg", "green_black", prusage("exit"))
-			sarscreen.Fprintln(g, "msg", "green_black", prhelp("exit"))
+			sarscreen.Fprintln(g, "msg", "green_black", prusage("exit", c))
+			sarscreen.Fprintln(g, "msg", "green_black", prhelp("exit", c))
 		case "0": // exit 0
 			Cexit = 0
 			sarscreen.Fprintln(g, "msg", "green_black", "Good Bye!")
@@ -331,15 +331,15 @@ func exit(g *gocui.Gui, args []string) {
 			Cexit = 1
 			sarscreen.Fprintln(g, "msg", "green_black", "Good Bye!")
 		default: // Help
-			sarscreen.Fprintln(g, "msg", "red_black", prusage("exit"))
+			sarscreen.Fprintln(g, "msg", "red_black", prusage("exit", c))
 		}
 		return
 	}
-	sarscreen.Fprintln(g, "msg", "red_black", prusage("exit"))
+	sarscreen.Fprintln(g, "msg", "red_black", prusage("exit", c))
 }
 
 // MORE WORK TO DO HERE!!!!! USE TRANSFERS LIST
-func files(g *gocui.Gui, args []string) {
+func files(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	var flist []string
 
 	if len(args) == 1 {
@@ -353,16 +353,16 @@ func files(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 2 && args[1] == "?" { // usage
-		sarscreen.Fprintln(g, "msg", "green_black", prusage("files"))
-		sarscreen.Fprintln(g, "msg", "green_black", prhelp("files"))
+		sarscreen.Fprintln(g, "msg", "green_black", prusage("files", c))
+		sarscreen.Fprintln(g, "msg", "green_black", prhelp("files", c))
 		return
 	}
-	sarscreen.Fprintln(g, "msg", "red_black", prusage("files"))
+	sarscreen.Fprintln(g, "msg", "red_black", prusage("files", c))
 }
 
-func freespace(g *gocui.Gui, args []string) {
+func freespace(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	if len(args) == 1 {
-		if sarflags.Cli.Global["freespace"] == "yes" {
+		if c.Global["freespace"] == "yes" {
 			sarscreen.Fprintln(g, "msg", "green_black", "Free space is advertised")
 		} else {
 			sarscreen.Fprintln(g, "msg", "green_black", "Free space is not advertised")
@@ -370,8 +370,8 @@ func freespace(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 2 && args[1] == "?" { // usage
-		sarscreen.Fprintln(g, "msg", "green_black", prusage("freespace"))
-		sarscreen.Fprintln(g, "msg", "green_black", prhelp("freespace"))
+		sarscreen.Fprintln(g, "msg", "green_black", prusage("freespace", c))
+		sarscreen.Fprintln(g, "msg", "green_black", prhelp("freespace", c))
 		return
 	}
 	if len(args) == 2 {
@@ -379,26 +379,26 @@ func freespace(g *gocui.Gui, args []string) {
 		defer sarflags.Climu.Unlock()
 		if args[1] == "yes" {
 			sarscreen.Fprintln(g, "msg", "green_black", "freespace is advertised")
-			sarflags.Cli.Global["freespace"] = "yes"
+			c.Global["freespace"] = "yes"
 			return
 		}
 		if args[1] == "no" {
 			sarscreen.Fprintln(g, "msg", "green_black", "freespace is not advertised")
-			sarflags.Cli.Global["freespace"] = "no"
+			c.Global["freespace"] = "no"
 			return
 		}
 	}
-	sarscreen.Fprintln(g, "msg", "red_black", "usage: ", prusage("freespace"))
+	sarscreen.Fprintln(g, "msg", "red_black", "usage: ", prusage("freespace", c))
 }
 
-func get(g *gocui.Gui, args []string) {
+func get(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	if len(args) == 1 {
 		transfer.Info(g, "get")
 		return
 	}
 	if len(args) == 2 && args[1] == "?" {
-		sarscreen.Fprintln(g, "msg", "green_black", prusage("get"))
-		sarscreen.Fprintln(g, "msg", "green_black", prhelp("get"))
+		sarscreen.Fprintln(g, "msg", "green_black", prusage("get", c))
+		sarscreen.Fprintln(g, "msg", "green_black", prhelp("get", c))
 		return
 	}
 	if len(args) == 3 {
@@ -408,60 +408,60 @@ func get(g *gocui.Gui, args []string) {
 		}
 		return
 	}
-	sarscreen.Fprintln(g, "msg", "red_black", prusage("get"))
+	sarscreen.Fprintln(g, "msg", "red_black", prusage("get", c))
 }
 
-func getdir(g *gocui.Gui, args []string) {
+func getdir(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	if len(args) == 1 {
 		transfer.Info(g, "getdir")
 		return
 	}
 	if len(args) == 2 && args[1] == "?" {
-		sarscreen.Fprintln(g, "msg", "green_black", prusage("getdir"))
-		sarscreen.Fprintln(g, "msg", "green_black", prhelp("getdir"))
+		sarscreen.Fprintln(g, "msg", "green_black", prusage("getdir", c))
+		sarscreen.Fprintln(g, "msg", "green_black", prhelp("getdir", c))
 		return
 	}
 	if len(args) == 3 {
 		var t transfer.CTransfer
 		if err := t.CNew(g, "getdir", args[1], args[2]); err != nil {
-			sarscreen.Fprintln(g, "msg", "green_black", prusage("getdir"))
-			sarscreen.Fprintln(g, "msg", "green_black", prhelp("getdir"))
+			sarscreen.Fprintln(g, "msg", "green_black", prusage("getdir", c))
+			sarscreen.Fprintln(g, "msg", "green_black", prhelp("getdir", c))
 		}
 		return
 	}
-	sarscreen.Fprintln(g, "msg", "red_black", prusage("getdir"))
+	sarscreen.Fprintln(g, "msg", "red_black", prusage("getdir", c))
 }
 
-func getrm(g *gocui.Gui, args []string) {
+func getrm(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	if len(args) == 1 {
 		transfer.Info(g, "getrm")
 		return
 	}
 	if len(args) == 2 && args[1] == "?" {
-		sarscreen.Fprintln(g, "msg", "green_black", prusage("getrm"))
-		sarscreen.Fprintln(g, "msg", "green_black", prhelp("getrm"))
+		sarscreen.Fprintln(g, "msg", "green_black", prusage("getrm", c))
+		sarscreen.Fprintln(g, "msg", "green_black", prhelp("getrm", c))
 		return
 	}
 	if len(args) == 3 {
 		var t transfer.CTransfer
 		if err := t.CNew(g, "getrm", args[1], args[2]); err != nil {
-			sarscreen.Fprintln(g, "msg", "green_black", prusage("getrm"))
-			sarscreen.Fprintln(g, "msg", "green_black", prhelp("getrm"))
+			sarscreen.Fprintln(g, "msg", "green_black", prusage("getrm", c))
+			sarscreen.Fprintln(g, "msg", "green_black", prhelp("getrm", c))
 			return
 		}
 		return
 	}
-	sarscreen.Fprintln(g, "msg", "red_black", prusage("getrm"))
+	sarscreen.Fprintln(g, "msg", "red_black", prusage("getrm", c))
 }
 
-func help(g *gocui.Gui, args []string) {
+func help(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	if len(args) == 1 {
 		var sslice sort.StringSlice
 
-		for key := range sarflags.Cli.Commands {
+		for key := range c.Cmds {
 			sslice = append(sslice, fmt.Sprintf("%s - %s",
-				sarflags.Cli.Commands[key].Cmd,
-				sarflags.Cli.Commands[key].Help))
+				c.Cmds[key].Cmd,
+				c.Cmds[key].Help))
 		}
 		sort.Sort(sslice)
 		var sbuf string
@@ -474,11 +474,11 @@ func help(g *gocui.Gui, args []string) {
 	if len(args) == 2 {
 		if args[1] == "?" {
 			var sslice sort.StringSlice
-			for key := range sarflags.Cli.Commands {
+			for key := range c.Cmds {
 				sslice = append(sslice, fmt.Sprintf("%s - %s\n  %s",
-					sarflags.Cli.Commands[key].Cmd,
-					sarflags.Cli.Commands[key].Help,
-					sarflags.Cli.Commands[key].Usage))
+					c.Cmds[key].Cmd,
+					c.Cmds[key].Help,
+					c.Cmds[key].Usage))
 			}
 			sort.Sort(sslice)
 			var sbuf string
@@ -489,22 +489,22 @@ func help(g *gocui.Gui, args []string) {
 			return
 		}
 	}
-	for key := range sarflags.Cli.Commands {
-		if sarflags.Cli.Commands[key].Cmd == "help" {
+	for key := range c.Cmds {
+		if c.Cmds[key].Cmd == "help" {
 			sarscreen.Fprintln(g, "msg", "red_black", fmt.Sprintf("%s - %s",
-				sarflags.Cli.Commands[key].Cmd,
-				sarflags.Cli.Commands[key].Help))
+				c.Cmds[key].Cmd,
+				c.Cmds[key].Help))
 		}
 	}
 }
 
-func interval(g *gocui.Gui, args []string) {
+func interval(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	if len(args) == 1 {
-		if sarflags.Cli.Timeout.Binterval == 0 {
+		if c.Timeout.Binterval == 0 {
 			sarscreen.Fprintln(g, "msg", "green_black", "Single Beacon Interation")
 		} else {
 			sarscreen.Fprintln(g, "msg", "green_black", "Beacons sent every",
-				sarflags.Cli.Timeout.Binterval, "seconds")
+				c.Timeout.Binterval, "seconds")
 		}
 		return
 	}
@@ -513,27 +513,27 @@ func interval(g *gocui.Gui, args []string) {
 	if len(args) == 2 {
 		switch args[1] {
 		case "?":
-			sarscreen.Fprintln(g, "msg", "green_black", prusage("interval"))
-			sarscreen.Fprintln(g, "msg", "green_black", prhelp("interval"))
+			sarscreen.Fprintln(g, "msg", "green_black", prusage("interval", c))
+			sarscreen.Fprintln(g, "msg", "green_black", prhelp("interval", c))
 		case "off":
-			sarflags.Cli.Timeout.Binterval = 0
+			c.Timeout.Binterval = 0
 
 		default:
 			if n, err := strconv.Atoi(args[1]); err == nil && n >= 0 {
-				sarflags.Cli.Timeout.Binterval = uint(n)
+				c.Timeout.Binterval = uint(n)
 				return
 			}
 		}
-		sarscreen.Fprintln(g, "msg", "red_black", prusage("interval"))
+		sarscreen.Fprintln(g, "msg", "red_black", prusage("interval", c))
 	}
 }
 
-func history(g *gocui.Gui, args []string) {
+func history(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	if len(args) == 2 {
 		switch args[1] {
 		case "?":
-			sarscreen.Fprintln(g, "msg", "green_black", prusage("history"))
-			sarscreen.Fprintln(g, "msg", "green_black", prhelp("history"))
+			sarscreen.Fprintln(g, "msg", "green_black", prusage("history", c))
+			sarscreen.Fprintln(g, "msg", "green_black", prhelp("history", c))
 		default:
 			sarscreen.Fprintln(g, "msg", "green_black", "History not implemented yet")
 		}
@@ -541,12 +541,12 @@ func history(g *gocui.Gui, args []string) {
 	sarscreen.Fprintln(g, "msg", "green_black", "History not implemented yet")
 }
 
-func home(g *gocui.Gui, args []string) {
+func home(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	if len(args) == 2 {
 		switch args[1] {
 		case "?":
-			sarscreen.Fprintln(g, "msg", "green_black", prusage("home"))
-			sarscreen.Fprintln(g, "msg", "green_black", prhelp("home"))
+			sarscreen.Fprintln(g, "msg", "green_black", prusage("home", c))
+			sarscreen.Fprintln(g, "msg", "green_black", prhelp("home", c))
 		default:
 			sarscreen.Fprintln(g, "msg", "green_black", "Home not implemented yet")
 		}
@@ -554,12 +554,12 @@ func home(g *gocui.Gui, args []string) {
 	sarscreen.Fprintln(g, "msg", "green_black", "Home not implemented yet")
 }
 
-func ls(g *gocui.Gui, args []string) {
+func ls(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	if len(args) == 2 {
 		switch args[1] {
 		case "?":
-			sarscreen.Fprintln(g, "msg", "green_black", prusage("ls"))
-			sarscreen.Fprintln(g, "msg", "green_black", prhelp("ls"))
+			sarscreen.Fprintln(g, "msg", "green_black", prusage("ls", c))
+			sarscreen.Fprintln(g, "msg", "green_black", prhelp("ls", c))
 		default:
 			sarscreen.Fprintln(g, "msg", "green_black", "ls not implemented yet")
 		}
@@ -568,7 +568,7 @@ func ls(g *gocui.Gui, args []string) {
 }
 
 // Display all of the peer information learned frm beacons
-func peers(g *gocui.Gui, args []string) {
+func peers(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	if len(beacon.Peers) == 0 {
 		sarscreen.Fprintln(g, "msg", "magenta_black", "No Peers")
 		return
@@ -630,15 +630,15 @@ func peers(g *gocui.Gui, args []string) {
 var Cprompt = "saratoga" // If not set in saratoga.json set it to saratoga
 
 // put/send a file to a destination
-func put(g *gocui.Gui, args []string) {
+func put(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 
 	if len(args) == 1 {
 		transfer.Info(g, "put")
 		return
 	}
 	if len(args) == 2 && args[1] == "?" {
-		sarscreen.Fprintln(g, "msg", "green_black", prusage("put"))
-		sarscreen.Fprintln(g, "msg", "green_black", prhelp("put"))
+		sarscreen.Fprintln(g, "msg", "green_black", prusage("put", c))
+		sarscreen.Fprintln(g, "msg", "green_black", prhelp("put", c))
 		return
 	}
 	if len(args) == 3 {
@@ -661,11 +661,11 @@ func put(g *gocui.Gui, args []string) {
 		}
 		return
 	}
-	sarscreen.Fprintln(g, "msg", "red_black", prusage("put"))
+	sarscreen.Fprintln(g, "msg", "red_black", prusage("put", c))
 }
 
 // blind put/send a file to a destination
-func putblind(g *gocui.Gui, args []string) {
+func putblind(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 
 	errflag := make(chan string, 1) // The return channel holding the saratoga errflag
 
@@ -674,8 +674,8 @@ func putblind(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 2 && args[1] == "?" {
-		sarscreen.Fprintln(g, "msg", "green_black", prusage("putblind"))
-		sarscreen.Fprintln(g, "msg", "green_black", prhelp("putblind"))
+		sarscreen.Fprintln(g, "msg", "green_black", prusage("putblind", c))
+		sarscreen.Fprintln(g, "msg", "green_black", prhelp("putblind", c))
 		return
 	}
 	if len(args) == 3 {
@@ -691,11 +691,11 @@ func putblind(g *gocui.Gui, args []string) {
 		}
 		return
 	}
-	sarscreen.Fprintln(g, "msg", "red_black", prusage("putblind"))
+	sarscreen.Fprintln(g, "msg", "red_black", prusage("putblind", c))
 }
 
 // put/send a file file to a remote destination then remove it from the origin
-func putrm(g *gocui.Gui, args []string) {
+func putrm(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 
 	errflag := make(chan string, 1) // The return channel holding the saratoga errflag
 
@@ -704,8 +704,8 @@ func putrm(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 2 && args[1] == "?" {
-		sarscreen.Fprintln(g, "msg", "green_black", prusage("putrm"))
-		sarscreen.Fprintln(g, "msg", "green_black", prhelp("putrm"))
+		sarscreen.Fprintln(g, "msg", "green_black", prusage("putrm", c))
+		sarscreen.Fprintln(g, "msg", "green_black", prhelp("putrm", c))
 		return
 	}
 	if len(args) == 3 {
@@ -723,12 +723,12 @@ func putrm(g *gocui.Gui, args []string) {
 		}
 		return
 	}
-	sarscreen.Fprintln(g, "msg", "red_black", prusage("putrm"))
+	sarscreen.Fprintln(g, "msg", "red_black", prusage("putrm", c))
 }
 
-func reqtstamp(g *gocui.Gui, args []string) {
+func reqtstamp(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	if len(args) == 1 {
-		if sarflags.Cli.Global["reqtstamp"] == "yes" {
+		if c.Global["reqtstamp"] == "yes" {
 			sarscreen.Fprintln(g, "msg", "green_black", "Time stamps requested")
 		} else {
 			sarscreen.Fprintln(g, "msg", "green_black", "Time stamps not requested")
@@ -736,78 +736,78 @@ func reqtstamp(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 2 && args[1] == "?" { // usage
-		sarscreen.Fprintln(g, "msg", "green_black", prusage("reqtstamp"))
-		sarscreen.Fprintln(g, "msg", "green_black", prhelp("reqtstamp"))
+		sarscreen.Fprintln(g, "msg", "green_black", prusage("reqtstamp", c))
+		sarscreen.Fprintln(g, "msg", "green_black", prhelp("reqtstamp", c))
 		return
 	}
 	sarflags.Climu.Lock()
 	defer sarflags.Climu.Unlock()
 	if len(args) == 2 {
 		if args[1] == "yes" {
-			sarflags.Cli.Global["reqtstamp"] = "yes"
+			c.Global["reqtstamp"] = "yes"
 			return
 		}
 		if args[1] == "no" {
-			sarflags.Cli.Global["reqtstamp"] = "no"
+			c.Global["reqtstamp"] = "no"
 			return
 		}
 		// screen.Fprintln(g, "msg", "red_black", "usage: ", cmd["reqtstamp][0]"])
 	}
-	sarscreen.Fprintln(g, "msg", "red_black", "usage: ", prusage("reqtstamp"))
+	sarscreen.Fprintln(g, "msg", "red_black", "usage: ", prusage("reqtstamp", c))
 }
 
 // remove a file from a remote destination
-func rm(g *gocui.Gui, args []string) {
+func rm(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 
 	if len(args) == 1 {
 		transfer.Info(g, "rm")
 		return
 	}
 	if len(args) == 2 && args[1] == "?" {
-		sarscreen.Fprintln(g, "msg", "green_black", prusage("rm"))
-		sarscreen.Fprintln(g, "msg", "green_black", prhelp("rm"))
+		sarscreen.Fprintln(g, "msg", "green_black", prusage("rm", c))
+		sarscreen.Fprintln(g, "msg", "green_black", prhelp("rm", c))
 		return
 	}
 	if len(args) == 3 {
 		var t transfer.CTransfer
 
 		if err := t.CNew(g, "rm", args[1], args[2]); err != nil {
-			sarscreen.Fprintln(g, "msg", "green_black", prusage("rm"))
-			sarscreen.Fprintln(g, "msg", "green_black", prhelp("rm"))
+			sarscreen.Fprintln(g, "msg", "green_black", prusage("rm", c))
+			sarscreen.Fprintln(g, "msg", "green_black", prhelp("rm", c))
 		}
 		return
 	}
-	sarscreen.Fprintln(g, "msg", "red_black", prusage("rm"))
+	sarscreen.Fprintln(g, "msg", "red_black", prusage("rm", c))
 }
 
 // remove a directory from a remote destination
-func rmdir(g *gocui.Gui, args []string) {
+func rmdir(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 
 	if len(args) == 1 {
 		transfer.Info(g, "rmdir")
 		return
 	}
 	if len(args) == 2 && args[1] == "?" {
-		sarscreen.Fprintln(g, "msg", "green_black", prusage("rmdir"))
-		sarscreen.Fprintln(g, "msg", "green_black", prhelp("rmdir"))
+		sarscreen.Fprintln(g, "msg", "green_black", prusage("rmdir", c))
+		sarscreen.Fprintln(g, "msg", "green_black", prhelp("rmdir", c))
 		return
 	}
 	if len(args) == 3 {
 		var t transfer.CTransfer
 		if err := t.CNew(g, "rmdir", args[1], args[2]); err != nil {
-			sarscreen.Fprintln(g, "msg", "green_black", prusage("rmdir"))
-			sarscreen.Fprintln(g, "msg", "green_black", prhelp("rmdir"))
+			sarscreen.Fprintln(g, "msg", "green_black", prusage("rmdir", c))
+			sarscreen.Fprintln(g, "msg", "green_black", prhelp("rmdir", c))
 		}
 		return
 	}
-	sarscreen.Fprintln(g, "msg", "red_black", prusage("rmdir"))
+	sarscreen.Fprintln(g, "msg", "red_black", prusage("rmdir", c))
 }
 
-func rmtran(g *gocui.Gui, args []string) {
+func rmtran(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 
 	if len(args) == 1 || (len(args) == 2 && args[1] == "?") || len(args) != 4 {
-		sarscreen.Fprintln(g, "msg", "green_black", prusage("rmtran"))
-		sarscreen.Fprintln(g, "msg", "green_black", prhelp("rmtran"))
+		sarscreen.Fprintln(g, "msg", "green_black", prusage("rmtran", c))
+		sarscreen.Fprintln(g, "msg", "green_black", prhelp("rmtran", c))
 		return
 	}
 	ttype := args[1]
@@ -823,37 +823,37 @@ func rmtran(g *gocui.Gui, args []string) {
 }
 
 // Are we willing to transmit files
-func rxwilling(g *gocui.Gui, args []string) {
+func rxwilling(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	if len(args) == 1 {
-		sarscreen.Fprintln(g, "msg", "green_black", "Receive Files", sarflags.Cli.Global["rxwilling"])
+		sarscreen.Fprintln(g, "msg", "green_black", "Receive Files", c.Global["rxwilling"])
 		return
 	}
 	if len(args) == 2 && args[1] == "?" {
-		sarscreen.Fprintln(g, "msg", "green_black", prusage("rxwilling"))
-		sarscreen.Fprintln(g, "msg", "green_black", prhelp("rxwilling"))
+		sarscreen.Fprintln(g, "msg", "green_black", prusage("rxwilling", c))
+		sarscreen.Fprintln(g, "msg", "green_black", prhelp("rxwilling", c))
 		return
 	}
 	sarflags.Climu.Lock()
 	defer sarflags.Climu.Unlock()
 	if len(args) == 2 {
 		if args[1] == "on" {
-			sarflags.Cli.Global["rxwilling"] = "yes"
+			c.Global["rxwilling"] = "yes"
 		}
 		if args[1] == "off" {
-			sarflags.Cli.Global["rxwilling"] = "no"
+			c.Global["rxwilling"] = "no"
 		}
 		if args[1] == "capable" {
-			sarflags.Cli.Global["rxwilling"] = "capable"
+			c.Global["rxwilling"] = "capable"
 		}
 		return
 	}
-	sarscreen.Fprintln(g, "msg", "red_black", prusage("rxwilling"))
+	sarscreen.Fprintln(g, "msg", "red_black", prusage("rxwilling", c))
 }
 
 // source is a named pipe not a file
-func stream(g *gocui.Gui, args []string) {
+func stream(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	if len(args) == 1 {
-		if sarflags.Cli.Global["stream"] == "yes" {
+		if c.Global["stream"] == "yes" {
 			sarscreen.Fprintln(g, "msg", "green_black", "Can stream")
 		} else {
 			sarscreen.Fprintln(g, "msg", "green_black", "Cannot stream")
@@ -861,95 +861,95 @@ func stream(g *gocui.Gui, args []string) {
 		return
 	}
 	if len(args) == 2 && args[1] == "?" {
-		sarscreen.Fprintln(g, "msg", "green_black", prusage("stream"))
-		sarscreen.Fprintln(g, "msg", "green_black", prhelp("stream"))
+		sarscreen.Fprintln(g, "msg", "green_black", prusage("stream", c))
+		sarscreen.Fprintln(g, "msg", "green_black", prhelp("stream", c))
 		return
 	}
 	sarflags.Climu.Lock()
 	defer sarflags.Climu.Unlock()
 	if len(args) == 2 {
 		if args[1] == "yes" {
-			sarflags.Cli.Global["stream"] = "yes"
+			c.Global["stream"] = "yes"
 		}
 		if args[1] == "no" {
-			sarflags.Cli.Global["stream"] = "no"
+			c.Global["stream"] = "no"
 		}
 		return
 	}
-	sarscreen.Fprintln(g, "msg", "red_black", prusage("stream"))
+	sarscreen.Fprintln(g, "msg", "red_black", prusage("stream", c))
 }
 
 // Timeout - set timeouts for responses to request/status/transfer in seconds
-func timeout(g *gocui.Gui, args []string) {
+func timeout(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	sarflags.Climu.Lock()
 	defer sarflags.Climu.Unlock()
 	if len(args) == 1 {
-		if sarflags.Cli.Timeout.Metadata == 0 {
+		if c.Timeout.Metadata == 0 {
 			sarscreen.Fprintln(g, "msg", "green_black", "metadata: No Timeout")
 		} else {
-			sarscreen.Fprintln(g, "msg", "green_black", "metadata:", sarflags.Cli.Timeout.Metadata, "seconds")
+			sarscreen.Fprintln(g, "msg", "green_black", "metadata:", c.Timeout.Metadata, "seconds")
 		}
-		if sarflags.Cli.Timeout.Request == 0 {
+		if c.Timeout.Request == 0 {
 			sarscreen.Fprintln(g, "msg", "green_black", "request: No Timeout")
 		} else {
-			sarscreen.Fprintln(g, "msg", "green_black", "request:", sarflags.Cli.Timeout.Request, "seconds")
+			sarscreen.Fprintln(g, "msg", "green_black", "request:", c.Timeout.Request, "seconds")
 		}
-		if sarflags.Cli.Timeout.Status == 0 {
+		if c.Timeout.Status == 0 {
 			sarscreen.Fprintln(g, "msg", "green_black", "status: No Timeout")
 		} else {
-			sarscreen.Fprintln(g, "msg", "green_black", "status:", sarflags.Cli.Timeout.Status, "seconds")
+			sarscreen.Fprintln(g, "msg", "green_black", "status:", c.Timeout.Status, "seconds")
 		}
-		if sarflags.Cli.Datacnt == 0 {
-			sarflags.Cli.Datacnt = 100
+		if c.Datacnt == 0 {
+			c.Datacnt = 100
 			sarscreen.Fprintln(g, "msg", "green_black", "Datacnt every 100 frames")
 		} else {
-			sarscreen.Fprintln(g, "msg", "green_black", "Datacnt:", sarflags.Cli.Datacnt, "frames")
+			sarscreen.Fprintln(g, "msg", "green_black", "Datacnt:", c.Datacnt, "frames")
 		}
-		if sarflags.Cli.Timeout.Transfer == 0 {
+		if c.Timeout.Transfer == 0 {
 			sarscreen.Fprintln(g, "msg", "green_black", "transfer: No Timeout")
 		} else {
-			sarscreen.Fprintln(g, "msg", "green_black", "transfer:", sarflags.Cli.Timeout.Transfer, "seconds")
+			sarscreen.Fprintln(g, "msg", "green_black", "transfer:", c.Timeout.Transfer, "seconds")
 		}
 		return
 	}
 	if len(args) == 2 {
 		switch args[1] {
 		case "?":
-			sarscreen.Fprintln(g, "msg", "green_black", prusage("timeout"))
-			sarscreen.Fprintln(g, "msg", "green_black", prhelp("timeout"))
+			sarscreen.Fprintln(g, "msg", "green_black", prusage("timeout", c))
+			sarscreen.Fprintln(g, "msg", "green_black", prhelp("timeout", c))
 		case "request":
-			if sarflags.Cli.Timeout.Request == 0 {
+			if c.Timeout.Request == 0 {
 				sarscreen.Fprintln(g, "msg", "green_black", "request: No Timeout")
 			} else {
-				sarscreen.Fprintln(g, "msg", "green_black", "request:", sarflags.Cli.Timeout.Request, "seconds")
+				sarscreen.Fprintln(g, "msg", "green_black", "request:", c.Timeout.Request, "seconds")
 			}
 		case "metadata":
-			if sarflags.Cli.Timeout.Request == 0 {
+			if c.Timeout.Request == 0 {
 				sarscreen.Fprintln(g, "msg", "green_black", "metadata: No Timeout")
 			} else {
-				sarscreen.Fprintln(g, "msg", "green_black", "metadata:", sarflags.Cli.Timeout.Metadata, "seconds")
+				sarscreen.Fprintln(g, "msg", "green_black", "metadata:", c.Timeout.Metadata, "seconds")
 			}
 		case "status":
-			if sarflags.Cli.Timeout.Status == 0 {
+			if c.Timeout.Status == 0 {
 				sarscreen.Fprintln(g, "msg", "green_black", "status: No Timeout")
 			} else {
-				sarscreen.Fprintln(g, "msg", "green_black", "status:", sarflags.Cli.Timeout.Status, "seconds")
+				sarscreen.Fprintln(g, "msg", "green_black", "status:", c.Timeout.Status, "seconds")
 			}
 		case "Datacnt":
-			if sarflags.Cli.Datacnt == 0 {
-				sarflags.Cli.Datacnt = 100
+			if c.Datacnt == 0 {
+				c.Datacnt = 100
 				sarscreen.Fprintln(g, "msg", "green_black", "Datacnt: Never")
 			} else {
-				sarscreen.Fprintln(g, "msg", "green_black", "Datacnt:", sarflags.Cli.Datacnt, "frames")
+				sarscreen.Fprintln(g, "msg", "green_black", "Datacnt:", c.Datacnt, "frames")
 			}
 		case "transfer":
-			if sarflags.Cli.Timeout.Transfer == 0 {
+			if c.Timeout.Transfer == 0 {
 				sarscreen.Fprintln(g, "msg", "green_black", "transfer: No Timeout")
 			} else {
-				sarscreen.Fprintln(g, "msg", "green_black", "transfer:", sarflags.Cli.Timeout.Transfer, "seconds")
+				sarscreen.Fprintln(g, "msg", "green_black", "transfer:", c.Timeout.Transfer, "seconds")
 			}
 		default:
-			sarscreen.Fprintln(g, "msg", "red_black", prusage("stream"))
+			sarscreen.Fprintln(g, "msg", "red_black", prusage("stream", c))
 		}
 		return
 	}
@@ -957,45 +957,45 @@ func timeout(g *gocui.Gui, args []string) {
 		if n, err := strconv.Atoi(args[2]); err == nil && n >= 0 {
 			switch args[1] {
 			case "metadata":
-				sarflags.Cli.Timeout.Metadata = n
+				c.Timeout.Metadata = n
 			case "request":
-				sarflags.Cli.Timeout.Request = n
+				c.Timeout.Request = n
 			case "status":
-				sarflags.Cli.Timeout.Status = n
+				c.Timeout.Status = n
 			case "Datacnt":
 				if n == 0 {
 					n = 100
 				}
-				sarflags.Cli.Datacnt = n
+				c.Datacnt = n
 			case "transfer":
-				sarflags.Cli.Timeout.Transfer = n
+				c.Timeout.Transfer = n
 			}
 			return
 		}
 		if args[2] == "off" {
 			switch args[1] {
 			case "metadata":
-				sarflags.Cli.Timeout.Metadata = 60
+				c.Timeout.Metadata = 60
 			case "request":
-				sarflags.Cli.Timeout.Request = 60
+				c.Timeout.Request = 60
 			case "status":
-				sarflags.Cli.Timeout.Status = 60
+				c.Timeout.Status = 60
 			case "Datacnt":
-				sarflags.Cli.Datacnt = 100
+				c.Datacnt = 100
 			case "transfer":
-				sarflags.Cli.Timeout.Transfer = 60
+				c.Timeout.Transfer = 60
 			}
 			return
 		}
 	}
-	sarscreen.Fprintln(g, "msg", "red_black", prusage("timeout"))
+	sarscreen.Fprintln(g, "msg", "red_black", prusage("timeout", c))
 }
 
 // set the timestamp type we are using
-func timestamp(g *gocui.Gui, args []string) {
+func timestamp(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	if len(args) == 1 {
 		sarscreen.Fprintln(g, "msg", "green_black", "Timestamps are",
-			sarflags.Cli.Global["reqtstamp"], "and", sarflags.Cli.Timestamp)
+			c.Global["reqtstamp"], "and", c.Timestamp)
 		return
 	}
 
@@ -1004,41 +1004,41 @@ func timestamp(g *gocui.Gui, args []string) {
 		defer sarflags.Climu.Unlock()
 		switch args[1] {
 		case "?":
-			sarscreen.Fprintln(g, "msg", "green_black", prusage("timestamp"))
-			sarscreen.Fprintln(g, "msg", "green_black", prhelp("timestamp"))
+			sarscreen.Fprintln(g, "msg", "green_black", prusage("timestamp", c))
+			sarscreen.Fprintln(g, "msg", "green_black", prhelp("timestamp", c))
 		case "off":
-			sarflags.Cli.Global["reqtstamp"] = "no"
+			c.Global["reqtstamp"] = "no"
 			// Don't change the TGlobal from what it was
 		case "32":
-			sarflags.Cli.Global["reqtstamp"] = "yes"
-			sarflags.Cli.Timestamp = "posix32"
+			c.Global["reqtstamp"] = "yes"
+			c.Timestamp = "posix32"
 		case "32_32":
-			sarflags.Cli.Global["reqtstamp"] = "yes"
-			sarflags.Cli.Timestamp = "posix32_32"
+			c.Global["reqtstamp"] = "yes"
+			c.Timestamp = "posix32_32"
 		case "64":
-			sarflags.Cli.Global["reqtstamp"] = "yes"
-			sarflags.Cli.Timestamp = "posix64"
+			c.Global["reqtstamp"] = "yes"
+			c.Timestamp = "posix64"
 		case "64_32":
-			sarflags.Cli.Global["reqtstamp"] = "yes"
-			sarflags.Cli.Timestamp = "posix64_32"
+			c.Global["reqtstamp"] = "yes"
+			c.Timestamp = "posix64_32"
 		case "32_y2k":
-			sarflags.Cli.Global["reqtstamp"] = "yes"
-			sarflags.Cli.Timestamp = "epoch2000_32"
+			c.Global["reqtstamp"] = "yes"
+			c.Timestamp = "epoch2000_32"
 		case "local":
-			sarflags.Cli.Global["reqtstamp"] = "yes"
-			sarflags.Cli.Timestamp = "localinterp"
+			c.Global["reqtstamp"] = "yes"
+			c.Timestamp = "localinterp"
 		default:
-			sarscreen.Fprintln(g, "msg", "red_black", prusage("timestamp"))
+			sarscreen.Fprintln(g, "msg", "red_black", prusage("timestamp", c))
 		}
 		return
 	}
-	sarscreen.Fprintln(g, "msg", "red_black", prusage("timestamp"))
+	sarscreen.Fprintln(g, "msg", "red_black", prusage("timestamp", c))
 }
 
 // set the timezone we use for logs local or utc
-func timezone(g *gocui.Gui, args []string) {
+func timezone(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	if len(args) == 1 {
-		sarscreen.Fprintln(g, "msg", "green_black", "Timezone is", sarflags.Cli.Timezone)
+		sarscreen.Fprintln(g, "msg", "green_black", "Timezone is", c.Timezone)
 		return
 	}
 	sarflags.Climu.Lock()
@@ -1046,22 +1046,22 @@ func timezone(g *gocui.Gui, args []string) {
 	if len(args) == 2 {
 		switch args[1] {
 		case "?":
-			sarscreen.Fprintln(g, "msg", "green_black", prusage("timezone"))
-			sarscreen.Fprintln(g, "msg", "green_black", prhelp("timezone"))
+			sarscreen.Fprintln(g, "msg", "green_black", prusage("timezone", c))
+			sarscreen.Fprintln(g, "msg", "green_black", prhelp("timezone", c))
 		case "local":
-			sarflags.Cli.Timezone = "local"
+			c.Timezone = "local"
 		case "utc":
-			sarflags.Cli.Timezone = "utc"
+			c.Timezone = "utc"
 		default:
-			sarscreen.Fprintln(g, "msg", "red_black", prusage("timezone"))
+			sarscreen.Fprintln(g, "msg", "red_black", prusage("timezone", c))
 		}
 		return
 	}
-	sarscreen.Fprintln(g, "msg", "red_black", prusage("timezone"))
+	sarscreen.Fprintln(g, "msg", "red_black", prusage("timezone", c))
 }
 
 // show current transfers in progress & % completed
-func tran(g *gocui.Gui, args []string) {
+func tran(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	if len(args) == 1 {
 		transfer.Info(g, "")
 		return
@@ -1070,7 +1070,7 @@ func tran(g *gocui.Gui, args []string) {
 		switch args[1] {
 		case "?":
 			sarscreen.Fprintf(g, "msg", "green_black", "%s\n  %s\n",
-				prusage("tran"), prhelp("tran"))
+				prusage("tran", c), prhelp("tran", c))
 		default:
 			for _, tt := range transfer.Ttypes {
 				if args[1] == tt {
@@ -1078,67 +1078,67 @@ func tran(g *gocui.Gui, args []string) {
 					return
 				}
 			}
-			sarscreen.Fprintln(g, "msg", "green_black", prusage("tran"))
+			sarscreen.Fprintln(g, "msg", "green_black", prusage("tran", c))
 		}
 		return
 	}
-	sarscreen.Fprintln(g, "msg", "green_black", prusage("tran"))
+	sarscreen.Fprintln(g, "msg", "green_black", prusage("tran", c))
 }
 
 // we are willing to transmit files
-func txwilling(g *gocui.Gui, args []string) {
+func txwilling(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	if len(args) == 1 {
-		sarscreen.Fprintln(g, "msg", "green_black", "Transmit Files", sarflags.Cli.Global["txwilling"])
+		sarscreen.Fprintln(g, "msg", "green_black", "Transmit Files", c.Global["txwilling"])
 		return
 	}
 	if len(args) == 2 && args[1] == "?" {
-		sarscreen.Fprintln(g, "msg", "green_black", prusage("txwilling"))
-		sarscreen.Fprintln(g, "msg", "green_black", prhelp("txwilling"))
+		sarscreen.Fprintln(g, "msg", "green_black", prusage("txwilling", c))
+		sarscreen.Fprintln(g, "msg", "green_black", prhelp("txwilling", c))
 		return
 	}
 	sarflags.Climu.Lock()
 	defer sarflags.Climu.Unlock()
 	if len(args) == 2 {
 		if args[1] == "on" {
-			sarflags.Cli.Global["txwilling"] = "on"
+			c.Global["txwilling"] = "on"
 		}
 		if args[1] == "off" {
-			sarflags.Cli.Global["txwilling"] = "off"
+			c.Global["txwilling"] = "off"
 		}
 		if args[1] == "capable" {
-			sarflags.Cli.Global["txwilling"] = "capable"
+			c.Global["txwilling"] = "capable"
 		}
 		return
 	}
-	sarscreen.Fprintln(g, "msg", "red_black", prusage("txwilling"))
+	sarscreen.Fprintln(g, "msg", "red_black", prusage("txwilling", c))
 }
 
-func prhelp(c string) string {
-	for key := range sarflags.Cli.Commands {
-		if sarflags.Cli.Commands[key].Cmd == c {
-			return sarflags.Cli.Commands[key].Help
+func prhelp(cf string, c *sarflags.Cliflags) string {
+	for key := range c.Cmds {
+		if c.Cmds[key].Cmd == cf {
+			return c.Cmds[key].Help
 		}
 	}
 	return "Invalid Command"
 }
 
-func prusage(c string) string {
-	for key := range sarflags.Cli.Commands {
-		if sarflags.Cli.Commands[key].Cmd == c {
-			return sarflags.Cli.Commands[key].Usage
+func prusage(cf string, c *sarflags.Cliflags) string {
+	for key := range c.Cmds {
+		if c.Cmds[key].Cmd == cf {
+			return c.Cmds[key].Usage
 		}
 	}
 	return "Invalid Command"
 }
 
 // Show all commands usage
-func usage(g *gocui.Gui, args []string) {
+func usage(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	var sslice sort.StringSlice
 
-	for key := range sarflags.Cli.Commands {
+	for key := range c.Cmds {
 		sslice = append(sslice, fmt.Sprintf("%s - %s",
-			sarflags.Cli.Commands[key].Cmd,
-			sarflags.Cli.Commands[key].Usage))
+			c.Cmds[key].Cmd,
+			c.Cmds[key].Usage))
 	}
 
 	sort.Sort(sslice)
@@ -1151,7 +1151,7 @@ func usage(g *gocui.Gui, args []string) {
 
 /* ************************************************************************** */
 
-type cmdfunc func(*gocui.Gui, []string)
+type cmdfunc func(*gocui.Gui, []string, *sarflags.Cliflags)
 
 // Commands and function pointers to handle them
 var cmdhandler = map[string]cmdfunc{
@@ -1191,7 +1191,7 @@ var cmdhandler = map[string]cmdfunc{
 }
 
 // Docmd -- Execute the command entered
-func Docmd(g *gocui.Gui, s string) {
+func Docmd(g *gocui.Gui, s string, c *sarflags.Cliflags) {
 	if s == "" { // Handle just return
 		return
 	}
@@ -1199,11 +1199,11 @@ func Docmd(g *gocui.Gui, s string) {
 	s = strings.TrimSpace(s)
 	vals := strings.Fields(s)
 	// Lookup the command and execute it
-	for key := range sarflags.Cli.Commands {
-		if sarflags.Cli.Commands[key].Cmd == vals[0] {
+	for key := range c.Cmds {
+		if c.Cmds[key].Cmd == vals[0] {
 			fn, ok := cmdhandler[vals[0]]
 			if ok {
-				fn(g, vals)
+				fn(g, vals, c)
 				return
 			}
 			sarscreen.Fprintln(g, "msg", "bwhite_red", "Cannot execute:", vals[0])

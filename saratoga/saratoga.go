@@ -156,7 +156,7 @@ var Commands []string
 var Sarwg sync.WaitGroup
 
 // This is where we process command line inputs after a CR entered
-func getLine(g *gocui.Gui, v *gocui.View) error {
+func getLine(g *gocui.Gui, v *gocui.View, c *sarflags.Cliflags) error {
 	if g == nil || v == nil {
 		log.Fatal("getLine - g or v is nil")
 	}
@@ -176,7 +176,7 @@ func getLine(g *gocui.Gui, v *gocui.View) error {
 	// Spawn a go and run the command
 	go func(*gocui.Gui, string) {
 		// defer Sarwg.Done()
-		cli.Docmd(g, command[1])
+		cli.Docmd(g, command[1], c)
 	}(g, command[1])
 
 	if command[1] == "exit" || command[1] == "quit" {
@@ -642,7 +642,7 @@ func main() {
 	for xx := range c.Cmds {
 		fmt.Println(c.Cmds[xx].Cmd)
 	}
-	panic("WE ARE OK DONE!!!!!")
+	// panic("WE ARE OK DONE!!!!!")
 
 	// Grab my process ID
 	// Pid := os.Getpid()
@@ -752,7 +752,7 @@ func main() {
 
 	// The Base calling functions for Saratoga live in cli.go so look there first!
 	errflag := make(chan error, 1)
-	go mainloop(g, errflag)
+	go mainloop(g, errflag, c)
 
 	select {
 	case v6err := <-v6listenquit:
@@ -765,7 +765,7 @@ func main() {
 }
 
 // Go routine for command line loop
-func mainloop(g *gocui.Gui, done chan error) {
+func mainloop(g *gocui.Gui, done chan error, c *sarflags.Cliflags) {
 	var err error
 
 	if err = g.MainLoop(); err != nil && err != gocui.ErrQuit {

@@ -31,6 +31,8 @@ github.com/charlesetsmith/saratoga/sarflags v0.0.0-20210728070526-75de3a3b09e3/g
 github.com/charlesetsmith/saratoga/sarflags v0.0.0-20210811223527-d076aee19f14/go.mod h1:KaiURxMyR+ZAqhzn0qAMqWhck0Xa3OoTg71Am4Qcitk=
 github.com/charlesetsmith/saratoga/sarflags v0.0.0-20210811231847-432a9ca1261f h1:+M/et0/SdUqKRmAYygpxTJrVDA/S8YnM0as5ttgbg38=
 github.com/charlesetsmith/saratoga/sarflags v0.0.0-20210811231847-432a9ca1261f/go.mod h1:KaiURxMyR+ZAqhzn0qAMqWhck0Xa3OoTg71Am4Qcitk=
+github.com/charlesetsmith/saratoga/sarflags v0.0.0-20210817221343-bd405c094729 h1:faBAhR9B5n7+J5subhDI9hExrvFuvlFmZAXhVG20zz0=
+github.com/charlesetsmith/saratoga/sarflags v0.0.0-20210817221343-bd405c094729/go.mod h1:KaiURxMyR+ZAqhzn0qAMqWhck0Xa3OoTg71Am4Qcitk=
 github.com/charlesetsmith/saratoga/sarnet v0.0.0-20210728070526-75de3a3b09e3/go.mod h1:JtOCHsXSb45m5E17afXq6NxOJV5d8m+XmVVoRA12SuY=
 github.com/charlesetsmith/saratoga/sarnet v0.0.0-20210811223527-d076aee19f14/go.mod h1:JtOCHsXSb45m5E17afXq6NxOJV5d8m+XmVVoRA12SuY=
 github.com/charlesetsmith/saratoga/sarnet v0.0.0-20210811231847-432a9ca1261f h1:0fU47i1q+KtD/uvCEGysQkBTGiach1RuSjpnbymCMnk=

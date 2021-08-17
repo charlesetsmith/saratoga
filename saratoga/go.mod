@@ -11,7 +11,7 @@ require (
 	github.com/charlesetsmith/saratoga/holes v0.0.0-20210811231847-432a9ca1261f // indirect
 	github.com/charlesetsmith/saratoga/metadata v0.0.0-20210811231847-432a9ca1261f
 	github.com/charlesetsmith/saratoga/request v0.0.0-20210811231847-432a9ca1261f
-	github.com/charlesetsmith/saratoga/sarflags v0.0.0-20210811231847-432a9ca1261f
+	github.com/charlesetsmith/saratoga/sarflags v0.0.0-20210817221343-bd405c094729
 	github.com/charlesetsmith/saratoga/sarnet v0.0.0-20210811231847-432a9ca1261f
 	github.com/charlesetsmith/saratoga/sarscreen v0.0.0-20210811231847-432a9ca1261f
 	github.com/charlesetsmith/saratoga/sarsys v0.0.0-20210811231847-432a9ca1261f // indirect
