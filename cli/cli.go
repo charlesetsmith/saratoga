@@ -458,10 +458,10 @@ func help(g *gocui.Gui, args []string) {
 	if len(args) == 1 {
 		var sslice sort.StringSlice
 
-		for key := range sarflags.Conf.Commands {
+		for key := range sarflags.Cli.Commands {
 			sslice = append(sslice, fmt.Sprintf("%s - %s",
-				sarflags.Conf.Commands[key].Cmd,
-				sarflags.Conf.Commands[key].Help))
+				sarflags.Cli.Commands[key].Cmd,
+				sarflags.Cli.Commands[key].Help))
 		}
 		sort.Sort(sslice)
 		var sbuf string
@@ -474,11 +474,11 @@ func help(g *gocui.Gui, args []string) {
 	if len(args) == 2 {
 		if args[1] == "?" {
 			var sslice sort.StringSlice
-			for key := range sarflags.Conf.Commands {
+			for key := range sarflags.Cli.Commands {
 				sslice = append(sslice, fmt.Sprintf("%s - %s\n  %s",
-					sarflags.Conf.Commands[key].Cmd,
-					sarflags.Conf.Commands[key].Help,
-					sarflags.Conf.Commands[key].Usage))
+					sarflags.Cli.Commands[key].Cmd,
+					sarflags.Cli.Commands[key].Help,
+					sarflags.Cli.Commands[key].Usage))
 			}
 			sort.Sort(sslice)
 			var sbuf string
@@ -489,11 +489,11 @@ func help(g *gocui.Gui, args []string) {
 			return
 		}
 	}
-	for key := range sarflags.Conf.Commands {
-		if sarflags.Conf.Commands[key].Cmd == "help" {
+	for key := range sarflags.Cli.Commands {
+		if sarflags.Cli.Commands[key].Cmd == "help" {
 			sarscreen.Fprintln(g, "msg", "red_black", fmt.Sprintf("%s - %s",
-				sarflags.Conf.Commands[key].Cmd,
-				sarflags.Conf.Commands[key].Help))
+				sarflags.Cli.Commands[key].Cmd,
+				sarflags.Cli.Commands[key].Help))
 		}
 	}
 }
@@ -1114,18 +1114,18 @@ func txwilling(g *gocui.Gui, args []string) {
 }
 
 func prhelp(c string) string {
-	for key := range sarflags.Conf.Commands {
-		if sarflags.Conf.Commands[key].Cmd == c {
-			return sarflags.Conf.Commands[key].Help
+	for key := range sarflags.Cli.Commands {
+		if sarflags.Cli.Commands[key].Cmd == c {
+			return sarflags.Cli.Commands[key].Help
 		}
 	}
 	return "Invalid Command"
 }
 
 func prusage(c string) string {
-	for key := range sarflags.Conf.Commands {
-		if sarflags.Conf.Commands[key].Cmd == c {
-			return sarflags.Conf.Commands[key].Usage
+	for key := range sarflags.Cli.Commands {
+		if sarflags.Cli.Commands[key].Cmd == c {
+			return sarflags.Cli.Commands[key].Usage
 		}
 	}
 	return "Invalid Command"
@@ -1135,10 +1135,10 @@ func prusage(c string) string {
 func usage(g *gocui.Gui, args []string) {
 	var sslice sort.StringSlice
 
-	for key := range sarflags.Conf.Commands {
+	for key := range sarflags.Cli.Commands {
 		sslice = append(sslice, fmt.Sprintf("%s - %s",
-			sarflags.Conf.Commands[key].Cmd,
-			sarflags.Conf.Commands[key].Usage))
+			sarflags.Cli.Commands[key].Cmd,
+			sarflags.Cli.Commands[key].Usage))
 	}
 
 	sort.Sort(sslice)
@@ -1199,8 +1199,8 @@ func Docmd(g *gocui.Gui, s string) {
 	s = strings.TrimSpace(s)
 	vals := strings.Fields(s)
 	// Lookup the command and execute it
-	for key := range sarflags.Conf.Commands {
-		if sarflags.Conf.Commands[key].Cmd == vals[0] {
+	for key := range sarflags.Cli.Commands {
+		if sarflags.Cli.Commands[key].Cmd == vals[0] {
 			fn, ok := cmdhandler[vals[0]]
 			if ok {
 				fn(g, vals)

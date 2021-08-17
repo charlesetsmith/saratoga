@@ -626,36 +626,37 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 // Main
 func main() {
 
+	var c *sarflags.Cliflags
+
 	if len(os.Args) != 3 {
 		fmt.Println("usage:", "saratoga <config> <iface>")
 		fmt.Println("Eg. go run saratoga.go saratoga.json en0 (Interface says where to listen for multicast joins")
 		return
 	}
 
-	sarflags.Cli.Global = make(map[string]string)
 	// Read in JSON config file and parse it into the Config structure.
-	if err := sarflags.ReadConfig(os.Args[1]); err != nil {
-		fmt.Println("Cannot open saratoga config file", os.Args[1], ":", err)
+	if c = sarflags.ReadConfig(os.Args[1]); c != nil {
+		fmt.Println("Cannot open saratoga config file", os.Args[1])
 		return
 	}
-	for xx := range sarflags.Cli.Commands {
-		fmt.Println(sarflags.Cli.Commands[xx].Cmd)
+	for xx := range c.Cmds {
+		fmt.Println(c.Cmds[xx].Cmd)
 	}
 	panic("WE ARE OK DONE!!!!!")
 
 	// Grab my process ID
 	// Pid := os.Getpid()
 
-	Cinfo.Prompt = sarflags.Cli.Prompt
-	Cinfo.Ppad = sarflags.Cli.Ppad
+	Cinfo.Prompt = c.Prompt
+	Cinfo.Ppad = c.Ppad
 
 	// Move to saratoga working directory
-	if err := os.Chdir(sarflags.Cli.Sardir); err != nil {
-		log.Fatal(fmt.Errorf("no such directory SARDIR=%s", sarflags.Cli.Sardir))
+	if err := os.Chdir(c.Sardir); err != nil {
+		log.Fatal(fmt.Errorf("no such directory SARDIR=%s", c.Sardir))
 	}
 
 	var fs syscall.Statfs_t
-	if err := syscall.Statfs(sarflags.Cli.Sardir, &fs); err != nil {
+	if err := syscall.Statfs(c.Sardir, &fs); err != nil {
 		log.Fatal(errors.New("cannot stat saratoga working directory"))
 	}
 
@@ -724,7 +725,7 @@ func main() {
 			sarnet.UDPinfo(&v4mcastaddr))
 	}
 
-	sarscreen.Fprintf(g, "msg", "green_black", "Saratoga Directory is %s\n", sarflags.Cli.Sardir)
+	sarscreen.Fprintf(g, "msg", "green_black", "Saratoga Directory is %s\n", c.Sardir)
 	sarscreen.Fprintf(g, "msg", "green_black", "Available space is %d MB\n",
 		(uint64(fs.Bsize)*fs.Bavail)/1024/1024)
 	sarscreen.Fprintf(g, "msg", "green_black", "Sizes of Ints is %d\n", sarflags.MaxUint)
