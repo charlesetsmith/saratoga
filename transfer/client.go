@@ -176,7 +176,7 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 		sarscreen.Fprintln(g, "msg", "blue_black", "File",
 			t.filename, "length", filelen, "successfully processed status")
 		errflag <- "success"
-		return
+		// MMMMM should this be a forever looping for !!!!!!
 	}
 }
 
@@ -569,11 +569,11 @@ func cputblind(t *CTransfer, g *gocui.Gui, errflag chan string) {
 		udpad = t.peer.String() + ":" + strconv.Itoa(sarnet.Port())
 	}
 	conn, err := net.Dial("udp", udpad)
-	defer conn.Close()
 	if err != nil {
 		errflag <- "cantsend"
 		return
 	}
+	defer conn.Close()
 
 	// Create the request & make a frame for normal request/status exchange startup
 	var met metadata.MetaData
@@ -601,7 +601,6 @@ func cputblind(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	sarscreen.Fprintln(g, "msg", "green_black", "CTransfer Metadata Sent for blind put to",
 		t.peer.String())
 	errflag <- "success"
-	return
 }
 
 // client put a file then remove the local copy of that file

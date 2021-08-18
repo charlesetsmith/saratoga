@@ -49,7 +49,7 @@ func Info(g *gocui.Gui, ttype string) {
 
 		var sslice sort.StringSlice
 		for key := range tinfo {
-			sslice = append(sslice, fmt.Sprintf("%s", tinfo[key].FmtPrint(sfmt)))
+			sslice = append(sslice, tinfo[key].FmtPrint(sfmt))
 		}
 		sort.Sort(sslice)
 
@@ -57,7 +57,7 @@ func Info(g *gocui.Gui, ttype string) {
 		sbuf += fmt.Sprintf(sfmt, "Direct", "Tran Typ", "IP", "Fname")
 		sbuf += sborder
 		for key := 0; key < len(sslice); key++ {
-			sbuf += fmt.Sprintf("%s", sslice[key])
+			sbuf += sslice[key]
 		}
 		sbuf += sborder
 		sarscreen.Fprintln(g, "msg", "magenta_black", sbuf)
