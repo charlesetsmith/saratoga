@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/charlesetsmith/saratoga/data"
-	"github.com/charlesetsmith/saratoga/holes"
 	"github.com/charlesetsmith/saratoga/metadata"
 	"github.com/charlesetsmith/saratoga/request"
 	"github.com/charlesetsmith/saratoga/sarflags"
@@ -34,9 +33,9 @@ type CTransfer struct {
 	peer      net.IP // Remote Host
 	filename  string // File name to get from remote host
 	fp        *os.File
-	frames    [][]byte    // Frame queue
-	holes     holes.Holes // Holes
-	cliflags  *sarflags.Cliflags
+	// frames    [][]byte           // Frame queue
+	// holes     holes.Holes        // Holes
+	cliflags *sarflags.Cliflags // Global flags for this transfer
 }
 
 var ctrmu sync.Mutex
@@ -314,16 +313,15 @@ func (t *CTransfer) CNew(g *gocui.Gui, ttype string, ip string, fname string, c 
 		t.peer = addr
 		t.filename = fname
 		t.cliflags = c
-		var msg string
 
-		msg = fmt.Sprintf("Added %s CTransfer to %s %s",
+		msg := fmt.Sprintf("Added %s CTransfer to %s %s",
 			t.ttype, t.peer.String(), t.filename)
 		CTransfers = append(CTransfers, *t)
 		sarscreen.Fprintln(g, "msg", "green_black", msg)
 		return nil
 	}
 	sarscreen.Fprintln(g, "msg", "red_black", "CTransfer not added, invalid IP address", ip)
-	return errors.New("Invalid IP Address")
+	return errors.New("invalid IP Address")
 }
 
 // Remove - Remove a CTransfer from the CTransfers
@@ -625,5 +623,4 @@ func cputrm(t *CTransfer, g *gocui.Gui, errflag chan string) {
 		sarscreen.Fprintln(g, "msg", "red_black", "Local file", fname, "removed")
 	}
 	errflag <- errcode
-	return
 }
