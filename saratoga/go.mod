@@ -8,7 +8,7 @@ require (
 	github.com/charlesetsmith/saratoga/data v0.0.0-20210818215558-ed7a21b17a3e
 	github.com/charlesetsmith/saratoga/dirent v0.0.0-20210818215558-ed7a21b17a3e // indirect
 	github.com/charlesetsmith/saratoga/frames v0.0.0-20210818215558-ed7a21b17a3e // indirect
-	github.com/charlesetsmith/saratoga/holes v0.0.0-20210818221455-ec3151c9362d // indirect
+	github.com/charlesetsmith/saratoga/holes v0.0.0-20210818223920-bd9d568dae81 // indirect
 	github.com/charlesetsmith/saratoga/metadata v0.0.0-20210818215558-ed7a21b17a3e
 	github.com/charlesetsmith/saratoga/request v0.0.0-20210818215558-ed7a21b17a3e
 	github.com/charlesetsmith/saratoga/sarflags v0.0.0-20210818215558-ed7a21b17a3e
