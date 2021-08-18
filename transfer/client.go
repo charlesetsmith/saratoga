@@ -36,6 +36,7 @@ type CTransfer struct {
 	fp        *os.File
 	frames    [][]byte    // Frame queue
 	holes     holes.Holes // Holes
+	cliflags  *sarflags.Cliflags
 }
 
 var ctrmu sync.Mutex
@@ -66,7 +67,7 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 	// Allocate a recieve buffer for a status frame
 	rbuf := make([]byte, sarflags.MaxBuff)
 
-	timeout := time.Duration(sarflags.Cli.Timeout.Status) * time.Second
+	timeout := time.Duration(t.cliflags.Timeout.Status) * time.Second
 	for {
 		sarscreen.Fprintln(g, "msg", "blue_black", "Waiting to Read a Status Frame on",
 			conn.LocalAddr().String())
@@ -308,7 +309,7 @@ func (t *CTransfer) CNew(g *gocui.Gui, ttype string, ip string, fname string) er
 		defer ctrmu.Unlock()
 		t.direction = "client"
 		t.ttype = ttype
-		t.tstamp = sarflags.Cli.Timestamp
+		t.tstamp = t.cliflags.Timestamp
 		t.session = newsession()
 		t.peer = addr
 		t.filename = fname
@@ -438,7 +439,7 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	var req request.Request
 	r := &req
 	rflags := "reqtype=put,fileordir=file,"
-	rflags += sarflags.Setglobal("request")
+	rflags += sarflags.Setglobal("request", t.cliflags)
 	rflags = replaceflag(rflags, tdesc)
 	sarscreen.Fprintln(g, "msg", "magenta_black", "Request Flags <", rflags, ">")
 	if err = r.New(rflags, t.session, t.filename, nil); err != nil {
@@ -467,7 +468,7 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	var met metadata.MetaData
 	m := &met
 	mflags := "transfer=file,progress=inprogress,"
-	mflags += sarflags.Setglobal("metadata")
+	mflags += sarflags.Setglobal("metadata", t.cliflags)
 	mflags = replaceflag(mflags, tdesc)
 	sarscreen.Fprintln(g, "msg", "magenta_black", "Metadata Flags <", mflags, ">")
 	if err = m.New(mflags, t.session, t.filename); err != nil {
@@ -493,7 +494,7 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	// during the transfer we only play with "eod" after this
 	// For retransmitting holes we also need to know the data flags to use
 	dflags := "transfer=file,eod=no,"
-	dflags += sarflags.Setglobal("data")
+	dflags += sarflags.Setglobal("data", t.cliflags)
 	dflags = replaceflag(dflags, tdesc)
 	sarscreen.Fprintln(g, "msg", "magenta_black", "Data Flags <", dflags, ">")
 
@@ -579,7 +580,7 @@ func cputblind(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	var met metadata.MetaData
 	m := &met
 	mflags := "transfer=file,progress=inprogress,"
-	mflags += sarflags.Setglobal("metadata")
+	mflags += sarflags.Setglobal("metadata", t.cliflags)
 	mflags = replaceflag(mflags, tdesc)
 	if err = m.New(mflags, t.session, t.filename); err != nil {
 		sarscreen.Fprintln(g, "msg", "red_black", "Cannot create metadata", err.Error())
