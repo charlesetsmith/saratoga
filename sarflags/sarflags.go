@@ -413,7 +413,7 @@ type config struct {
 }
 
 // Read  in the JSON Config data
-func ReadConfig(fname string) *Cliflags {
+func ReadConfig(fname string) (*Cliflags, error) {
 	var confdata []byte
 	var conf config
 	var err error
@@ -422,12 +422,12 @@ func ReadConfig(fname string) *Cliflags {
 	C := new(Cliflags)
 	// C := Cliflags{}
 	if confdata, err = ioutil.ReadFile(fname); err != nil {
-		fmt.Println("Cannot open saratoga config file", os.Args[1], ":", err)
-		return nil
+		fmt.Println("Cannot open the saratoga config file", os.Args[1], ":", err)
+		return nil, err
 	}
 	if err = json.Unmarshal(confdata, &conf); err != nil {
-		fmt.Println("Cannot read saratoga config file", os.Args[1], ":", err)
-		return nil
+		fmt.Println("Cannot Unmarshal json from saratoga config file", os.Args[1], ":", err)
+		return nil, err
 	}
 	cmu.Lock()
 	// Give default values to flags from saratoga JSON config
@@ -479,7 +479,7 @@ func ReadConfig(fname string) *Cliflags {
 		// C.Cmds[xx].Usage = conf.Cmds[xx].Usage
 	}
 	cmu.Unlock()
-	return C
+	return C, nil
 }
 
 // Valid - Check for valid flag and value

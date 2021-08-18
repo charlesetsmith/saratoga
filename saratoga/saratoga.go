@@ -637,9 +637,10 @@ func main() {
 		return
 	}
 
+	var readconferr error
 	// Read in JSON config file and parse it into the Config structure.
-	if c = sarflags.ReadConfig(os.Args[1]); c != nil {
-		fmt.Println("Cannot open saratoga config file", os.Args[1])
+	if c, readconferr = sarflags.ReadConfig(os.Args[1]); readconferr != nil {
+		fmt.Println("Cannot open saratoga config file we have a Readconf error", os.Args[1])
 		return
 	}
 	for xx := range c.Cmds {
