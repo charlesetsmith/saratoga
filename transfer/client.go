@@ -291,7 +291,7 @@ func Doclient(t *CTransfer, g *gocui.Gui, errstr chan string) {
 }
 
 // CNew - Add a new transfer to the CTransfers list
-func (t *CTransfer) CNew(g *gocui.Gui, ttype string, ip string, fname string) error {
+func (t *CTransfer) CNew(g *gocui.Gui, ttype string, ip string, fname string, c *sarflags.Cliflags) error {
 
 	// screen.Fprintln(g, "msg", "red_black", "Addtran for", ip, fname, flags)
 	if addr := net.ParseIP(ip); addr != nil { // We have a valid IP Address
@@ -313,6 +313,7 @@ func (t *CTransfer) CNew(g *gocui.Gui, ttype string, ip string, fname string) er
 		t.session = newsession()
 		t.peer = addr
 		t.filename = fname
+		t.cliflags = c
 		var msg string
 
 		msg = fmt.Sprintf("Added %s CTransfer to %s %s",

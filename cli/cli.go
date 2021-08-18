@@ -403,7 +403,7 @@ func get(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	}
 	if len(args) == 3 {
 		var t transfer.CTransfer
-		if err := t.CNew(g, "get", args[1], args[2]); err != nil {
+		if err := t.CNew(g, "get", args[1], args[2], c); err != nil {
 			return
 		}
 		return
@@ -423,7 +423,7 @@ func getdir(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	}
 	if len(args) == 3 {
 		var t transfer.CTransfer
-		if err := t.CNew(g, "getdir", args[1], args[2]); err != nil {
+		if err := t.CNew(g, "getdir", args[1], args[2], c); err != nil {
 			sarscreen.Fprintln(g, "msg", "green_black", prusage("getdir", c))
 			sarscreen.Fprintln(g, "msg", "green_black", prhelp("getdir", c))
 		}
@@ -444,7 +444,7 @@ func getrm(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	}
 	if len(args) == 3 {
 		var t transfer.CTransfer
-		if err := t.CNew(g, "getrm", args[1], args[2]); err != nil {
+		if err := t.CNew(g, "getrm", args[1], args[2], c); err != nil {
 			sarscreen.Fprintln(g, "msg", "green_black", prusage("getrm", c))
 			sarscreen.Fprintln(g, "msg", "green_black", prhelp("getrm", c))
 			return
@@ -643,7 +643,7 @@ func put(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	}
 	if len(args) == 3 {
 		t := new(transfer.CTransfer)
-		if err := t.CNew(g, "put", args[1], args[2]); err == nil {
+		if err := t.CNew(g, "put", args[1], args[2], c); err == nil {
 			errflag := make(chan string, 1)     // The return channel holding the saratoga errflag
 			go transfer.Doclient(t, g, errflag) // Actually do the transfer
 			errcode := <-errflag
@@ -681,7 +681,7 @@ func putblind(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	if len(args) == 3 {
 		t := new(transfer.CTransfer)
 		// We send the Metadata and do not bother with request/status exchange
-		if err := t.CNew(g, "putblind", args[1], args[2]); err != nil {
+		if err := t.CNew(g, "putblind", args[1], args[2], c); err != nil {
 			go transfer.Doclient(t, g, errflag)
 			errcode := <-errflag
 			if errcode != "success" {
@@ -710,7 +710,7 @@ func putrm(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	}
 	if len(args) == 3 {
 		t := new(transfer.CTransfer)
-		if err := t.CNew(g, "putrm", args[1], args[2]); err != nil {
+		if err := t.CNew(g, "putrm", args[1], args[2], c); err != nil {
 			go transfer.Doclient(t, g, errflag)
 			errcode := <-errflag
 			if errcode != "success" {
@@ -771,7 +771,7 @@ func rm(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	if len(args) == 3 {
 		var t transfer.CTransfer
 
-		if err := t.CNew(g, "rm", args[1], args[2]); err != nil {
+		if err := t.CNew(g, "rm", args[1], args[2], c); err != nil {
 			sarscreen.Fprintln(g, "msg", "green_black", prusage("rm", c))
 			sarscreen.Fprintln(g, "msg", "green_black", prhelp("rm", c))
 		}
@@ -794,7 +794,7 @@ func rmdir(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	}
 	if len(args) == 3 {
 		var t transfer.CTransfer
-		if err := t.CNew(g, "rmdir", args[1], args[2]); err != nil {
+		if err := t.CNew(g, "rmdir", args[1], args[2], c); err != nil {
 			sarscreen.Fprintln(g, "msg", "green_black", prusage("rmdir", c))
 			sarscreen.Fprintln(g, "msg", "green_black", prhelp("rmdir", c))
 		}
