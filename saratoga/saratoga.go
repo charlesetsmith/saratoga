@@ -156,7 +156,8 @@ var Commands []string
 var Sarwg sync.WaitGroup
 
 // This is where we process command line inputs after a CR entered
-func getLine(g *gocui.Gui, v *gocui.View, c *sarflags.Cliflags) error {
+func getLine(g *gocui.Gui, v *gocui.View) error {
+	c := Cmdptr
 	if g == nil || v == nil {
 		log.Fatal("getLine - g or v is nil")
 	}
@@ -623,6 +624,8 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 	}
 }
 
+var Cmdptr *sarflags.Cliflags
+
 // Main
 func main() {
 
@@ -647,6 +650,10 @@ func main() {
 	// Grab my process ID
 	// Pid := os.Getpid()
 
+	// Set global variable pointing to sarflags.Cliflags structure
+	// We have to have a global pointer as we cannot pass c directly into gocui
+
+	Cmdptr = c
 	Cinfo.Prompt = c.Prompt
 	Cinfo.Ppad = c.Ppad
 
