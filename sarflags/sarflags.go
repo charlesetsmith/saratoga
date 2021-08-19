@@ -472,11 +472,13 @@ func ReadConfig(fname string, c *Cliflags) error {
 	for xx := range conf.Commands {
 		// Append the new command to the array of commands
 		c.Cmds = append(c.Cmds, conf.Commands[xx])
+		fmt.Println(conf.Commands[xx])
 		// Copy it across from the JSON Config Structure
 		// C.Cmds[xx].Cmd = conf.Cmds[xx].Cmd
 		// C.Cmds[xx].Help = conf.Cmds[xx].Help
 		// C.Cmds[xx].Usage = conf.Cmds[xx].Usage
 	}
+	fmt.Println("XXX")
 	cmu.Unlock()
 	return nil
 }
