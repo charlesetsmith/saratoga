@@ -649,7 +649,7 @@ func main() {
 		fmt.Println(Cmdptr.Cmds[xx].Cmd)
 	}
 	fmt.Println("List of commands completed")
-	panic("WE ARE DONE!!!!!")
+	// panic("WE ARE DONE!!!!!")
 
 	// Grab my process ID
 	// Pid := os.Getpid()
