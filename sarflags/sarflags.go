@@ -409,7 +409,7 @@ type config struct {
 	Ppad        int      // Padding length in prompt for []:
 	Timeout     Timeouts // Various Timers
 	Datacounter int      // How many data frames received before a status is requested
-	Cmds        []Cmd    // Command name, usage & help
+	Commands    []Cmd    // Command name, usage & help
 }
 
 // Read  in the JSON Config data
@@ -469,9 +469,9 @@ func ReadConfig(fname string, c *Cliflags) error {
 		}
 	}
 
-	for xx := range conf.Cmds {
+	for xx := range conf.Commands {
 		// Append the new command to the array of commands
-		c.Cmds = append(c.Cmds, conf.Cmds[xx])
+		c.Cmds = append(c.Cmds, conf.Commands[xx])
 		// Copy it across from the JSON Config Structure
 		// C.Cmds[xx].Cmd = conf.Cmds[xx].Cmd
 		// C.Cmds[xx].Help = conf.Cmds[xx].Help

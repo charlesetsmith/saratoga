@@ -644,9 +644,11 @@ func main() {
 		fmt.Println("Cannot open saratoga config file we have a Readconf error", os.Args[1], err)
 		return
 	}
+	fmt.Println("Saratoga Commands are:")
 	for xx := range Cmdptr.Cmds {
 		fmt.Println(Cmdptr.Cmds[xx].Cmd)
 	}
+	fmt.Println("List of commands completed")
 	// panic("WE ARE OK DONE!!!!!")
 
 	// Grab my process ID
