@@ -640,7 +640,7 @@ func main() {
 	Cmdptr = new(sarflags.Cliflags)
 	var readconferr error
 	// Read in JSON config file and parse it into the Config structure.
-	if c, readconferr = sarflags.ReadConfig(os.Args[1], Cmdptr); readconferr != nil {
+	if readconferr = sarflags.ReadConfig(os.Args[1], Cmdptr); readconferr != nil {
 		fmt.Println("Cannot open saratoga config file we have a Readconf error", os.Args[1])
 		return
 	}
