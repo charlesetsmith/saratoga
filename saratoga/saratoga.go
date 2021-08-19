@@ -629,7 +629,7 @@ var Cmdptr *sarflags.Cliflags
 // Main
 func main() {
 
-	var c *sarflags.Cliflags
+	// var c *sarflags.Cliflags
 
 	if len(os.Args) != 3 {
 		fmt.Println("usage:", "saratoga <config> <iface>")
@@ -637,16 +637,17 @@ func main() {
 		return
 	}
 
+	Cmdptr = new(sarflags.Cliflags)
 	var readconferr error
 	// Read in JSON config file and parse it into the Config structure.
-	if c, readconferr = sarflags.ReadConfig(os.Args[1]); readconferr != nil {
+	if c, readconferr = sarflags.ReadConfig(os.Args[1], Cmdptr); readconferr != nil {
 		fmt.Println("Cannot open saratoga config file we have a Readconf error", os.Args[1])
 		return
 	}
-	for xx := range c.Cmds {
-		fmt.Println(c.Cmds[xx].Cmd)
+	for xx := range Cmdptr.Cmds {
+		fmt.Println(Cmdptr.Cmds[xx].Cmd)
 	}
-	// panic("WE ARE OK DONE!!!!!")
+	panic("WE ARE OK DONE!!!!!")
 
 	// Grab my process ID
 	// Pid := os.Getpid()
@@ -654,17 +655,16 @@ func main() {
 	// Set global variable pointing to sarflags.Cliflags structure
 	// We have to have a global pointer as we cannot pass c directly into gocui
 
-	Cmdptr = c
-	Cinfo.Prompt = c.Prompt
-	Cinfo.Ppad = c.Ppad
+	Cinfo.Prompt = Cmdptr.Prompt
+	Cinfo.Ppad = Cmdptr.Ppad
 
 	// Move to saratoga working directory
-	if err := os.Chdir(c.Sardir); err != nil {
-		log.Fatal(fmt.Errorf("no such directory SARDIR=%s", c.Sardir))
+	if err := os.Chdir(Cmdptr.Sardir); err != nil {
+		log.Fatal(fmt.Errorf("no such directory SARDIR=%s", Cmdptr.Sardir))
 	}
 
 	var fs syscall.Statfs_t
-	if err := syscall.Statfs(c.Sardir, &fs); err != nil {
+	if err := syscall.Statfs(Cmdptr.Sardir, &fs); err != nil {
 		log.Fatal(errors.New("cannot stat saratoga working directory"))
 	}
 
@@ -733,7 +733,7 @@ func main() {
 			sarnet.UDPinfo(&v4mcastaddr))
 	}
 
-	sarscreen.Fprintf(g, "msg", "green_black", "Saratoga Directory is %s\n", c.Sardir)
+	sarscreen.Fprintf(g, "msg", "green_black", "Saratoga Directory is %s\n", Cmdptr.Sardir)
 	sarscreen.Fprintf(g, "msg", "green_black", "Available space is %d MB\n",
 		(uint64(fs.Bsize)*fs.Bavail)/1024/1024)
 	sarscreen.Fprintf(g, "msg", "green_black", "Sizes of Ints is %d\n", sarflags.MaxUint)
@@ -760,7 +760,7 @@ func main() {
 
 	// The Base calling functions for Saratoga live in cli.go so look there first!
 	errflag := make(chan error, 1)
-	go mainloop(g, errflag, c)
+	go mainloop(g, errflag, Cmdptr)
 
 	select {
 	case v6err := <-v6listenquit:
