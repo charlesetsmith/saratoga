@@ -647,7 +647,7 @@ func main() {
 	for xx := range Cmdptr.Cmds {
 		fmt.Println(Cmdptr.Cmds[xx].Cmd)
 	}
-	panic("WE ARE OK DONE!!!!!")
+	// panic("WE ARE OK DONE!!!!!")
 
 	// Grab my process ID
 	// Pid := os.Getpid()
