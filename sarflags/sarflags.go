@@ -413,44 +413,43 @@ type config struct {
 }
 
 // Read  in the JSON Config data
-func ReadConfig(fname string) (*Cliflags, error) {
+func ReadConfig(fname string, c *Cliflags) error {
 	var confdata []byte
 	var conf config
 	var err error
 	var cmu sync.Mutex
 
-	C := new(Cliflags)
 	// C := Cliflags{}
 	if confdata, err = ioutil.ReadFile(fname); err != nil {
 		fmt.Println("Cannot open the saratoga config file", os.Args[1], ":", err)
-		return nil, err
+		return err
 	}
 	if err = json.Unmarshal(confdata, &conf); err != nil {
 		fmt.Println("Cannot Unmarshal json from saratoga config file", os.Args[1], ":", err)
-		return nil, err
+		return err
 	}
 	cmu.Lock()
 	// Give default values to flags from saratoga JSON config
-	C.Global = make(map[string]string)
-	C.Global["csumtype"] = conf.Csumtype
-	C.Global["freespace"] = conf.Freespace
-	C.Global["txwilling"] = conf.Txwilling
-	C.Global["rxwilling"] = conf.Rxwilling
-	C.Global["stream"] = conf.Stream
-	C.Global["reqtstamp"] = conf.Reqtstamp
-	C.Global["reqstatus"] = conf.Reqstatus
-	C.Global["udplite"] = conf.Udplite
-	C.Global["descriptor"] = conf.Descriptor
-	C.Timestamp = conf.Timestamp                 // Default timestamp type to use
-	C.Timeout.Metadata = conf.Timeout.Metadata   // Seconds
-	C.Timeout.Request = conf.Timeout.Request     // Seconds
-	C.Timeout.Status = conf.Timeout.Status       // Seconds
-	C.Timeout.Transfer = conf.Timeout.Transfer   // Seconds
-	C.Timeout.Binterval = conf.Timeout.Binterval // Seconds between beacons
-	C.Datacnt = conf.Datacounter                 // # Data frames between request for status
-	C.Timezone = conf.Timezone                   // TImezone to use for logs
-	C.Prompt = conf.Prompt                       // Prompt Prefix in cmd
-	C.Ppad = conf.Ppad                           // For []: in prompt = 3
+	c.Global = make(map[string]string)
+	c.Global["csumtype"] = conf.Csumtype
+	c.Global["freespace"] = conf.Freespace
+	c.Global["txwilling"] = conf.Txwilling
+	c.Global["rxwilling"] = conf.Rxwilling
+	c.Global["stream"] = conf.Stream
+	c.Global["reqtstamp"] = conf.Reqtstamp
+	c.Global["reqstatus"] = conf.Reqstatus
+	c.Global["udplite"] = conf.Udplite
+	c.Global["descriptor"] = conf.Descriptor
+	c.Timestamp = conf.Timestamp                 // Default timestamp type to use
+	c.Timeout.Metadata = conf.Timeout.Metadata   // Seconds
+	c.Timeout.Request = conf.Timeout.Request     // Seconds
+	c.Timeout.Status = conf.Timeout.Status       // Seconds
+	c.Timeout.Transfer = conf.Timeout.Transfer   // Seconds
+	c.Timeout.Binterval = conf.Timeout.Binterval // Seconds between beacons
+	c.Datacnt = conf.Datacounter                 // # Data frames between request for status
+	c.Timezone = conf.Timezone                   // TImezone to use for logs
+	c.Prompt = conf.Prompt                       // Prompt Prefix in cmd
+	c.Ppad = conf.Ppad                           // For []: in prompt = 3
 
 	// Get the default directory for sarotaga transfers from environment
 	// We default to what is in the environment variable otherwise what is in saratoga.json
@@ -461,25 +460,25 @@ func ReadConfig(fname string) (*Cliflags, error) {
 	} else {
 		fmt.Println("SARDIR environment variable is:", sardir)
 	}
-	C.Sardir = sardir
+	c.Sardir = sardir
 
-	for f := range C.Global {
-		if !Valid(f, C.Global[f]) {
-			ps := "Invalid Flag:" + f + "=" + C.Global[f]
+	for f := range c.Global {
+		if !Valid(f, c.Global[f]) {
+			ps := "Invalid Flag:" + f + "=" + c.Global[f]
 			panic(ps)
 		}
 	}
 
 	for xx := range conf.Cmds {
 		// Append the new command to the array of commands
-		C.Cmds = append(C.Cmds, conf.Cmds[xx])
+		c.Cmds = append(c.Cmds, conf.Cmds[xx])
 		// Copy it across from the JSON Config Structure
 		// C.Cmds[xx].Cmd = conf.Cmds[xx].Cmd
 		// C.Cmds[xx].Help = conf.Cmds[xx].Help
 		// C.Cmds[xx].Usage = conf.Cmds[xx].Usage
 	}
 	cmu.Unlock()
-	return C, nil
+	return nil
 }
 
 // Valid - Check for valid flag and value
@@ -648,7 +647,9 @@ func Good(field string) bool {
 // Setglobal - Set the global flags applicable for the particular frame type
 // Dont set final descriptor here - Work it out in the transfer as it depends on file size
 func Setglobal(frametype string, c *Cliflags) string {
+	var cmu sync.Mutex
 
+	cmu.Lock()
 	fs := ""
 	for _, f := range Fields(frametype) {
 		for g := range c.Global {
@@ -657,6 +658,7 @@ func Setglobal(frametype string, c *Cliflags) string {
 			}
 		}
 	}
+	cmu.Unlock()
 	return strings.TrimRight(fs, ",")
 }
 
