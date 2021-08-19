@@ -20,8 +20,8 @@ github.com/charlesetsmith/saratoga/frames v0.0.0-20210819083456-7185d8ac6431/go.
 github.com/charlesetsmith/saratoga/holes v0.0.0-20210728070526-75de3a3b09e3/go.mod h1:FolBySBqHe+s8Rd9q8duaNl/L8Zp6l9CwosXOIMeMv0=
 github.com/charlesetsmith/saratoga/holes v0.0.0-20210818214505-c90cac5e42df/go.mod h1:FolBySBqHe+s8Rd9q8duaNl/L8Zp6l9CwosXOIMeMv0=
 github.com/charlesetsmith/saratoga/holes v0.0.0-20210818221455-ec3151c9362d/go.mod h1:FolBySBqHe+s8Rd9q8duaNl/L8Zp6l9CwosXOIMeMv0=
-github.com/charlesetsmith/saratoga/holes v0.0.0-20210819083456-7185d8ac6431 h1:GrF9pmRbLlv9jy5y1i0R6e6ILT3z52x8dWMnvocpGZI=
-github.com/charlesetsmith/saratoga/holes v0.0.0-20210819083456-7185d8ac6431/go.mod h1:FolBySBqHe+s8Rd9q8duaNl/L8Zp6l9CwosXOIMeMv0=
+github.com/charlesetsmith/saratoga/holes v0.0.0-20210819094033-240db5e0850f h1:F5q4CDfummTILLFai0QC6HBsvxOguJnIErlPaKuvxsk=
+github.com/charlesetsmith/saratoga/holes v0.0.0-20210819094033-240db5e0850f/go.mod h1:FolBySBqHe+s8Rd9q8duaNl/L8Zp6l9CwosXOIMeMv0=
 github.com/charlesetsmith/saratoga/metadata v0.0.0-20210818214505-c90cac5e42df/go.mod h1:ZtTreDTKPmxNh2FlmT9r4ceWCavOc7SHOD7IQ4rNqi4=
 github.com/charlesetsmith/saratoga/metadata v0.0.0-20210818215558-ed7a21b17a3e/go.mod h1:ZtTreDTKPmxNh2FlmT9r4ceWCavOc7SHOD7IQ4rNqi4=
 github.com/charlesetsmith/saratoga/metadata v0.0.0-20210819083456-7185d8ac6431 h1:v2B0/K7Xz02aBs5JUj563JuQEhf2XHymi7Vd9NDonMk=
