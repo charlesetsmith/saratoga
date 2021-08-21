@@ -412,6 +412,38 @@ type config struct {
 	Commands    []Cmd    // Command name, usage & help
 }
 
+// CopyCliflags - copy from source to desination the Clieflags structure
+func CopyCliflags(d *Cliflags, s *Cliflags) error {
+	d.Timestamp = s.Timestamp
+	d.Datacnt = s.Datacnt
+	d.Timezone = s.Timezone
+	d.Prompt = s.Prompt
+	d.Ppad = s.Ppad
+	d.Sardir = s.Sardir
+	// Copy the various Timeouts
+	d.Timeout.Binterval = s.Timeout.Binterval
+	d.Timeout.Metadata = s.Timeout.Metadata
+	d.Timeout.Request = s.Timeout.Request
+	d.Timeout.Status = s.Timeout.Status
+	d.Timeout.Transfer = s.Timeout.Transfer
+	// Copy the Global flag defaults
+	if len(s.Global) == 0 {
+		return errors.New("No Global Flags defined in Copyflags")
+	}
+	d.Global = make(map[string]string)
+	for g := range s.Global {
+		d.Global[g] = s.Global[g]
+	}
+	if len(s.Cmds) == 0 {
+		return errors.New("No Cmds defined in Copyflags")
+	}
+	// Copy the Cmds
+	for c := range s.Cmds {
+		d.Cmds = append(d.Cmds, s.Cmds[c])
+	}
+	return nil
+}
+
 // Read  in the JSON Config data
 func ReadConfig(fname string, c *Cliflags) error {
 	var confdata []byte
