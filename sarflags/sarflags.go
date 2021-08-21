@@ -451,7 +451,6 @@ func ReadConfig(fname string, c *Cliflags) error {
 	var err error
 	var cmu sync.Mutex
 
-	// C := Cliflags{}
 	if confdata, err = ioutil.ReadFile(fname); err != nil {
 		fmt.Println("Cannot open the saratoga config file", os.Args[1], ":", err)
 		return err
@@ -488,9 +487,6 @@ func ReadConfig(fname string, c *Cliflags) error {
 	var sardir string
 	if sardir = os.Getenv("SARDIR"); sardir == "" {
 		sardir = conf.Sardir // If no env variable set then set it to conf file value
-		fmt.Println("SARDIR is set from saratoga.conf to:", sardir)
-	} else {
-		fmt.Println("SARDIR environment variable is:", sardir)
 	}
 	c.Sardir = sardir
 
@@ -501,16 +497,10 @@ func ReadConfig(fname string, c *Cliflags) error {
 		}
 	}
 
+	// Append the new command to the array of commands
 	for xx := range conf.Commands {
-		// Append the new command to the array of commands
 		c.Cmds = append(c.Cmds, conf.Commands[xx])
-		fmt.Println(conf.Commands[xx])
-		// Copy it across from the JSON Config Structure
-		// C.Cmds[xx].Cmd = conf.Cmds[xx].Cmd
-		// C.Cmds[xx].Help = conf.Cmds[xx].Help
-		// C.Cmds[xx].Usage = conf.Cmds[xx].Usage
 	}
-	fmt.Println("XXX")
 	cmu.Unlock()
 	return nil
 }
