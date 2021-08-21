@@ -643,6 +643,7 @@ func put(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	}
 	if len(args) == 3 {
 		t := new(transfer.CTransfer)
+
 		if err := t.CNew(g, "put", args[1], args[2], c); err == nil {
 			errflag := make(chan string, 1)     // The return channel holding the saratoga errflag
 			go transfer.Doclient(t, g, errflag) // Actually do the transfer

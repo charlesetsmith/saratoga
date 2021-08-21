@@ -308,11 +308,16 @@ func (t *CTransfer) CNew(g *gocui.Gui, ttype string, ip string, fname string, c 
 		defer ctrmu.Unlock()
 		t.direction = "client"
 		t.ttype = ttype
-		t.tstamp = t.cliflags.Timestamp
+		t.tstamp = c.Timestamp
 		t.session = newsession()
 		t.peer = addr
 		t.filename = fname
-		t.cliflags = c
+
+		// NOW COPY THE FLAGS to t.cliflags
+		t.cliflags = new(sarflags.Cliflags)
+		if err := sarflags.CopyCliflags(t.cliflags, c); err != nil {
+			panic(err)
+		}
 
 		msg := fmt.Sprintf("Added %s CTransfer to %s %s",
 			t.ttype, t.peer.String(), t.filename)
