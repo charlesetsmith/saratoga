@@ -190,5 +190,291 @@
 			"usage" : "usage",
 			"help" : "show usage of commands"
 		}
-	]
+	],
+	"frameflags" :
+	{
+		"beacon":   ["version", "frametype", "descriptor", "stream", "txwilling", "rxwilling", "udplite", "freespace", "freespaced"],
+		"request":  ["version", "frametype", "descriptor", "stream", "reqtype", "fileordir", "udplite"],
+		"metadata": ["version", "frametype", "descriptor", "transfer", "progress", "udptype", "csumlen", "csumtype"],
+		"data":     ["version", "frametype", "descriptor", "transfer", "reqtstamp", "reqstatus", "eod"],
+		"status":   ["version", "frametype", "descriptor", "reqtstamp", "metadatarecvd", "allholes", "reqholes", "errcode"]
+	},
+	"flags": 
+	{
+		"names" :
+		[
+			"version", {
+				"frametypes" : [ "beacon", "request", "metadata", "data", "status" ],
+				"len" : 3,
+				"msb" : 0,
+				"options" : 
+				[ 
+					{"name": "v0", "val": 0},
+					{"name": "v1", "val": 1}
+				]
+			},
+			"frametype", {
+				"frametypes" : [ "beacon", "request", "metadata", "data", "status" ],
+				"len" : 5,
+				"msb" : 3,
+				"options" :
+				[
+					{"name": "beacon", "val": 0},
+					{"name": "request", "val": 1},
+					{"name": "metadata", "val": 2},
+					{"name": "data", "val": 3},
+					{"name": "status", "val": 4}
+				]
+			},
+			"descriptor", { 
+				"frametypes" :  [ "beacon", "request", "metadata", "data", "status" ],
+				"len" : 2,
+				"msb" : 8,
+				"options" :
+				[
+					{"name": "d16", "val": 0},
+					{"name": "d32", "val": 1},
+					{"name": "d64", "val": 2},
+					{"name": "d128", "val": 3}
+				]
+			},
+			"stream", { 
+				"frametypes" : [ "beacon", "request" ],
+				"len" : 1,
+				"msb" : 11,
+				"options" :
+				[
+					{"name": "no", "val": 0},
+					{"name": "yes", "val": 1}
+				]
+			},
+			"transfer", {
+				"frametypes" :  [ "metadata", "data" ],
+				"len"  : 2,
+				"msb"  : 10,
+				"options" :
+				[
+					{"name": "file", "val": 0},
+					{"name": "directory", "val": 1},
+					{"name": "bundle", "val": 2},
+					{"name": "stream", "val": 3}
+				]
+			},
+			"reqtstamp", { 
+				"frametypes" : [ "data", "status" ],
+				"len" : 1,
+				"msb" : 12,
+				"options": 
+				[
+					{"name": "no", "val": 0},
+					{"name": "yes", "val": 1}
+				]
+			},
+			"progress", { 
+				"frametypes" : [ "metadata" ],
+				"len" : 1,
+				"msb" : 12,
+				"options" :
+				[
+					{"name": "inprogress", "val": 0},
+					{"name": "terminated", "val": 1}
+				]
+			},
+			"txwilling", { 
+				"frametypes" :  [ "beacon" ],
+				"len" : 2,
+				"msb" : 12,
+				"options" :
+				[
+					{"name": "no", "val": 0},
+					{"name": "invalid", "val": 1},
+					{"name": "capable", "val": 2},
+					{"name": "yes", "val": 3}
+				]
+			},
+			"udptype", { 
+				"frametypes" : [ "metadata" ],
+				"len" : 1,
+				"msb" : 13,
+				"options" :
+				[
+					{"name": "udponly", "val": 0},
+					{"name": "udplite", "val": 1}
+				]
+			},
+			"metadatarecvd", { 
+				"frametypes" : [ "status" ],
+				"len" : 1,
+				"msb" : 13,
+				"options" :
+				[
+					{"name": "yes", "val": 0},
+					{"name": "no", "val": 1}
+				]
+			},
+			"allholes", { 
+				"frametypes" : [ "status" ],
+				"len" : 1,
+				"msb" : 14,
+				"options" :
+				[
+					{"name": "yes", "val": 0},
+					{"name": "no", "val": 1}
+				]
+			},
+			"reqtype", { 
+				"frametypes" : [ "request" ],
+				"len" : 8,
+				"msb" : 24,
+				"options" :
+				[
+					{"name": "noaction", "val": 0},
+					{"name": "get", "val": 1},
+					{"name": "put", "val": 2},
+					{"name": "getdelete", "val": 3},
+					{"name": "putdelete", "val": 4},
+					{"name": "delete", "val": 5},
+					{"name": "getdir", "val": 6}
+				]
+			},
+			"rxwilling", { 
+				"frametypes" :  [ "beacon" ],
+				"len" : 2,
+				"msb" : 14,
+				"options" :
+				[
+					{"name": "no", "val": 0},
+					{"name": "INVALID FLAG", "val": 1},
+					{"name": "capable", "val": 2},
+					{"name": "yes", "val": 3}
+				]
+			},
+			"reqholes", { 
+				"frametypes" : [ "status" ],
+				"len" : 1,
+				"msb" : 15,
+				"options" :
+				[
+					{"name": "requested", "val": 0},
+					{"name": "voluntarily", "val": 1}
+				]
+			},
+			"fileordir", { 
+				"frametypes": [ "request" ],
+				"len" : 1,
+				"msb" : 15,
+				"options" :
+				[
+					{"name": "file", "val": 0},
+					{"name": "directory", "val": 1}
+				]
+			},
+			"reqstatus", { 
+				"frametypes" : [ "data" ],
+				"len" : 1,
+				"msb" : 15,
+				"options" :
+				[
+					{"name": "no", "val": 0},
+					{"name": "yes", "val": 1}
+				]
+			},
+			"udplite", { 
+				"frametypes" : [ "beacon", "request" ],
+				"len": 1,
+				"msb" : 16,
+				"options" :
+				[
+					{"name": "no", "val": 0},
+					{"name": "yes", "val": 1}
+				]
+			},
+			"eod", { 
+				"frametypes" : [ "data" ],
+				"len" : 1,
+				"msb" : 16,
+				"options" :
+				[
+					{"name": "no", "val": 0},
+					{"name": "yes", "val": 1}
+				]
+			},
+			"freespace", { 
+				"frametypes" : [ "beacon" ],
+				"len" : 1,
+				"msb" : 17,
+				"options" :
+				[
+					{"name": "no", "val": 0},
+					{"name": "yes", "val": 1}
+				]
+			},
+			"freespaced", { 
+				"frametypes" : [ "beacon" ],
+				"len" : 2,
+				"msb" : 18,
+				"options" :
+				[
+					{"name": "d16", "val": 0},
+					{"name": "d32", "val": 1},
+					{"name": "d64", "val": 2},
+					{"name": "d128", "val": 3}
+				]
+			},
+			"csumlen", {
+				"frametypes" : [ "metadata" ],
+				"len" : 4,
+				"msb" :  24,
+				"options" :
+				[
+					{"name": "none", "val": 0},
+					{"name": "crc32", "val": 1},
+					{"name": "invalid2", "val": 2},
+					{"name": "invalid3", "val": 3},
+					{"name": "md5", "val": 4},
+					{"name": "sha1", "val": 5}
+				]
+			},
+			"csumtype", { 
+				"frametypes" : [ "metadata" ],
+				"len" :  4,
+				"msb" : 28,
+				"options" :
+				[
+					{"name": "none", "val": 0},
+					{"name": "crc32", "val": 1},
+					{"name": "md5", "val": 2},
+					{"name": "sha1", "val": 3}
+				]
+			},
+			"errcode", { 
+				"frametypes" : [ "status" ],
+				"len" : 8,
+				"msb" :  24,
+				"options" :
+				[
+					{"name": "success", "val": 0},
+					{"name": "unspecified", "val": 1},
+					{"name": "cantsend", "val": 2},
+					{"name": "cantreceive", "val": 3},
+					{"name": "filenotfound", "val": 4},
+					{"name": "accessdenied", "val": 5},
+					{"name": "unknownid", "val": 6},
+					{"name": "didnotdelete", "val": 7},
+					{"name": "filetobig", "val": 8},
+					{"name": "badoffset", "val": 9},
+					{"name": "badpacket", "val": 10},
+					{"name": "badrequest", "val": 11},
+					{"name": "internaltimeout", "val": 12},
+					{"name": "baddataflag", "val": 13},
+					{"name": "rxnotinterested", "val": 14},
+					{"name": "fileinuse", "val": 15},
+					{"name": "metadatarequired", "val": 16},
+					{"name": "badstatus", "val": 17},
+					{"name": "rxtimeout", "val": 18}
+				]
+			}
+		]
+	}
 }
+

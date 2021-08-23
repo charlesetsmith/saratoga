@@ -146,11 +146,20 @@ var MTU int
 const fieldlen = 0
 const fieldmsb = 1
 
+type Bitflags struct {
+	flag     string
+	fieldlen uint32
+	offset   uint32
+}
+
+var flagbits map[string][2]int
+
 // Map of Saratoga Flags in Frame Header
 // First 32 bits of every frame have a combination of these flags
 // The 0 element (fieldlen) value in the uint32[2] is the length in bits of the flag
 // The 1 element (fieldmsb) value in the uint32[2] is the bit offset from the front.
 // This is all in network byte order
+/*
 var flagbits = map[string][2]uint32{
 	"version":       {3, 0},
 	"frametype":     {5, 3},
@@ -176,49 +185,29 @@ var flagbits = map[string][2]uint32{
 	"csumtype":      {4, 28},
 	"errcode":       {8, 24},
 }
-
-// Map of which flags are applicable to which frame types
-var flagframe = map[string][]string{
-	"version":       {"beacon", "request", "metadata", "data", "status"},
-	"frametype":     {"beacon", "request", "metadata", "data", "status"},
-	"descriptor":    {"beacon", "request", "metadata", "data", "status"},
-	"stream":        {"beacon", "request"},
-	"transfer":      {"metadata", "data"},
-	"reqtstamp":     {"data", "status"},
-	"progress":      {"metadata"},
-	"txwilling":     {"beacon"},
-	"udptype":       {"metadata"},
-	"metadatarecvd": {"status"},
-	"allholes":      {"status"},
-	"reqtype":       {"request"},
-	"rxwilling":     {"beacon"},
-	"reqholes":      {"status"},
-	"fileordir":     {"request"},
-	"reqstatus":     {"data"},
-	"udplite":       {"beacon", "request"},
-	"eod":           {"data"},
-	"freespace":     {"beacon"},
-	"freespaced":    {"beacon"},
-	"csumlen":       {"metadata"},
-	"csumtype":      {"metadata"},
-	"errcode":       {"status"},
-}
-
-// Map of which frametypes are applicable to which flags
-/*
-var frameflag = map[string][]string{
-	"beacon":   {"version", "frametype", "descriptor", "stream", "txwilling", "rxwilling", "udplite", "freespace", "freespaced"},
-	"request":  {"version", "frametype", "descriptor", "stream", "reqtype", "fileordir", "udplite"},
-	"metadata": {"version", "frametype", "descriptor", "transfer", "progress", "udptype", "csumlen", "csumtype"},
-	"data":     {"version", "frametype", "descriptor", "transfer", "reqtstamp", "reqstatus", "eod"},
-	"status":   {"version", "frametype", "descriptor", "reqtstamp", "metadatarecvd", "allholes", "reqholes", "errcode"},
-}
 */
-type flaginfo struct {
+
+type Frameflag struct {
+	frametype string
+	flagname  []string
+}
+
+type Flagoption struct {
 	name string
 	val  uint32
 }
+type Flag struct {
+	name       string
+	frametypes []string
+	len        uint32
+	msb        uint32
+	options    []Flagoption
+}
 
+// Glolobal map of flag info
+var Flags map[string]Flag
+
+/*
 // Map of the flags and thier respective values
 var flagvals = map[string][]flaginfo{
 	"version": { // "beacon", "request", "metadata", "data", "status"
@@ -355,6 +344,7 @@ var flagvals = map[string][]flaginfo{
 		flaginfo{name: "rxtimeout", val: 0x12},
 	},
 }
+*/
 
 // Timeouts - Global Timeouts and counters
 type Timeouts struct {
@@ -386,30 +376,36 @@ type Cliflags struct {
 	Ppad      int               // Length of Padding around Prompt []: = 3
 	Sardir    string            // Saratoga working directory
 	Cmds      []Cmd             // Command Line Interface Cmd's
+	// Frameflags	[]Frameflag
+	// Flags		[]Flag		// What flags are relevant to what frame types
 }
 
 // Climu - Protect CLI input flags
 var Climu sync.Mutex
 
+var conf config
+
 // Config - JSON Config Default Global Settings & Commands
 type config struct {
-	Descriptor  string   // Default Descriptor: d16,d32,d64
-	Csumtype    string   // Default Checksum type: none
-	Freespace   string   // Is freespace tp be advertised: yes,no
-	Txwilling   string   // Can files/streams be sent: yes,no
-	Rxwilling   string   // Can files/streams be received: yes,no
-	Stream      string   // Can files/streams be transmitted: yes,no
-	Reqtstamp   string   // Request timestamps: yes,no
-	Reqstatus   string   // Request status frame to be sent/received: yes,no
-	Udplite     string   // Is UDP Lite supported: yes,no
-	Timestamp   string   // What is the default timestamp format: anything for local,posix32,posix32_323,posix64,posix64_32,epoch2000_32,
-	Timezone    string   // What timezone is to be used in timestamps: utc
-	Sardir      string   // What is the default directory for saratoga files
-	Prompt      string   // Command line prompt: saratoga
-	Ppad        int      // Padding length in prompt for []:
-	Timeout     Timeouts // Various Timers
-	Datacounter int      // How many data frames received before a status is requested
-	Commands    []Cmd    // Command name, usage & help
+	Descriptor  string      // Default Descriptor: d16,d32,d64
+	Csumtype    string      // Default Checksum type: none
+	Freespace   string      // Is freespace tp be advertised: yes,no
+	Txwilling   string      // Can files/streams be sent: yes,no
+	Rxwilling   string      // Can files/streams be received: yes,no
+	Stream      string      // Can files/streams be transmitted: yes,no
+	Reqtstamp   string      // Request timestamps: yes,no
+	Reqstatus   string      // Request status frame to be sent/received: yes,no
+	Udplite     string      // Is UDP Lite supported: yes,no
+	Timestamp   string      // What is the default timestamp format: anything for local,posix32,posix32_323,posix64,posix64_32,epoch2000_32,
+	Timezone    string      // What timezone is to be used in timestamps: utc
+	Sardir      string      // What is the default directory for saratoga files
+	Prompt      string      // Command line prompt: saratoga
+	Ppad        int         // Padding length in prompt for []:
+	Timeout     Timeouts    // Various Timers
+	Datacounter int         // How many data frames received before a status is requested
+	Commands    []Cmd       // Command name, usage & help
+	Frameflags  []Frameflag // What flags are relevant to what frame types
+	Flags       []Flag
 }
 
 // CopyCliflags - copy from source to desination the Clieflags structure
@@ -447,7 +443,7 @@ func CopyCliflags(d *Cliflags, s *Cliflags) error {
 // Read  in the JSON Config data
 func ReadConfig(fname string, c *Cliflags) error {
 	var confdata []byte
-	var conf config
+	// var conf config
 	var err error
 	var cmu sync.Mutex
 
@@ -501,48 +497,51 @@ func ReadConfig(fname string, c *Cliflags) error {
 	for xx := range conf.Commands {
 		c.Cmds = append(c.Cmds, conf.Commands[xx])
 	}
+
+	// Copy the flags into a map for quicker lookup by flagname
+	for f := range conf.Flags {
+		Flags[conf.Flags[f].name] = conf.Flags[f]
+	}
 	cmu.Unlock()
 	return nil
 }
 
 // Valid - Check for valid flag and value
-func Valid(field string, info string) bool {
-	for f := range flagvals {
-		if field == f {
-			for _, fi := range flagvals[field] {
-				if fi.name == info {
+func Valid(name string, option string) bool {
+	for f := range conf.Flags {
+		if name == conf.Flags[f].name {
+			for o := range conf.Flags[f].options {
+				if option == conf.Flags[f].options[o].name {
 					return true
 				}
 			}
+			return false
 		}
 	}
 	return false
 }
 
 // Values - Return slice of flags applicable to frame type (field)
-func Values(field string) []string {
-	var ret []string
-	for f := range flagframe {
-		// fmt.Println("Flagframe:", f)
-		for _, fi := range flagframe[f] {
-			if fi == field {
-				ret = append(ret, f)
-			}
+func Values(ftype string) []string {
+	for f := range conf.Frameflags {
+		if ftype == conf.Frameflags[f].frametype {
+			return conf.Frameflags[f].flagname
 		}
 	}
-	// fmt.Println(ret)
-	return ret
+	err := "Values cannot find flags for ftype of " + ftype
+	panic(err)
 }
 
-// Value - Return the integer value of the flag or -1 if not valid
-func Value(field string, info string) int {
-	for f := range flagvals {
-		if field == f {
-			for _, fi := range flagvals[field] {
-				if fi.name == info {
-					return int(fi.val)
+// Value - Return the integer value of the flag
+func Value(name string, option string) int {
+	for f := range conf.Frameflags {
+		if name == conf.Flags[f].name {
+			for o := range conf.Flags[f].options {
+				if option == conf.Flags[f].options[o].name {
+					return int(conf.Flags[f].options[o].val)
 				}
 			}
+			return -1
 		}
 	}
 	return -1
@@ -554,12 +553,11 @@ func Get(curflag uint32, field string) uint32 {
 		log.Fatalln("Get lookup fail Invalid Flag", field)
 	}
 
-	var len, msb, shiftbits, maskbits, setbits uint32
+	var shiftbits, maskbits, setbits uint32
 
-	len = flagbits[field][fieldlen]
-	msb = flagbits[field][fieldmsb]
-	shiftbits = flagsize - len - msb
-	maskbits = (1 << len) - 1
+	fl := Flags[field]
+	shiftbits = flagsize - fl.len - fl.msb
+	maskbits = (1 << fl.len) - 1
 	setbits = maskbits << shiftbits
 	return (curflag & setbits) >> shiftbits
 }
@@ -568,7 +566,8 @@ func Get(curflag uint32, field string) uint32 {
 func GetStr(curflag uint32, field string) string {
 
 	val := Get(curflag, field)
-	for _, fi := range flagvals[field] {
+	fl := Flags[field]
+	for _, fi := range fl.options {
 		// fmt.Printf("GetStr Curflag %0x Looking for %x val in %x=%s\n", curflag, val, fi.val, fi.name)
 		if fi.val == val {
 			return fi.name
@@ -581,7 +580,8 @@ func GetStr(curflag uint32, field string) string {
 // Set - Given a current header and bitfield name with a new value return the revised header
 // If invalid return the current flag and error
 func Set(curflag uint32, field string, flagname string) (uint32, error) {
-	if _, ok := flagbits[field]; !ok {
+	fl, ok := Flags[field]
+	if !ok {
 		log.Fatalln("Set lookup fail Invalid Flag", field)
 		e := "invalid Flag: " + field
 		return curflag, errors.New(e)
@@ -590,7 +590,7 @@ func Set(curflag uint32, field string, flagname string) (uint32, error) {
 	var newval uint32
 	var found = false
 	// Get the value of the flag
-	for _, fi := range flagvals[field] {
+	for _, fi := range fl.options {
 		// log.Println("Flags for field ", field, fi.name, fi.val)
 		if fi.name == flagname {
 			newval = fi.val
@@ -602,12 +602,10 @@ func Set(curflag uint32, field string, flagname string) (uint32, error) {
 		log.Fatalln("Set lookup fail Invalid flagname", flagname, "in Flag", field)
 	}
 
-	var len, msb, shiftbits, maskbits, setbits, result uint32
+	var shiftbits, maskbits, setbits, result uint32
 
-	len = flagbits[field][fieldlen]
-	msb = flagbits[field][fieldmsb]
-	shiftbits = flagsize - len - msb
-	maskbits = (1 << len) - 1
+	shiftbits = flagsize - fl.len - fl.msb
+	maskbits = (1 << fl.len) - 1
 	setbits = maskbits << shiftbits
 	// log.Printf("Shiftbits=%d Maskbits=%b Setbits=%b\n", shiftbits, maskbits, setbits)
 	result = ((curflag) & (^setbits))
@@ -632,9 +630,9 @@ func Test(curflag uint32, field, string, flagname string) bool {
 
 // Name - return the name of the flag for field in curflag
 func Name(curflag uint32, field string) string {
-
+	fl := Flags[field]
 	x := Get(curflag, field)
-	for _, fi := range flagvals[field] {
+	for _, fi := range fl.options {
 		// log.Println("Flags for field ", field, fi.name, fi.val)
 		if fi.val == x {
 			return fi.name
@@ -646,26 +644,16 @@ func Name(curflag uint32, field string) string {
 
 // Fields - return a slice of flag fields that are used by frametype
 func Fields(frametype string) []string {
-	var s []string
-	for k := range flagframe {
-		for _, fi := range flagframe[k] {
-			if fi == frametype {
-				// fmt.Println(k)
-				s = append(s, k)
-			}
-		}
-	}
-	return s
+	return Values(frametype)
 }
 
 // Good - Is this a valid flagname
 func Good(field string) bool {
-	for k := range flagframe {
-		if k == field {
-			return true
-		}
+	_, ok := Flags[field]
+	if !ok {
+		return false
 	}
-	return false
+	return true
 }
 
 // Setglobal - Set the global flags applicable for the particular frame type
