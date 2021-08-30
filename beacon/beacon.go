@@ -47,6 +47,7 @@ func (b *Beacon) New(flags string) error {
 	flag := strings.Split(flags, ",") // The name=val of the flag
 	for fl := range flag {
 		f := strings.Split(flag[fl], "=") // f[0]=name f[1]=val
+
 		switch f[0] {
 		case "descriptor", "stream", "txwilling", "rxwilling", "udplite", "freespace":
 			if b.Header, err = sarflags.Set(b.Header, f[0], f[1]); err != nil {
