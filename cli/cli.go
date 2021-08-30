@@ -458,10 +458,10 @@ func help(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	if len(args) == 1 {
 		var sslice sort.StringSlice
 
-		for key := range c.Cmds {
+		for key, val := range sarflags.Commands {
 			sslice = append(sslice, fmt.Sprintf("%s - %s",
-				c.Cmds[key].Cmd,
-				c.Cmds[key].Help))
+				key,
+				val.Help))
 		}
 		sort.Sort(sslice)
 		var sbuf string
@@ -474,11 +474,11 @@ func help(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	if len(args) == 2 {
 		if args[1] == "?" {
 			var sslice sort.StringSlice
-			for key := range c.Cmds {
+			for key, val := range sarflags.Commands {
 				sslice = append(sslice, fmt.Sprintf("%s - %s\n  %s",
-					c.Cmds[key].Cmd,
-					c.Cmds[key].Help,
-					c.Cmds[key].Usage))
+					key,
+					val.Help,
+					val.Usage))
 			}
 			sort.Sort(sslice)
 			var sbuf string
@@ -489,11 +489,11 @@ func help(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 			return
 		}
 	}
-	for key := range c.Cmds {
-		if c.Cmds[key].Cmd == "help" {
+	for key, val := range sarflags.Commands {
+		if key == "help" {
 			sarscreen.Fprintln(g, "msg", "red_black", fmt.Sprintf("%s - %s",
-				c.Cmds[key].Cmd,
-				c.Cmds[key].Help))
+				key,
+				val.Help))
 		}
 	}
 }
@@ -1115,18 +1115,18 @@ func txwilling(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 }
 
 func prhelp(cf string, c *sarflags.Cliflags) string {
-	for key := range c.Cmds {
-		if c.Cmds[key].Cmd == cf {
-			return c.Cmds[key].Help
+	for key, val := range sarflags.Commands {
+		if key == cf {
+			return key + ": " + val.Help
 		}
 	}
 	return "Invalid Command"
 }
 
 func prusage(cf string, c *sarflags.Cliflags) string {
-	for key := range c.Cmds {
-		if c.Cmds[key].Cmd == cf {
-			return c.Cmds[key].Usage
+	for key, val := range sarflags.Commands {
+		if key == cf {
+			return "usage: " + val.Usage
 		}
 	}
 	return "Invalid Command"
@@ -1136,10 +1136,10 @@ func prusage(cf string, c *sarflags.Cliflags) string {
 func usage(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	var sslice sort.StringSlice
 
-	for key := range c.Cmds {
+	for key, val := range sarflags.Commands {
 		sslice = append(sslice, fmt.Sprintf("%s - %s",
-			c.Cmds[key].Cmd,
-			c.Cmds[key].Usage))
+			key,
+			val.Usage))
 	}
 
 	sort.Sort(sslice)
@@ -1200,8 +1200,8 @@ func Docmd(g *gocui.Gui, s string, c *sarflags.Cliflags) {
 	s = strings.TrimSpace(s)
 	vals := strings.Fields(s)
 	// Lookup the command and execute it
-	for key := range c.Cmds {
-		if c.Cmds[key].Cmd == vals[0] {
+	for key := range sarflags.Commands {
+		if key == vals[0] {
 			fn, ok := cmdhandler[vals[0]]
 			if ok {
 				fn(g, vals, c)

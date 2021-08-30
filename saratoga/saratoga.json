@@ -22,174 +22,140 @@
 		"binterval" :	3
 	},
 	"datacounter" :     100,
-	"commands" :
-	[
-		{
-			"cmd" : "?",
+	"commands" : {
+		"?" : {
 			"usage" : "?",
 			"help" : "show valid commands. cmd ? shows the individual commands usage"
 		},
-		{
-			"cmd" : "beacon",
+		"beacon" : {
 			"usage" : "beacon [off] [v4|v6|<ip>...] [secs]",
 			"help" : "send a beacon every n secs"
 		},
-		{
-			"cmd" : "cancel",
+		"cancel" : {
 			"usage" : "cancel <transfer>",
 			"help" : "cancel a current transfer in progress"
 		},
-		{
-			"cmd" : "checksum",
+		"checksum" : {
 			"usage" : "checksum [off|none|crc32|md5|sha1]",
 			"help" : "set checksums required and type"
 		},
-		{
-			"cmd" : "descriptor",
+		"descriptor" : {
 			"usage" : "descriptor [auto|d16|d32|d64|d128",
 			"help" : "advertise & set default descriptor size"
 		},
-		{
-			"cmd" : "exit",
+		"exit" : {
 			"usage" :  "exit [0|1]",
 			"help" : "exit saratoga"
 		},
-		{
-			"cmd" : "files",
+		"files" : {
 			"usage" :  "files",
 			"help" : "list local files currently open and mode"
 		},
-		{
-			"cmd" : "freespace",
+		"freespace" : {
 			"usage" : "freespace [yes|no]",
 			"help" : "advertise freespace or show amount left"
 		},
-		{
-			"cmd" : "get",
+		"get" : {
 			"usage" :"exit [0|1]",
 			"help"  : "get a file from a peer"
 		},
-		{
-			"cmd" : "getdir",
+		"getdir" : {
 			"usage" : "getdir [<peer> <dirname>]",
 			"help" : "get a directory listing from a peer"
 		},
-		{
-			"cmd" : "getrm",
+		"getrm" : {
 			"usage" : "getrm [<peer> <filename>",
 			"help" : "get a file from a peer and remove it from peer when successfully transferred"
 		},
-		{
-			"cmd" : "help",
+		"help" :  {
 			"usage" : "help",
 			"help" : "show commands"
 		},
-		{
-			"cmd" : "history",
+		"history" :  {
 			"usage" : "history",
 			"help" :  "show command history"
 		},
-		{
-			"cmd"  : "home",
+		"home" : {
 			"usage" :  "home <dirname>",
 			"help" : "set home directory for transfers"
 		},
-		{
-			"cmd" :  "interval",
+		"interval" : {
 			"usage" : "interval [seconds]",
 			"help" : "set interval between sending beacons"
 		},
-		{
-			"cmd" : "ls",
+		"ls" : {
 			"usage" : "ls [<peer> [<dirname>>]]",
 			"help" : "show local or a peers directory contents"
 		},
-		{
-			"cmd" :  "peers",
+		"peers" : {
 			"usage" : "peers",
 			"help"  : "list current peers found"
 		},
-		{
-			"cmd" :  "put",
+		"put" : {
 			"usage"  : "put <peer> <filename>",
 			"help" : "send a file to a peer"
 		},
-		{
-			"cmd" : "putblind",
+		"putblind" : {
 			"usage" : "putblind <peer> <filename>",
 			"help" : "send a file to a peer with no initial request/status exchange"
 		},
-		{
-			"cmd" : "putrm",
+		"putrm" : {
 			"usage" : "putrm <peer> <filename>",
 			"help" : "send a file to a peer and then remove it when successful"
 		},
-		{
-			"cmd" : "quit",
+		"quit" :  {
 			"usage" : "quit [0|1]",
 			"help" : "exit saratoga"
 		},
-		{
-			"cmd" : "reqtstamp",
+		"reqtstamp" :  {
 			"usage" : "reqtstamp [no|yes]",
 			"help" : "request timestamps"
 		},
-		{
-			"cmd"  : "rm",
+		"rm" : {
 			"usage" : "rm <peer> <filename>",
 			"help" : "remove a file from a peer"
 		},
-		{
-			"cmd" : "rmdir",
+		"rmdir" : {
 			"usage" : "rmdir <peer> <dirname>",
 			"help" : "remove a directory from a peer"
 		},
-		{
-			"cmd" : "rmtran",
+		"rmtran" : {
 			"usage" : "rmtran <ttype> <peer> <filename>",
 			"help" : "remove a current transfer"
 		},
-		{
-			"cmd" : "rxwilling",
+		"rxwilling" : {
 			"usage" : "rxwilling [on|off|capable]",
 			"help" : "current receive status or turn receive on/off/capable"
 		},
-		{
-			"cmd" : "stream",
+		"stream" : {
 			"usage" : "stream [yes|no]",
 			"help" :  "current stream status or can/cannot handle stream"
 		},
-		{
-			"cmd" : "timeout",
+		"timeout" : {
 			"usage" : "timeout [metadata|request|transfer|status] <secs|off>",
 			"help" : "timeout in seconds for metadata, request frames, status receipts & transfer completion"
 		},
-		{
-			"cmd" : "timestamp",
+		"timestamp" : {
 			"usage" : "timestamp [off|32|64|32_32|64_32|32_y2k]",
 			"help" : "timestamp type to send"
 		},
-		{
-			"cmd" : "timezone",
+		"timezone" :  {
 			"usage" : "timezone [utc|local]",
 			"help" : "show current or set to use local or universal time"
 		},
-		{
-			"cmd" : "tran",
+		"tran" : {
 			"usage" : "tran [get|getrm|getdir|put|putblind|putrm|rm|rmdir]",
 			"help" : "list current active transfers of specific type or all"
 		},
-		{
-			"cmd" : "txwilling",
+		"txwilling" : {
 			"usage"  : "txwilling [on|off|capable]",
 			"help" : "show current transfer capability or set on/off/capable"
 		},
-		{
-			"cmd" :  "usage",
+		"usage" :  {
 			"usage" : "usage",
 			"help" : "show usage of commands"
 		}
-	],
+	},
 	"frameflags" :
 	{
 		"beacon" :  ["version", "frametype", "descriptor", "stream", "txwilling", "rxwilling", "udplite", "freespace", "freespaced"],

@@ -645,8 +645,8 @@ func main() {
 		return
 	}
 	fmt.Println("Saratoga Commands are:")
-	for xx := range Cmdptr.Cmds {
-		fmt.Println(Cmdptr.Cmds[xx].Cmd)
+	for xx := range Commands {
+		fmt.Println(xx)
 	}
 	fmt.Println("List of commands completed")
 	// panic("WE ARE DONE!!!!!")

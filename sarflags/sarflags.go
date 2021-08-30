@@ -155,11 +155,12 @@ type Timeouts struct {
 var GTimeout = Timeouts{}
 
 // Cmds - JSON Config for command usage & help
-type Cmd struct {
-	Cmd   string `json:"cmd"`
+type Cmdtype struct {
 	Usage string `json:"usage"`
 	Help  string `json:"help"`
 }
+
+var Commands map[string]Cmdtype
 
 // Flag Information
 type Flagtype struct {
@@ -217,8 +218,6 @@ type config struct {
 	Ppad        int      `json:"ppad"`       // Padding length in prompt for []:
 	Timeout     Timeouts // Various Timers
 	Datacounter int      `json:"datacounter"` // How many data frames received before a status is requested
-	Commands    []Cmd    // Command name, usage & help
-	// Flaginfo    map[string][]Flagtype // Info for each Flag type
 }
 
 // Cliflags - CLI Input flags
@@ -231,7 +230,6 @@ type Cliflags struct {
 	Prompt    string            // Prompt
 	Ppad      int               // Length of Padding around Prompt []: = 3
 	Sardir    string            // Saratoga working directory
-	Cmds      []Cmd             // Command Line Interface Cmd's
 }
 
 // Read  in the JSON Config data
@@ -245,6 +243,7 @@ func ReadConfig(fname string, c *Cliflags) error {
 	Flags = make(map[string]Flagtype)         // Setup the Flags global map
 	Frameflags = make(map[string][]string)    // Setup Frameflags global map
 	DateFlags = make(map[string]DateFlagtype) // Setup Dateflags global map
+	Commands = make(map[string]Cmdtype)       // Setup Commands global map
 
 	if confdata, err = ioutil.ReadFile(fname); err != nil {
 		fmt.Println("Cannot open the saratoga config file", os.Args[1], ":", err)
@@ -308,22 +307,19 @@ func ReadConfig(fname string, c *Cliflags) error {
 		case "datacounter":
 			conf.Datacounter = int(value.(float64))
 		case "commands": //This is a map in json so copy it to the Commands array
-			cmds := value.([]interface{})
-			conf.Commands = nil
-			for _, valuec := range cmds {
-				info := valuec.(map[string]interface{})
-				var c Cmd
+			cmds := value.(map[string]interface{})
+			for cmd, value := range cmds {
+				var c Cmdtype
+				info := value.(map[string]interface{})
 				for keyx, valx := range info {
 					switch keyx {
-					case "cmd":
-						c.Cmd = valx.(string)
 					case "help":
 						c.Help = valx.(string)
 					case "usage":
 						c.Usage = valx.(string)
 					}
 				}
-				conf.Commands = append(conf.Commands, c)
+				Commands[cmd] = c
 			}
 			// for _, v := range conf.Commands {
 			// fmt.Println(v.Cmd, " | ", v.Usage, " | ", v.Help)
@@ -467,10 +463,6 @@ func ReadConfig(fname string, c *Cliflags) error {
 		}
 	}
 
-	// Append the new command to the array of commands
-	for xx := range conf.Commands {
-		c.Cmds = append(c.Cmds, conf.Commands[xx])
-	}
 	// cmu.Unlock()
 	return nil
 }
@@ -512,13 +504,6 @@ func CopyCliflags(d *Cliflags, s *Cliflags) error {
 	d.Global = make(map[string]string)
 	for g := range s.Global {
 		d.Global[g] = s.Global[g]
-	}
-	if len(s.Cmds) == 0 {
-		return errors.New("no cmds defined in copyflags")
-	}
-	// Copy the Cmds
-	for c := range s.Cmds {
-		d.Cmds = append(d.Cmds, s.Cmds[c])
 	}
 	return nil
 }
