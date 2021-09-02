@@ -293,6 +293,9 @@ func ReadConfig(fname string, c *Cliflags) error {
 		fmt.Println("Cannot Unmarshal json from saratoga config file", os.Args[1], ":", err)
 		return err
 	}
+	// Lock them up while we are changing the values
+	Climu.Lock()
+	defer Climu.Unlock()
 	// Now decode all of those variables, arrays & maps in the json into the struct's
 	var conf config
 	for key, value := range sarconfdata {
@@ -344,7 +347,7 @@ func ReadConfig(fname string, c *Cliflags) error {
 					conf.Timeout.Transfer = int(valuet.(float64))
 				}
 			}
-		case "datacounter":
+		case "datacounter": // Defaul number of data frames before a status is requested
 			conf.Datacounter = int(value.(float64))
 		case "commands": //This is a map in json so copy it to the Commands array
 			cmds := value.(map[string]interface{})
@@ -364,7 +367,7 @@ func ReadConfig(fname string, c *Cliflags) error {
 			// for _, v := range conf.Commands {
 			// fmt.Println(v.Cmd, " | ", v.Usage, " | ", v.Help)
 			// }
-		case "frameflags":
+		case "frameflags": // Map of what Flags are applicable to what Frame types
 			frameflags := value.(map[string]interface{})
 			for key, val := range frameflags {
 				// fmt.Println("THE KEY IS:", key, "THE VAL IS ", val)
@@ -376,7 +379,7 @@ func ReadConfig(fname string, c *Cliflags) error {
 			//for k, r := range conf.Frameflags {
 			//	fmt.Println(k, "=", r)
 			//}
-		case "flags": // Now this is the HARD ONE!!!!!
+		case "flags": // The flags within the header
 			flags := value.(map[string]interface{})
 			// Flags := make(map[string][]Flagtype)
 			// conf.Flaginfo = make(map[string][]Flagtype)
@@ -409,10 +412,10 @@ func ReadConfig(fname string, c *Cliflags) error {
 				Flags[key] = tmp
 				// conf.Flaginfo[key] = append(conf.Flaginfo[key], tmp)
 			}
-			for f, v := range Flags {
-				// fmt.Println("FLAG=", f, v)
-				fmt.Println(f, "=", v.Options)
-			}
+			// for f, v := range Flags {
+			// fmt.Println("FLAG=", f, v)
+			//	fmt.Println(f, "=", v.Options)
+			// }
 		case "dateflags": // Now this is the HARD ONE!!!!!
 			dateflags := value.(map[string]interface{})
 			for dkey, val := range dateflags {
@@ -434,7 +437,7 @@ func ReadConfig(fname string, c *Cliflags) error {
 						}
 					}
 				}
-				fmt.Println("dateflag for", key, "=", tmp)
+				// fmt.Println("dateflag for", key, "=", tmp)
 				DateFlags[dkey] = tmp
 			}
 		case "timestamps":
@@ -494,8 +497,6 @@ func ReadConfig(fname string, c *Cliflags) error {
 			panic(ps)
 		}
 	}
-
-	// cmu.Unlock()
 	return nil
 }
 
@@ -576,7 +577,7 @@ func GetStr(curflag uint32, field string) string {
 	val := Get(curflag, field)
 	fl := Flags[field]
 	for k, f := range fl.Options {
-		// fmt.Printf("GetStr Curflag %0x Looking for %x val in %x=%s\n", curflag, val, fi.val, fi.name)
+		// fmt.Printf("GetStr Curflag %0x Looking for %x val in %x=%s\n", curflag, val, f, k)
 		if f == val {
 			return k
 		}
@@ -685,24 +686,20 @@ const dflagsize uint16 = 16
 // GetD - Given a current flag and bitfield name return the integer value of the bitfield
 func GetD(curflag uint16, field string) uint16 {
 
-	var len, msb, shiftbits, maskbits, setbits uint16
+	var shiftbits, maskbits, setbits uint16
 
-	len = DateFlags[field].Len
-	msb = DateFlags[field].Msb
-	shiftbits = dflagsize - len - msb
-	maskbits = (1 << len) - 1
+	shiftbits = dflagsize - DateFlags[field].Len - DateFlags[field].Msb
+	maskbits = (1 << DateFlags[field].Len) - 1
 	setbits = maskbits << shiftbits
 	return (curflag & setbits) >> shiftbits
 }
 
 // GetDStr - Given a current flag and bitfield name return the string name of the bitfield set in curflag
 func GetDStr(curflag uint16, field string) string {
-	var len, msb, shiftbits, maskbits, setbits, val uint16
+	var shiftbits, maskbits, setbits, val uint16
 
-	len = DateFlags[field].Len
-	msb = DateFlags[field].Msb
-	shiftbits = dflagsize - len - msb
-	maskbits = (1 << len) - 1
+	shiftbits = dflagsize - DateFlags[field].Len - DateFlags[field].Msb
+	maskbits = (1 << DateFlags[field].Len) - 1
 	setbits = maskbits << shiftbits
 	val = (curflag & setbits) >> shiftbits
 	for ki, fi := range DateFlags[field].Options {
@@ -733,12 +730,10 @@ func SetD(curflag uint16, field string, flagname string) (uint16, error) {
 		return curflag, errors.New(e)
 	}
 
-	var len, msb, shiftbits, maskbits, setbits, result uint16
+	var shiftbits, maskbits, setbits, result uint16
 
-	len = DateFlags[field].Len
-	msb = DateFlags[field].Msb
-	shiftbits = dflagsize - len - msb
-	maskbits = (1 << len) - 1
+	shiftbits = dflagsize - DateFlags[field].Len - DateFlags[field].Msb
+	maskbits = (1 << DateFlags[field].Len) - 1
 	setbits = maskbits << shiftbits
 	// log.Printf("Shiftbits=%d Maskbits=%b Setbits=%b\n", shiftbits, maskbits, setbits)
 	result = ((curflag) & (^setbits))
@@ -800,24 +795,20 @@ const tflagsize uint8 = 8
 
 // GetT - Given a current flag and bitfield name return the integer value of the bitfield
 func GetT(curflag uint8) uint8 {
-	var tlen, msb, shiftbits, maskbits, setbits uint8
+	var shiftbits, maskbits, setbits uint8
 
-	tlen = TimeStamps.Len
-	msb = TimeStamps.Msb
-	shiftbits = tflagsize - tlen - msb
-	maskbits = (1 << tlen) - 1
+	shiftbits = tflagsize - TimeStamps.Len - TimeStamps.Msb
+	maskbits = (1 << TimeStamps.Len) - 1
 	setbits = maskbits << shiftbits
 	return (curflag & setbits) >> shiftbits
 }
 
 // GetTStr - Given a current flag and bitfield name return the string name of the bitfield set in curflag
 func GetTStr(curflag uint8) string {
-	var tlen, msb, shiftbits, maskbits, setbits, val uint8
+	var shiftbits, maskbits, setbits, val uint8
 
-	tlen = TimeStamps.Len
-	msb = TimeStamps.Msb
-	shiftbits = tflagsize - tlen - msb
-	maskbits = (1 << tlen) - 1
+	shiftbits = tflagsize - TimeStamps.Len - TimeStamps.Msb
+	maskbits = (1 << TimeStamps.Len) - 1
 	setbits = maskbits << shiftbits
 	val = (curflag & setbits) >> shiftbits
 	for ki, fi := range TimeStamps.Options {
@@ -848,10 +839,8 @@ func SetT(curflag uint8, flagname string) (uint8, error) {
 		return curflag, errors.New(e)
 	}
 
-	var tlen = TimeStamps.Len
-	var msb = TimeStamps.Msb
-	var shiftbits = tflagsize - tlen - msb
-	var maskbits uint8 = (1 << tlen) - 1
+	var shiftbits = tflagsize - TimeStamps.Len - TimeStamps.Msb
+	var maskbits uint8 = (1 << TimeStamps.Len) - 1
 	var setbits = maskbits << shiftbits
 	// log.Printf("Shiftbits=%d Maskbits=%b Setbits=%b\n", shiftbits, maskbits, setbits)
 	var result = ((curflag) & (^setbits))
@@ -870,7 +859,7 @@ func TestT(curflag uint8, flagname string) bool {
 func NameT(curflag uint8) string {
 	x := GetT(curflag)
 	for ki, fi := range TimeStamps.Options {
-		// log.Println("Flags for field ", field, fi.name, fi.val)
+		// log.Println("Flags for field ", field, ki, val)
 		if fi == x {
 			return ki
 		}
