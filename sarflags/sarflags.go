@@ -114,6 +114,48 @@ import (
 // *
 // *******************************************************************
 
+// *******************************************************************
+
+// Saratoga Dflag Header Field Format - 16 bit unsigned integer (uint16)
+
+//  0          1
+//  01234567 89012345
+// +--------+--------+
+// |1     XX|YY0     |
+// +--------+--------+
+
+// XX = d_properties
+// YY = d_descriptor
+
+// DIRECTORY ENTRY FLAGS
+//  0                   1
+//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
+// | | | | | | | | | | | | | | | | |
+// |1|-> Bit 0 is always set
+// | | | | | | |Y|Y|-> Dirent Properties - d_properties
+// | | | | | | | | |X|X|-> Dirent Descriptor - d_descriptor
+// | | | | | | | | | | |0|-> Dirent Reserved
+// | | | | | | | | | | | | | |X| | |-> Dirent d_reliability
+// | | | | | | | | | | | | | | | | |
+//  0                   1
+//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
+
+// *******************************************************************
+
+// Saratoga Tflag Header Field Format - 8 bit unsigned integer (tflag_t)
+
+//  01234567
+// +--------+
+// |     XXX|
+// +--------+
+
+// TIMESTAMP FLAGS
+//  0 1 2 3 4 5 6 7
+// | | | | | | | | |
+// | | | | | |X|X|X|-> Timestamp Type - t_timestamp
+// | | | | | | | | |
+//  0 1 2 3 4 5 6 7
+
 // MaxUint - Maximum unsigned int on this platform
 const MaxUint = uint64(^uint(0)) // What is the biggest unsigned integer supported on platform
 
@@ -124,11 +166,10 @@ const MaxUint16 = uint64(65535)
 const MaxUint32 = uint64(4294967295)
 
 // MaxUint64 -- Biggest unsigned 64 bit integer
-// It should be this but...
-// const MaxUint64 = uint64(18446744073709551615)
-// const MaxUint64 = uint64(0xFFFFFFFFFFFFFFFF)
-
-// MaxUint64 - Biggest 64 bit unsigned integer
+// It should be this
+// const MaxUint64 = uint64(18446744073709551615) // In Decimal
+// const MaxUint64 = uint64(0xFFFFFFFFFFFFFFFF) // InnHex
+// BUT ... \\
 // It needs to be this as handling file i/o and slices requires an "int"
 // which is a signed 64 bit number in go so lets "pretend"
 const MaxUint64 = uint64(0x7FFFFFFFFFFFFFFF)
@@ -160,6 +201,7 @@ type Cmdtype struct {
 	Help  string `json:"help"`
 }
 
+// Global map of commands
 var Commands map[string]Cmdtype
 
 // Flag Information
@@ -170,7 +212,7 @@ type Flagtype struct {
 	Options    map[string]uint32 // What are the Options for the Flag
 }
 
-// Global map of flag info
+// Global map of flag decode info
 var Flags map[string]Flagtype
 
 // DateFlag Information
@@ -180,6 +222,7 @@ type DateFlagtype struct {
 	Options map[string]uint16 // What are the Options for the DateFlag
 }
 
+// Global map of date decode info
 var DateFlags map[string]DateFlagtype
 
 // TimeStamp Information
@@ -189,7 +232,7 @@ type TimeStamptype struct {
 	Options map[string]uint8
 }
 
-// Global map of what Timestamps are applicable
+// Global var of time decode info
 var TimeStamps TimeStamptype
 
 // Global map of what flags are applicable to which frame types
@@ -197,8 +240,6 @@ var Frameflags map[string][]string
 
 // Climu - Protect CLI input flags
 var Climu sync.Mutex
-
-// var conf config
 
 // Config - JSON Config Default Global Settings & Commands
 type config struct {
@@ -234,10 +275,6 @@ type Cliflags struct {
 
 // Read  in the JSON Config data
 func ReadConfig(fname string, c *Cliflags) error {
-	var sarconfdata map[string]interface{}
-	// var sartimeouts map[string]interface{}
-	var confdata []byte
-	var conf config
 	var err error
 	// var cmu sync.Mutex
 	Flags = make(map[string]Flagtype)         // Setup the Flags global map
@@ -245,16 +282,19 @@ func ReadConfig(fname string, c *Cliflags) error {
 	DateFlags = make(map[string]DateFlagtype) // Setup Dateflags global map
 	Commands = make(map[string]Cmdtype)       // Setup Commands global map
 
+	var confdata []byte
 	if confdata, err = ioutil.ReadFile(fname); err != nil {
 		fmt.Println("Cannot open the saratoga config file", os.Args[1], ":", err)
 		return err
 	}
 
+	var sarconfdata map[string]interface{}
 	if err = json.Unmarshal([]byte(confdata), &sarconfdata); err != nil {
 		fmt.Println("Cannot Unmarshal json from saratoga config file", os.Args[1], ":", err)
 		return err
 	}
 	// Now decode all of those variables, arrays & maps in the json into the struct's
+	var conf config
 	for key, value := range sarconfdata {
 		// fmt.Println(key, "=", value)
 		switch key {
@@ -418,14 +458,6 @@ func ReadConfig(fname string, c *Cliflags) error {
 
 	}
 
-	// panic("All DONE PRINTING")
-
-	//for key, value := range sarconf {
-	//	switch key: {
-	//		case ""
-	//	}
-	// }
-	// cmu.Lock()
 	// Give default values to flags from saratoga JSON config
 	c.Global = make(map[string]string)
 	c.Global["csumtype"] = conf.Csumtype
@@ -647,31 +679,6 @@ func Setglobal(frametype string, c *Cliflags) string {
 	return strings.TrimRight(fs, ",")
 }
 
-// *******************************************************************
-
-// Saratoga Dflag Header Field Format - 16 bit unsigned integer (uint16)
-//  0          1
-//  01234567 89012345
-// +--------+--------+
-// |1     XX|YY0     |
-// +--------+--------+
-
-// XX = d_properties
-// YY = d_descriptor
-
-// DIRECTORY ENTRY FLAGS
-//  0                   1
-//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
-// | | | | | | | | | | | | | | | | |
-// |1|-> Bit 0 is always set
-// | | | | | | |X|X|-> Dirent Properties - d_properties
-// | | | | | | | | |X|X|-> Dirent Descriptor - d_descriptor
-// | | | | | | | | | | |0|-> Dirent Reserved
-// | | | | | | | | | | | | | |X| | |-> Dirent d_reliability
-// | | | | | | | | | | | | | | | | |
-//  0                   1
-//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
-
 // Length in bits of the directory entry flag size
 const dflagsize uint16 = 16
 
@@ -787,22 +794,6 @@ func GoodD(field string) bool {
 	}
 	return false
 }
-
-// *******************************************************************
-
-// Saratoga Tflag Header Field Format - 8 bit unsigned integer (tflag_t)
-
-//  01234567
-// +--------+
-// |     XXX|
-// +--------+
-
-// TIMESTAMP FLAGS
-//  0 1 2 3 4 5 6 7
-// | | | | | | | | |
-// | | | | | |X|X|X|-> Timestamp Type - t_timestamp
-// | | | | | | | | |
-//  0 1 2 3 4 5 6 7
 
 // Length in bits of the timestamp flag size
 const tflagsize uint8 = 8
