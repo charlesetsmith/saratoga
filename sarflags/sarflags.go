@@ -213,6 +213,7 @@ type Flagtype struct {
 }
 
 // Global map of flag decode info
+// These DO NOT Chahange
 var Flags map[string]Flagtype
 
 // DateFlag Information
@@ -223,6 +224,7 @@ type DateFlagtype struct {
 }
 
 // Global map of date decode info
+// These DO NOT Change
 var DateFlags map[string]DateFlagtype
 
 // TimeStamp Information
@@ -233,13 +235,12 @@ type TimeStamptype struct {
 }
 
 // Global var of time decode info
+// These DO NOT Change
 var TimeStamps TimeStamptype
 
 // Global map of what flags are applicable to which frame types
+// These DO NOT Change
 var Frameflags map[string][]string
-
-// Climu - Protect CLI input flags
-var Climu sync.Mutex
 
 // Config - JSON Config Default Global Settings & Commands
 type config struct {
@@ -261,7 +262,11 @@ type config struct {
 	Datacounter int      `json:"datacounter"` // How many data frames received before a status is requested
 }
 
+// Climu - Protect CLI input flags
+var Climu sync.Mutex
+
 // Cliflags - CLI Input flags
+// These values can change via cli interface for the user
 type Cliflags struct {
 	Global    map[string]string // Global header flags set for frames
 	Timestamp string            // What timestamp to use
@@ -296,7 +301,7 @@ func ReadConfig(fname string, c *Cliflags) error {
 	// Lock them up while we are changing the values
 	Climu.Lock()
 	defer Climu.Unlock()
-	// Now decode all of those variables, arrays & maps in the json into the struct's
+	// Now decode all of those variables, arrays & maps in the json into the config struct's
 	var conf config
 	for key, value := range sarconfdata {
 		// fmt.Println(key, "=", value)
@@ -502,16 +507,9 @@ func ReadConfig(fname string, c *Cliflags) error {
 
 // Valid - Check for valid flag and value
 func Valid(flag string, option string) bool {
-	for k, v := range Flags { // Loop through all the flags looking for a match
-		if k == flag {
-			for k1, v1 := range v.Options { // Loop through the options for the flag
-				if k1 == option { // Yep it is a valid option
-					fmt.Println(k1, "=", v1)
-					return true
-				}
-			}
-			return false
-		}
+	if Good(flag) {
+		_, ok := Flags[flag].Options[option]
+		return ok
 	}
 	return false
 }
@@ -782,12 +780,8 @@ func NameD(curdflag uint16, field string) string {
 
 // GoodD -- Is this a valid Descriptor Flag
 func GoodD(field string) bool {
-	for f := range DateFlags {
-		if f == field {
-			return true
-		}
-	}
-	return false
+	_, ok := DateFlags[field]
+	return ok
 }
 
 // Length in bits of the timestamp flag size
@@ -822,42 +816,27 @@ func GetTStr(curflag uint8) string {
 
 // SetT Given a current header and bitfield name with a new value return the revised header
 func SetT(curflag uint8, flagname string) (uint8, error) {
-	var newval uint8
-	var found = false
-	// Get the value of the flag
-	for ki, fi := range TimeStamps.Options {
-		// log.Println("TFlags for field ", field, fi.name, fi.val)
-		if ki == flagname {
-			newval = fi
-			found = true
-			break
-		}
-	}
+
+	newval, found := TimeStamps.Options[flagname]
 	if !found {
 		log.Fatalln("SetT lookup fail Invalid flagname", flagname, "in TFlag")
 		e := "invalid TFlag: " + flagname
 		return curflag, errors.New(e)
 	}
 
-	var shiftbits = tflagsize - TimeStamps.Len - TimeStamps.Msb
-	var maskbits uint8 = (1 << TimeStamps.Len) - 1
-	var setbits = maskbits << shiftbits
+	shiftbits := uint8(tflagsize - TimeStamps.Len - TimeStamps.Msb)
+	maskbits := uint8((1 << TimeStamps.Len) - 1)
+	setbits := maskbits << shiftbits
 	// log.Printf("Shiftbits=%d Maskbits=%b Setbits=%b\n", shiftbits, maskbits, setbits)
-	var result = ((curflag) & (^setbits))
+	result := ((curflag) & (^setbits))
 	result |= (newval << shiftbits)
 	// log.Printf("Result=%08b\n", result)
 	return result, nil
 }
 
-// TestT - true if the flag is set in curflag
-func TestT(curflag uint8, flagname string) bool {
-	v, _ := SetT(curflag, flagname)
-	return GetT(curflag) == GetT(v)
-}
-
 // NameT - return the name of the flag for field in curtflag
-func NameT(curflag uint8) string {
-	x := GetT(curflag)
+func NameT(curtflag uint8) string {
+	x := GetT(curtflag)
 	for ki, fi := range TimeStamps.Options {
 		// log.Println("Flags for field ", field, ki, val)
 		if fi == x {
@@ -879,12 +858,8 @@ func FrameT() []string {
 
 // GoodT - Is this a valid time flag
 func GoodT(field string) bool {
-	for t := range TimeStamps.Options {
-		if field == t {
-			return true
-		}
-	}
-	return false
+	_, ok := TimeStamps.Options[field]
+	return ok
 }
 
 // *******************************************************************
