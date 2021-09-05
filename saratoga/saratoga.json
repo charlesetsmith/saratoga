@@ -421,7 +421,7 @@
 			"len" : 1,
 			"msb" : 0,
 			"options" : {
-				"sodopt": 1
+				"sod": 1
 			}
 		},
 		"property" : {

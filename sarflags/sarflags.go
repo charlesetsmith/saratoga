@@ -546,17 +546,11 @@ func Values(ftype string) []string {
 
 // Value - Return the integer value of the flag option
 func Value(flag string, option string) int {
-	for k, f := range Flags {
-		if flag == k {
-			for o := range f.Options {
-				if option == o {
-					return int(f.Options[o])
-				}
-			}
-			return -1
-		}
+	opt, ok := Flags[flag].Options[option]
+	if !ok {
+		return -1
 	}
-	return -1
+	return int(opt)
 }
 
 // Get - Given a current flag and bitfield name return the integer value of the bitfield
@@ -572,11 +566,10 @@ func Get(curflag uint32, field string) uint32 {
 
 // GetStr - Given a current flag and bitfield name return the string name of the bitfield set in curflag
 func GetStr(curflag uint32, field string) string {
-	val := Get(curflag, field)
-	fl := Flags[field]
-	for k, f := range fl.Options {
+	ff := Get(curflag, field)
+	for k, f := range Flags[field].Options {
 		// fmt.Printf("GetStr Curflag %0x Looking for %x val in %x=%s\n", curflag, val, f, k)
-		if f == val {
+		if ff == f {
 			return k
 		}
 	}
@@ -594,28 +587,24 @@ func Set(curflag uint32, field string, flagname string) (uint32, error) {
 		return curflag, errors.New(e)
 	}
 
-	var newval uint32
-	var found = false
+	if !Good(field) {
+		e := "Set - Invalid Field:" + field + ":"
+		log.Fatalln(e)
+		return curflag, errors.New(e)
+	}
 	// Get the value of the flag
-	for k, f := range fl.Options {
-		// log.Println("Flags for field ", field, fi.name, fi.val)
-		if k == flagname {
-			newval = f
-			found = true
-			break
-		}
-	}
-	if !found {
-		log.Fatalln("Set lookup fail Invalid flagname", flagname, "in Flag", field)
+	newval, ok := Flags[field].Options[flagname]
+	if !ok {
+		e := "Set lookup fail Invalid flagname" + flagname + "in DFlag" + field
+		log.Fatalln(e)
+		return curflag, errors.New(e)
 	}
 
-	var shiftbits, maskbits, setbits, result uint32
-
-	shiftbits = flagsize - fl.Len - fl.Msb
-	maskbits = (1 << fl.Len) - 1
-	setbits = maskbits << shiftbits
+	shiftbits := uint32(flagsize - fl.Len - fl.Msb)
+	maskbits := uint32((1 << fl.Len) - 1)
+	setbits := uint32(maskbits << shiftbits)
 	// log.Printf("Shiftbits=%d Maskbits=%b Setbits=%b\n", shiftbits, maskbits, setbits)
-	result = ((curflag) & (^setbits))
+	result := uint32(((curflag) & (^setbits)))
 	result |= (newval << shiftbits)
 	// log.Printf("Result=%032b\n", result)
 	return result, nil
@@ -711,30 +700,25 @@ func GetDStr(curflag uint16, field string) string {
 
 // SetD - Given a current header and bitfield name with a new value return the revised header
 func SetD(curflag uint16, field string, flagname string) (uint16, error) {
-	var newval uint16
-	var found = false
-	// Get the value of the flag
-	for ki, fi := range DateFlags[field].Options {
-		// log.Println("DFlags for field ", field, fi.name, fi.val)
-		if ki == flagname {
-			newval = fi
-			found = true
-			break
-		}
+
+	if !GoodD(field) {
+		e := "Invalid Date Field:" + field + ":"
+		log.Fatalln(e)
+		return curflag, errors.New(e)
 	}
-	if !found {
-		log.Fatalln("SetD lookup fail Invalid flagname", flagname, "in DFlag", field)
-		e := "invalid DFlag: " + field
+	// Get the value of the flag
+	newval, ok := DateFlags[field].Options[flagname]
+	if !ok {
+		e := "SetD lookup fail Invalid flagname" + flagname + "in DFlag" + field
+		log.Fatalln(e)
 		return curflag, errors.New(e)
 	}
 
-	var shiftbits, maskbits, setbits, result uint16
-
-	shiftbits = dflagsize - DateFlags[field].Len - DateFlags[field].Msb
-	maskbits = (1 << DateFlags[field].Len) - 1
-	setbits = maskbits << shiftbits
+	shiftbits := uint16(dflagsize - DateFlags[field].Len - DateFlags[field].Msb)
+	maskbits := uint16((1 << DateFlags[field].Len) - 1)
+	setbits := uint16(maskbits << shiftbits)
 	// log.Printf("Shiftbits=%d Maskbits=%b Setbits=%b\n", shiftbits, maskbits, setbits)
-	result = ((curflag) & (^setbits))
+	result := uint16(((curflag) & (^setbits)))
 	result |= (newval << shiftbits)
 	// log.Printf("Result=%016b\n", result)
 	return result, nil
