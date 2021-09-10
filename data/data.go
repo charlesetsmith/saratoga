@@ -48,7 +48,7 @@ func (d *Data) New(flags string, session uint32, offset uint64, payload []byte) 
 			}
 		case "transfer":
 			if f[1] == "bundle" {
-				return errors.New("Bundle Transfers not supported")
+				return errors.New("bundle transfers not supported")
 			}
 		case "reqtstamp":
 			switch f[1] {
@@ -64,7 +64,7 @@ func (d *Data) New(flags string, session uint32, offset uint64, payload []byte) 
 					return err
 				}
 			case "yes":
-				d.Header, err = sarflags.Set(d.Header, f[0], "yes")
+				d.Header, _ = sarflags.Set(d.Header, f[0], "yes")
 				if err = d.Tstamp.Now("posix32"); err != nil { // Set the timestamp to right now
 					return err
 				}
@@ -115,19 +115,23 @@ func (d *Data) Get(frame []byte) error {
 		}
 		switch sarflags.GetStr(d.Header, "descriptor") {
 		case "d16":
-			d.Offset = uint64(binary.BigEndian.Uint16(frame[24:26]))
+			d.Offset = uint64(binary.BigEndian.Uint16(frame[24:26])) // 2 bytes
 			d.Payload = make([]byte, len(frame[26:]))
 			copy(d.Payload, frame[26:])
 		case "d32":
-			d.Offset = uint64(binary.BigEndian.Uint32(frame[24:28]))
+			d.Offset = uint64(binary.BigEndian.Uint32(frame[24:28])) // 4 bytes
 			d.Payload = make([]byte, len(frame[28:]))
 			copy(d.Payload, frame[26:])
 		case "d64":
-			d.Offset = binary.BigEndian.Uint64(frame[24:32])
+			d.Offset = binary.BigEndian.Uint64(frame[24:32]) // 8 bytes
 			d.Payload = make([]byte, len(frame[32:]))
 			copy(d.Payload, frame[32:])
+		case "d128": // KLUDGE!!!!
+			d.Offset = binary.BigEndian.Uint64(frame[24+8 : 40]) // 16 bytes
+			d.Payload = make([]byte, len(frame[64:]))
+			copy(d.Payload, frame[64:])
 		default:
-			return errors.New("Invalid Data Frame")
+			return errors.New("invalid data Frame")
 		}
 		return nil
 	}
@@ -141,11 +145,14 @@ func (d *Data) Get(frame []byte) error {
 		d.Payload = make([]byte, len(frame[12:]))
 		copy(d.Payload, frame[12:])
 	case "d64":
-		d.Offset = binary.BigEndian.Uint64(frame[8:16])
+		d.Offset = uint64(binary.BigEndian.Uint64(frame[8:16]))
 		d.Payload = make([]byte, len(frame[16:]))
 		copy(d.Payload, frame[16:])
+	case "d128": // KLUDGE!!!!
+		d.Offset = uint64(binary.BigEndian.Uint64(frame[8+8 : 32]))
+		d.Payload = make([]byte, len(frame[32:]))
 	default:
-		return errors.New("Invalid Data Frame")
+		return errors.New("invalid data Frame")
 	}
 	return nil
 }
@@ -169,8 +176,10 @@ func (d *Data) Put() ([]byte, error) {
 		framelen += 4
 	case "d64":
 		framelen += 8
+	case "d128":
+		framelen += 16
 	default:
-		return nil, errors.New("Invalid descriptor in Data frame")
+		return nil, errors.New("invalid descriptor in Data frame")
 	}
 	framelen += len(d.Payload)
 
@@ -193,8 +202,11 @@ func (d *Data) Put() ([]byte, error) {
 	case "d64":
 		binary.BigEndian.PutUint64(frame[pos:pos+8], uint64(d.Offset))
 		pos += 8
+	case "d128": // KLUDGE!!!!!
+		binary.BigEndian.PutUint64(frame[pos+8:pos+8], uint64(d.Offset))
+		pos += 16
 	default:
-		return nil, errors.New("Malformed Data frame")
+		return nil, errors.New("malformed data frame")
 	}
 	copy(frame[pos:], d.Payload)
 	return frame, nil
@@ -228,7 +240,7 @@ func (d Data) ShortPrint() string {
 	if sarflags.GetStr(d.Header, "reqtstamp") == "yes" {
 		sflag += fmt.Sprintf("\n  timestamp:%s,", d.Tstamp.Print())
 	} else {
-		sflag += fmt.Sprintf("\n  ")
+		sflag += "\n "
 	}
 	sflag += fmt.Sprintf("session:%d,", d.Session)
 	sflag += fmt.Sprintf("offset:%d,", d.Offset)

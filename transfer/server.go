@@ -176,7 +176,7 @@ func SNew(g *gocui.Gui, ttype string, r request.Request, ip string, session uint
 		return nil
 	}
 	sarscreen.Fprintln(g, "msg", "red_black", "CTransfer not added, invalid IP address", ip)
-	return errors.New("Invalid IP Address")
+	return errors.New("invalid IP Address")
 }
 
 // SChange - Add metadata information to the STransfer in STransfers list upon receipt of a metadata

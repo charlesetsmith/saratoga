@@ -159,6 +159,8 @@ func dpaylen(flags string) int {
 				plen -= 4
 			case "d64":
 				plen -= 8
+			case "d128":
+				plen -= 16
 			default:
 				return 0
 			}
@@ -194,6 +196,8 @@ func stpaylen(flags string) int {
 				hsize = 8
 			case "d64":
 				hsize = 16
+			case "d128":
+				hsize = 32
 			default:
 				return 0
 			}

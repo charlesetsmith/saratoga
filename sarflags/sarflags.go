@@ -555,13 +555,12 @@ func Value(flag string, option string) int {
 
 // Get - Given a current flag and bitfield name return the integer value of the bitfield
 func Get(curflag uint32, field string) uint32 {
-	var shiftbits, maskbits, setbits uint32
 
 	fl := Flags[field]
-	shiftbits = flagsize - fl.Len - fl.Msb
-	maskbits = (1 << fl.Len) - 1
-	setbits = maskbits << shiftbits
-	return (curflag & setbits) >> shiftbits
+	shiftbits := uint32(flagsize - fl.Len - fl.Msb)
+	maskbits := uint32((1 << fl.Len) - 1)
+	setbits := uint32(maskbits << shiftbits)
+	return uint32((curflag & setbits) >> shiftbits)
 }
 
 // GetStr - Given a current flag and bitfield name return the string name of the bitfield set in curflag

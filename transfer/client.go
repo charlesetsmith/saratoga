@@ -107,7 +107,7 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 			// No metadata has been received yet so send/resend it
 			var wframe []byte
 			var err error
-			if wframe, err = m.Put(); err != nil { // Send/Resend the Matadata
+			if wframe, err = m.Put(); err != nil { // Send/Resend the Metadata
 				errflag <- "badrequest"
 				return
 			}
@@ -123,7 +123,9 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 			sarscreen.Fprintln(g, "msg", "red_black", "Bad Status with error:", err)
 			errflag <- "badstatus"
 			return
-		}
+		} // else {
+		// sarscreen.Fprintln(g, "msg", "blue_black", "Status Frame IS GOOD:", st.Print())
+		// }
 
 		// Send back to the caller the current progress & inrespto over the channel so we can process
 		// them in the transfer as well as a success status
@@ -146,6 +148,7 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 			var err error
 			// Seek to the hole start and read it all into buf
 			if rlen, err = t.fp.ReadAt(buf, int64(h.Start)); err != nil {
+				sarscreen.Fprintln(g, "msg", "blue_black", "We have a bad Hole:", h.Start, h.End)
 				errflag <- "badoffset"
 				return
 			}
@@ -165,6 +168,7 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 
 				df.New(dflags, t.session, uint64(pstart), buf[pstart:pend]) // Create the Data
 				if wframe, err := df.Put(); err != nil {
+					sarscreen.Fprintln(g, "msg", "blue_black", "We have a bad df.New:", df.Print())
 					errflag <- "badoffset"
 					return
 				} else if _, err = conn.Write(wframe); err != nil { // And send it
@@ -198,7 +202,7 @@ func senddata(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 
 	// Allocate a read buffer for a data frame
 	rbuf := make([]byte, dpaylen(dflags))
-	sarscreen.Fprintln(g, "msg", "yellow_black", "Data Maxpayload=", dpaylen(dflags))
+	sarscreen.Fprintln(g, "msg", "yellow_black", "Data Payload Len=", len(rbuf))
 	for { // Just blast away and send the complete file asking for a status every 100 frames sent
 		nread, err := t.fp.ReadAt(rbuf, int64(curpos))
 		if err != nil && err != io.EOF {
@@ -224,6 +228,7 @@ func senddata(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 			errflag <- "badpacket"
 			return
 		}
+		// sarscreen.Fprintln(g, "msg", "red_black", "Data Frame to Write is:", d.Print())
 		if wframe, err := d.Put(); err != nil {
 			errflag <- "badpacket"
 			return
@@ -232,6 +237,7 @@ func senddata(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 			return
 		}
 		curpos += uint64(nread)
+		// sarscreen.Fprintln(g, "msg", "yellow_black", "Data Frame Written is:", d.Print(), "nread=", nread, "curpos=", curpos)
 		if eod { // All read and sent so we are done with the senddata loop
 			break
 		}
