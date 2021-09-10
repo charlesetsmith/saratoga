@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"reflect" // to calculate maxint's
 	"strings"
 	"sync"
 )
@@ -156,23 +157,19 @@ import (
 // | | | | | | | | |
 //  0 1 2 3 4 5 6 7
 
-// MaxUint - Maximum unsigned int on this platform
-const MaxUint = uint64(^uint(0)) // What is the biggest unsigned integer supported on platform
-
-// MaxUint16 -- Biggest unsigned 16 bit integer
-const MaxUint16 = uint64(65535)
-
-// MaxUint32 -- Biggest unsigned 32 bit integer
-const MaxUint32 = uint64(4294967295)
-
-// MaxUint64 -- Biggest unsigned 64 bit integer
-// It should be this
-// const MaxUint64 = uint64(18446744073709551615) // In Decimal
-// const MaxUint64 = uint64(0xFFFFFFFFFFFFFFFF) // InnHex
-// BUT ... \\
-// It needs to be this as handling file i/o and slices requires an "int"
-// which is a signed 64 bit number in go so lets "pretend"
-const MaxUint64 = uint64(0x7FFFFFFFFFFFFFFF)
+// The Maximum sizes of various types of integers
+// these are worked out at run time and put into a uint64
+// as they "may" be platform independant
+// especially int and uint definately will be
+// Yes I am just paranoid
+var MaxUint uint64
+var MaxInt uint64
+var MaxUint16 uint64
+var MaxInt16 uint64
+var MaxUint32 uint64
+var MaxInt32 uint64
+var MaxUint64 uint64
+var MaxInt64 uint64
 
 // Length in bits of the saratoga header flag
 const flagsize uint32 = 32
@@ -281,6 +278,25 @@ type Cliflags struct {
 // Read  in the JSON Config data
 func ReadConfig(fname string, c *Cliflags) error {
 	var err error
+
+	// Work out the Maaximum values of various types of Ints
+	var xuint uint
+	MaxUint = uint64(reflect.TypeOf(xuint).Size())
+	var xint int
+	MaxInt = uint64(reflect.TypeOf(xint).Size())
+	var xuint16 uint16
+	MaxUint16 = uint64(reflect.TypeOf(xuint16).Size())
+	var xint16 uint16
+	MaxInt16 = uint64(reflect.TypeOf(xint16).Size())
+	var xuint32 uint32
+	MaxUint32 = uint64(reflect.TypeOf(xuint32).Size())
+	var xint32 int32
+	MaxInt32 = uint64(reflect.TypeOf(xint32).Size())
+	var xuint64 uint64
+	MaxUint64 = uint64(reflect.TypeOf(xuint64).Size())
+	var xint64 int64
+	MaxInt64 = uint64(reflect.TypeOf(xint64).Size())
+
 	// var cmu sync.Mutex
 	Flags = make(map[string]Flagtype)         // Setup the Flags global map
 	Frameflags = make(map[string][]string)    // Setup Frameflags global map
