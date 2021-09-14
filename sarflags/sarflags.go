@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"os"
-	"reflect" // to calculate maxint's
 	"strings"
 	"sync"
 )
@@ -158,18 +158,15 @@ import (
 //  0 1 2 3 4 5 6 7
 
 // The Maximum sizes of various types of integers
-// these are worked out at run time and put into a uint64
-// as they "may" be platform independant
-// especially int and uint definately will be
-// Yes I am just paranoid
-var MaxUint uint64
-var MaxInt uint64
-var MaxUint16 uint64
-var MaxInt16 uint64
-var MaxUint32 uint64
-var MaxInt32 uint64
-var MaxUint64 uint64
-var MaxInt64 uint64
+// They are all cast to a uint64 so we are consistant in our math's
+var MaxUint uint64 = math.MaxUint
+var MaxInt uint64 = math.MaxInt
+var MaxUint16 uint64 = math.MaxUint16
+var MaxInt16 uint64 = math.MaxInt16
+var MaxUint32 uint64 = math.MaxUint32
+var MaxInt32 uint64 = math.MaxInt32
+var MaxUint64 uint64 = math.MaxUint64
+var MaxInt64 uint64 = math.MaxInt64
 
 // Length in bits of the saratoga header flag
 const flagsize uint32 = 32
@@ -279,23 +276,35 @@ type Cliflags struct {
 func ReadConfig(fname string, c *Cliflags) error {
 	var err error
 
-	// Work out the Maaximum values of various types of Ints
-	var xuint uint
-	MaxUint = uint64(reflect.TypeOf(xuint).Size())
-	var xint int
-	MaxInt = uint64(reflect.TypeOf(xint).Size())
-	var xuint16 uint16
-	MaxUint16 = uint64(reflect.TypeOf(xuint16).Size())
-	var xint16 uint16
-	MaxInt16 = uint64(reflect.TypeOf(xint16).Size())
-	var xuint32 uint32
-	MaxUint32 = uint64(reflect.TypeOf(xuint32).Size())
-	var xint32 int32
-	MaxInt32 = uint64(reflect.TypeOf(xint32).Size())
-	var xuint64 uint64
-	MaxUint64 = uint64(reflect.TypeOf(xuint64).Size())
-	var xint64 int64
-	MaxInt64 = uint64(reflect.TypeOf(xint64).Size())
+	/*
+		// Work out the Maaximum values of various types of Ints
+
+		// SOMETHING VERY WRONG HERE!!!! MaxInt & MaxUint are coming out same on MacOSX but
+		// CORRECT on Raspberry Pi!!!!!
+		var xint int
+		MaxInt = uint64(math.Pow(2.0, float64(reflect.TypeOf(xint).Size()*8.0))/2.0 - 1.0)
+
+		var xuint uint
+		MaxUint = uint64(math.Pow(2.0, float64(reflect.TypeOf(xuint).Size()*8.0)) - 1.0)
+
+		var xuint16 uint16
+		MaxUint16 = uint64(math.Pow(2.0, float64(reflect.TypeOf(xuint16).Size()*8.0)) - 1.0)
+
+		var xint16 int16
+		MaxInt16 = uint64(math.Pow(2.0, float64(reflect.TypeOf(xint16).Size()*8.0))/2.0 - 1.0)
+
+		var xuint32 uint32
+		MaxUint32 = uint64(math.Pow(2.0, float64(reflect.TypeOf(xuint32).Size()*8.0)) - 1.0)
+
+		var xint32 int32
+		MaxInt32 = uint64(math.Pow(2, float64(reflect.TypeOf(xint32).Size()*8))/2 - 1)
+
+		var xuint64 uint64
+		MaxUint64 = uint64(math.Pow(2, float64(reflect.TypeOf(xuint64).Size()*8)) - 1)
+
+		var xint64 int64
+		MaxInt64 = uint64(math.Pow(2, float64(reflect.TypeOf(xint64).Size()*8))/2 - 1)
+	*/
 
 	// var cmu sync.Mutex
 	Flags = make(map[string]Flagtype)         // Setup the Flags global map

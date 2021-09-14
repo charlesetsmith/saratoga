@@ -759,6 +759,14 @@ func main() {
 			}
 		}
 	}
+	sarscreen.Fprintln(g, "msg", "green_black", "MaxInt=", sarflags.MaxInt)
+	sarscreen.Fprintln(g, "msg", "green_black", "MaxUint=", sarflags.MaxUint)
+	sarscreen.Fprintln(g, "msg", "green_black", "MaxInt16=", sarflags.MaxInt16)
+	sarscreen.Fprintln(g, "msg", "green_black", "MaxUint16=", sarflags.MaxUint16)
+	sarscreen.Fprintln(g, "msg", "green_black", "MaxInt32=", sarflags.MaxInt32)
+	sarscreen.Fprintln(g, "msg", "green_black", "MaxUint32=", sarflags.MaxUint32)
+	sarscreen.Fprintln(g, "msg", "green_black", "MaxInt64=", sarflags.MaxInt64)
+	sarscreen.Fprintln(g, "msg", "green_black", "MaxUint64=", sarflags.MaxUint64)
 
 	// The Base calling functions for Saratoga live in cli.go so look there first!
 	errflag := make(chan error, 1)
