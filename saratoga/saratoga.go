@@ -13,7 +13,6 @@ import (
 	"strings"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/charlesetsmith/saratoga/beacon"
 	"github.com/charlesetsmith/saratoga/cli"
@@ -709,15 +708,37 @@ func main() {
 		log.Panicln(err)
 	}
 
+	// Show Host Interfaces & Address's
+	ifis, ierr := net.Interfaces()
+	if ierr != nil {
+		sarscreen.Fprintln(g, "msg", "green_black", ierr.Error())
+	}
+	for _, ifi := range ifis {
+		if ifi.Name == os.Args[2] { // || ifi.Name == "lo0" {
+			sarscreen.Fprintln(g, "msg", "green_black", ifi.Name, "MTU", ifi.MTU, ifi.Flags.String(), ":")
+			adrs, _ := ifi.Addrs()
+			for _, adr := range adrs {
+				if strings.Contains(adr.Network(), "ip") {
+					sarscreen.Fprintln(g, "msg", "green_black", "\t Unicast ", adr.String(), adr.Network())
+				}
+			}
+			madrs, _ := ifi.MulticastAddrs()
+			for _, madr := range madrs {
+				if strings.Contains(madr.String(), Cmdptr.V4Multicast) ||
+					strings.Contains(strings.ToLower(madr.String()), strings.ToLower(Cmdptr.V6Multicast)) {
+					sarscreen.Fprintln(g, "msg", "green_black", "\t Multicast ", madr.String(), madr.Network())
+				}
+			}
+		}
+	}
+
 	// When will we return from listening for v6 frames
 	v6listenquit := make(chan error)
 
 	// Listen to Unicast & Multicast v6
 	v6mcastcon, err := net.ListenMulticastUDP("udp6", iface, &v6mcastaddr)
 	if err != nil {
-		sarscreen.Fprintln(g, "msg", "green_black", "Saratoga Unable to Listen on IPv6 Multicast")
 		log.Println("Saratoga Unable to Listen on IPv6 Multicast", v6mcastaddr.IP, v6mcastaddr.Port)
-		time.Sleep(5 * time.Second)
 		log.Fatal(err)
 	} else {
 		sarnet.SetMulticastLoop(v6mcastcon, "IPv6")
@@ -732,7 +753,7 @@ func main() {
 	// Listen to Unicast & Multicast v4
 	v4mcastcon, err := net.ListenMulticastUDP("udp4", iface, &v4mcastaddr)
 	if err != nil {
-		sarscreen.Fprintln(g, "msg", "green_black", "Saratoga Unable to Listen on IPv4 Multicast")
+		log.Println("Saratoga Unable to Listen on IPv4 Multicast", v4mcastaddr.IP, v4mcastaddr.Port)
 		log.Fatal(err)
 	} else {
 		sarnet.SetMulticastLoop(v4mcastcon, "IPv4")
@@ -746,28 +767,6 @@ func main() {
 		(uint64(fs.Bsize)*fs.Bavail)/1024/1024)
 	// sarscreen.Fprintf(g, "msg", "green_black", "Sizes of Ints is %d\n", sarflags.MaxUint)
 
-	// Show Host Interfaces & Address's
-	ifis, ierr := net.Interfaces()
-	if ierr != nil {
-		sarscreen.Fprintln(g, "msg", "green_black", ierr.Error())
-	}
-	for _, ifi := range ifis {
-		if ifi.Name == os.Args[1] { // || ifi.Name == "lo0" {
-			sarscreen.Fprintln(g, "msg", "green_black", ifi.Name, "MTU", ifi.MTU, ifi.Flags.String(), ":")
-			adrs, _ := ifi.Addrs()
-			for _, adr := range adrs {
-				// if strings.Contains(adr.Network(), "ip") {
-				sarscreen.Fprintln(g, "msg", "green_black", "\t Unicast ", adr.String(), adr.Network())
-				// }
-			}
-			madrs, _ := ifi.MulticastAddrs()
-			for _, madr := range madrs {
-				// if strings.Contains(madr.Network(), "ip") {
-				sarscreen.Fprintln(g, "msg", "green_black", "\t Multicast ", madr.String(), madr.Network())
-				// }
-			}
-		}
-	}
 	/*
 		sarscreen.Fprintln(g, "msg", "green_black", "MaxInt=", sarflags.MaxInt)
 		sarscreen.Fprintln(g, "msg", "green_black", "MaxUint=", sarflags.MaxUint)
