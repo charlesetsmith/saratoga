@@ -11,7 +11,6 @@ import (
 
 	"github.com/charlesetsmith/saratoga/beacon"
 	"github.com/charlesetsmith/saratoga/sarflags"
-	"github.com/charlesetsmith/saratoga/sarnet"
 	"github.com/charlesetsmith/saratoga/sarscreen"
 	"github.com/charlesetsmith/saratoga/transfer"
 	"github.com/jroimartin/gocui"
@@ -48,7 +47,7 @@ func appendunique(slice []string, i string) []string {
 */
 
 // Send count beacons to host
-func sendbeacons(g *gocui.Gui, flags string, count uint, interval uint, host string) {
+func sendbeacons(g *gocui.Gui, flags string, count uint, interval uint, host string, port int) {
 	// We have a hostname maybe with multiple addresses
 	var addrs []string
 	var err error
@@ -63,7 +62,7 @@ func sendbeacons(g *gocui.Gui, flags string, count uint, interval uint, host str
 	// Loop thru the address(s) for the host and send beacons to them
 	for _, addr := range addrs {
 		if err := txb.New(flags); err == nil {
-			go txb.Send(g, addr, count, interval, errflag)
+			go txb.Send(g, addr, port, count, interval, errflag)
 			errcode := <-errflag
 			if errcode != "success" {
 				sarscreen.Fprintln(g, "msg", "red_black", "Error:", errcode,
@@ -144,7 +143,7 @@ func cmdbeacon(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 			clibeacon.v4mcast = true
 			clibeacon.count = 1
 			// Start up the beacon client sending count IPv4 beacons
-			go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, sarnet.IPv4Multicast)
+			go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, c.V4Multicast, c.Port)
 			return
 		case "v6": // V6 Multicast
 			sarscreen.Fprintln(g, "msg", "green_black", "Sending beacons to IPv6 Multicast")
@@ -152,7 +151,7 @@ func cmdbeacon(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 			clibeacon.v6mcast = true
 			clibeacon.count = 1
 			// Start up the beacon client sending count IPv6 beacons
-			go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, sarnet.IPv6Multicast)
+			go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, c.V4Multicast, c.Port)
 			return
 		default: // beacon <count> or beacon <ipaddr>
 			u32, err := strconv.ParseUint(args[1], 10, 32)
@@ -161,7 +160,7 @@ func cmdbeacon(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 				sarscreen.Fprintln(g, "msg", "green_black", "Beacon count", clibeacon.count)
 				return
 			}
-			go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, args[1])
+			go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, args[1], c.Port)
 			return
 		}
 	}
@@ -200,13 +199,13 @@ func cmdbeacon(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 		switch args[i] {
 		case "v4":
 			go sendbeacons(g, clibeacon.flags, clibeacon.count,
-				clibeacon.interval, sarnet.IPv4Multicast)
+				clibeacon.interval, c.V4Multicast, c.Port)
 		case "v6":
 			go sendbeacons(g, clibeacon.flags, clibeacon.count,
-				clibeacon.interval, sarnet.IPv6Multicast)
+				clibeacon.interval, c.V6Multicast, c.Port)
 		default:
 			go sendbeacons(g, clibeacon.flags, clibeacon.count,
-				clibeacon.interval, args[i])
+				clibeacon.interval, args[i], c.Port)
 		}
 	}
 	sarscreen.Fprintln(g, "msg", "green_black", "")

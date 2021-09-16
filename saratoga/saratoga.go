@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/charlesetsmith/saratoga/beacon"
 	"github.com/charlesetsmith/saratoga/cli"
@@ -637,6 +638,7 @@ func main() {
 		return
 	}
 
+	// The Command line interface commands, help & usage to be read from saratoga.json
 	Cmdptr = new(sarflags.Cliflags)
 
 	// Read in JSON config file and parse it into the Config structure.
@@ -644,11 +646,13 @@ func main() {
 		fmt.Println("Cannot open saratoga config file we have a Readconf error", os.Args[1], err)
 		return
 	}
-	fmt.Println("Saratoga Commands are:")
-	for xx := range Commands {
-		fmt.Println(xx)
-	}
-	fmt.Println("List of commands completed")
+	/*
+		fmt.Println("Saratoga Commands are:")
+		for xx := range Commands {
+			fmt.Println(xx)
+		}
+		fmt.Println("List of commands completed")
+	*/
 	// panic("WE ARE DONE!!!!!")
 
 	// Grab my process ID
@@ -672,13 +676,13 @@ func main() {
 
 	// Open up V4 & V6 sockets for listening on the Saratoga Port
 	v4mcastaddr := net.UDPAddr{
-		Port: sarnet.Port(),
-		IP:   net.ParseIP(sarnet.IPv4Multicast),
+		Port: Cmdptr.Port,
+		IP:   net.ParseIP(Cmdptr.V4Multicast),
 	}
 
 	v6mcastaddr := net.UDPAddr{
-		Port: sarnet.Port(),
-		IP:   net.ParseIP(sarnet.IPv6Multicast),
+		Port: Cmdptr.Port,
+		IP:   net.ParseIP(Cmdptr.V6Multicast),
 	}
 	// What Interface are we receiving Multicasts on
 	var iface *net.Interface
@@ -712,6 +716,8 @@ func main() {
 	v6mcastcon, err := net.ListenMulticastUDP("udp6", iface, &v6mcastaddr)
 	if err != nil {
 		sarscreen.Fprintln(g, "msg", "green_black", "Saratoga Unable to Listen on IPv6 Multicast")
+		log.Println("Saratoga Unable to Listen on IPv6 Multicast", v6mcastaddr.IP, v6mcastaddr.Port)
+		time.Sleep(5 * time.Second)
 		log.Fatal(err)
 	} else {
 		sarnet.SetMulticastLoop(v6mcastcon, "IPv6")
@@ -738,35 +744,41 @@ func main() {
 	sarscreen.Fprintf(g, "msg", "green_black", "Saratoga Directory is %s\n", Cmdptr.Sardir)
 	sarscreen.Fprintf(g, "msg", "green_black", "Available space is %d MB\n",
 		(uint64(fs.Bsize)*fs.Bavail)/1024/1024)
-	sarscreen.Fprintf(g, "msg", "green_black", "Sizes of Ints is %d\n", sarflags.MaxUint)
+	// sarscreen.Fprintf(g, "msg", "green_black", "Sizes of Ints is %d\n", sarflags.MaxUint)
 
 	// Show Host Interfaces & Address's
-	ifis, _ := net.Interfaces()
+	ifis, ierr := net.Interfaces()
+	if ierr != nil {
+		sarscreen.Fprintln(g, "msg", "green_black", ierr.Error())
+	}
 	for _, ifi := range ifis {
-		if ifi.Name == os.Args[1] || ifi.Name == "lo0" {
+		if ifi.Name == os.Args[1] { // || ifi.Name == "lo0" {
 			sarscreen.Fprintln(g, "msg", "green_black", ifi.Name, "MTU", ifi.MTU, ifi.Flags.String(), ":")
 			adrs, _ := ifi.Addrs()
 			for _, adr := range adrs {
-				if strings.Contains(adr.Network(), "ip") {
-					sarscreen.Fprintln(g, "msg", "green_black", "\t Unicast ", adr.String(), adr.Network())
-				}
+				// if strings.Contains(adr.Network(), "ip") {
+				sarscreen.Fprintln(g, "msg", "green_black", "\t Unicast ", adr.String(), adr.Network())
+				// }
 			}
 			madrs, _ := ifi.MulticastAddrs()
 			for _, madr := range madrs {
-				if strings.Contains(madr.Network(), "ip") {
-					sarscreen.Fprintln(g, "msg", "green_black", "\t Multicast ", madr.String(), madr.Network())
-				}
+				// if strings.Contains(madr.Network(), "ip") {
+				sarscreen.Fprintln(g, "msg", "green_black", "\t Multicast ", madr.String(), madr.Network())
+				// }
 			}
 		}
 	}
-	sarscreen.Fprintln(g, "msg", "green_black", "MaxInt=", sarflags.MaxInt)
-	sarscreen.Fprintln(g, "msg", "green_black", "MaxUint=", sarflags.MaxUint)
-	sarscreen.Fprintln(g, "msg", "green_black", "MaxInt16=", sarflags.MaxInt16)
-	sarscreen.Fprintln(g, "msg", "green_black", "MaxUint16=", sarflags.MaxUint16)
-	sarscreen.Fprintln(g, "msg", "green_black", "MaxInt32=", sarflags.MaxInt32)
-	sarscreen.Fprintln(g, "msg", "green_black", "MaxUint32=", sarflags.MaxUint32)
-	sarscreen.Fprintln(g, "msg", "green_black", "MaxInt64=", sarflags.MaxInt64)
-	sarscreen.Fprintln(g, "msg", "green_black", "MaxUint64=", sarflags.MaxUint64)
+	/*
+		sarscreen.Fprintln(g, "msg", "green_black", "MaxInt=", sarflags.MaxInt)
+		sarscreen.Fprintln(g, "msg", "green_black", "MaxUint=", sarflags.MaxUint)
+		sarscreen.Fprintln(g, "msg", "green_black", "MaxInt16=", sarflags.MaxInt16)
+		sarscreen.Fprintln(g, "msg", "green_black", "MaxUint16=", sarflags.MaxUint16)
+		sarscreen.Fprintln(g, "msg", "green_black", "MaxInt32=", sarflags.MaxInt32)
+		sarscreen.Fprintln(g, "msg", "green_black", "MaxUint32=", sarflags.MaxUint32)
+		sarscreen.Fprintln(g, "msg", "green_black", "MaxInt64=", sarflags.MaxInt64)
+		sarscreen.Fprintln(g, "msg", "green_black", "MaxUint64=", sarflags.MaxUint64)
+	*/
+	sarscreen.Fprintln(g, "msg", "green_black", "Maximum Descriptor is:", sarflags.MaxDescriptor)
 
 	// The Base calling functions for Saratoga live in cli.go so look there first!
 	errflag := make(chan error, 1)

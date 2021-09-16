@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/charlesetsmith/saratoga/sarflags"
-	"github.com/charlesetsmith/saratoga/sarnet"
 	"github.com/charlesetsmith/saratoga/sarscreen"
 	"github.com/charlesetsmith/saratoga/timestamp"
 	"github.com/jroimartin/gocui"
@@ -106,7 +105,7 @@ func (b *Beacon) New(flags string) error {
 			b.Header, _ = sarflags.Set(b.Header, "freespaced", "d64")
 			return nil
 		}
-		e := "beacon.New: More than uint64 can hold freespace left - We dont do d128 yet!"
+		e := "beacon.New: More than uint64 can hold freespace left - We dont do d128 yet"
 		return errors.New(e)
 	}
 
@@ -147,7 +146,7 @@ func (b Beacon) Put() ([]byte, error) {
 		case "d64":
 			framelen += 8
 		default:
-			return nil, errors.New("Invalid Beacon Frame")
+			return nil, errors.New("invalid beacon frame")
 		}
 	}
 
@@ -167,7 +166,7 @@ func (b Beacon) Put() ([]byte, error) {
 			binary.BigEndian.PutUint64(frame[pos:12], uint64(b.Freespace))
 			pos += 8
 		default:
-			return nil, errors.New("Invalid Beacon Frame")
+			return nil, errors.New("invalid beacon frame")
 		}
 	}
 	copy(frame[pos:], []byte(b.Eid))
@@ -192,7 +191,7 @@ func (b *Beacon) Get(frame []byte) error {
 		default:
 			b.Freespace = 0
 			b.Eid = string(frame[4:])
-			return errors.New("Invalid Beacon Frame")
+			return errors.New("invalid beacon frame")
 		}
 		return nil
 	}
@@ -223,7 +222,7 @@ func (b Beacon) ShortPrint() string {
 }
 
 // Send - Send a IPv4 or IPv6 beacon to a server
-func (b *Beacon) Send(g *gocui.Gui, addr string, count uint, interval uint, errflag chan string) {
+func (b *Beacon) Send(g *gocui.Gui, addr string, port int, count uint, interval uint, errflag chan string) {
 
 	var eid string     // Is IPv4:Socket.PID or [IPv6]:Socket.PID
 	var newaddr string // Wrap IPv6 address in [ ]
@@ -249,9 +248,8 @@ func (b *Beacon) Send(g *gocui.Gui, addr string, count uint, interval uint, errf
 	}
 
 	// Set up the connection
-	udpad := newaddr + ":" + strconv.Itoa(sarnet.Port())
+	udpad := newaddr + ":" + strconv.Itoa(port)
 	conn, err := net.Dial("udp", udpad)
-	defer conn.Close()
 	if err != nil {
 		errflag <- "cantsend"
 		return
@@ -268,22 +266,25 @@ func (b *Beacon) Send(g *gocui.Gui, addr string, count uint, interval uint, errf
 
 	var i uint
 	for i = 0; i < count; i++ {
-		_, err = conn.Write(frame)
-		sarscreen.Fprintf(g, "msg", "green_black", "Beacon %d to %s\n", i+1, addr)
-		select { // We may need to add some more channel i/o here so use select
-		default:
-			time.Sleep(time.Duration(interval) * time.Second)
+		if _, err := conn.Write(frame); err != nil {
+			sarscreen.Fprintln(g, "msg", "red_black", "error writing beacon to", addr)
 		}
+
+		sarscreen.Fprintf(g, "msg", "green_black", "Beacon %d to %s\n", i+1, addr)
+		// select { // We may need to add some more channel i/o here so use select
+		// default:
+		time.Sleep(time.Duration(interval) * time.Second)
+		// }
 	}
 	errflag <- "success"
-	return
+	conn.Close()
 }
 
 // Handler We have an inbound beacon frame
 func (b *Beacon) Handler(g *gocui.Gui, from *net.UDPAddr) string {
 	// screen.Fprintln(g, "msg", "yellow_black", b.Print())
 	// We add / alter the peer information
-	if b.NewPeer(from) == true {
+	if b.NewPeer(from) {
 		sarscreen.Fprintln(g, "msg", "yellow_black", "Added/Changed Peer", from.String())
 	} else {
 		sarscreen.Fprintln(g, "msg", "yellow_black", "No new peer")

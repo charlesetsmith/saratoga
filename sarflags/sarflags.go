@@ -168,6 +168,9 @@ var MaxInt32 uint64 = math.MaxInt32
 var MaxUint64 uint64 = math.MaxUint64
 var MaxInt64 uint64 = math.MaxInt64
 
+// The Maximum descriptor size d16, d32, d64, d128
+var MaxDescriptor string
+
 // Length in bits of the saratoga header flag
 const flagsize uint32 = 32
 
@@ -207,7 +210,7 @@ type Flagtype struct {
 }
 
 // Global map of flag decode info
-// These DO NOT Chahange
+// These DO NOT Change
 var Flags map[string]Flagtype
 
 // DateFlag Information
@@ -238,20 +241,23 @@ var Frameflags map[string][]string
 
 // Config - JSON Config Default Global Settings & Commands
 type config struct {
-	Descriptor  string   `json:"descriptor"` // Default Descriptor: d16,d32,d64
-	Csumtype    string   `json:"csumtype"`   // Default Checksum type: none
-	Freespace   string   `json:"freespace"`  // Is freespace tp be advertised: yes,no
-	Txwilling   string   `json:"txwilling"`  // Can files/streams be sent: yes,no
-	Rxwilling   string   `json:"rxwilling"`  // Can files/streams be received: yes,no
-	Stream      string   `json:"stream"`     // Can files/streams be transmitted: yes,no
-	Reqtstamp   string   `json:"reqtstamp"`  // Request timestamps: yes,no
-	Reqstatus   string   `json:"reqstatus"`  // Request status frame to be sent/received: yes,no
-	Udplite     string   `json:"udplite"`    // Is UDP Lite supported: yes,no
-	Timestamp   string   `json:"timestamp"`  // What is the default timestamp format: anything for local,posix32,posix32_323,posix64,posix64_32,epoch2000_32,
-	Timezone    string   `json:"timezone"`   // What timezone is to be used in timestamps: utc
-	Sardir      string   `json:"sardir"`     // What is the default directory for saratoga files
-	Prompt      string   `json:"prompt"`     // Command line prompt: saratoga
-	Ppad        int      `json:"ppad"`       // Padding length in prompt for []:
+	V4multicast string   `json:"v4multicast"` // IPv4 Muluticast address
+	V6multicast string   `json:"v6multicast"` // IPv6 Multicast address
+	Port        int      `json:"port"`        // Deefault Saratoga Port to listen and send on
+	Descriptor  string   `json:"descriptor"`  // Default Descriptor: d16,d32,d64
+	Csumtype    string   `json:"csumtype"`    // Default Checksum type: none
+	Freespace   string   `json:"freespace"`   // Is freespace tp be advertised: yes,no
+	Txwilling   string   `json:"txwilling"`   // Can files/streams be sent: yes,no
+	Rxwilling   string   `json:"rxwilling"`   // Can files/streams be received: yes,no
+	Stream      string   `json:"stream"`      // Can files/streams be transmitted: yes,no
+	Reqtstamp   string   `json:"reqtstamp"`   // Request timestamps: yes,no
+	Reqstatus   string   `json:"reqstatus"`   // Request status frame to be sent/received: yes,no
+	Udplite     string   `json:"udplite"`     // Is UDP Lite supported: yes,no
+	Timestamp   string   `json:"timestamp"`   // What is the default timestamp format: anything for local,posix32,posix32_323,posix64,posix64_32,epoch2000_32,
+	Timezone    string   `json:"timezone"`    // What timezone is to be used in timestamps: utc
+	Sardir      string   `json:"sardir"`      // What is the default directory for saratoga files
+	Prompt      string   `json:"prompt"`      // Command line prompt: saratoga
+	Ppad        int      `json:"ppad"`        // Padding length in prompt for []:
 	Timeout     Timeouts // Various Timers
 	Datacounter int      `json:"datacounter"` // How many data frames received before a status is requested
 }
@@ -262,55 +268,51 @@ var Climu sync.Mutex
 // Cliflags - CLI Input flags
 // These values can change via cli interface for the user
 type Cliflags struct {
-	Global    map[string]string // Global header flags set for frames
-	Timestamp string            // What timestamp to use
-	Timeout   Timeouts          // Various timeouts
-	Datacnt   int               // # data frames to send before a request flag is set
-	Timezone  string            // Timezone for logs utc or local time
-	Prompt    string            // Prompt
-	Ppad      int               // Length of Padding around Prompt []: = 3
-	Sardir    string            // Saratoga working directory
+	Global      map[string]string // Global header flags set for frames
+	V4Multicast string
+	V6Multicast string
+	Port        int
+	Timestamp   string   // What timestamp to use
+	Timeout     Timeouts // Various timeouts
+	Datacnt     int      // # data frames to send before a request flag is set
+	Timezone    string   // Timezone for logs utc or local time
+	Prompt      string   // Prompt
+	Ppad        int      // Length of Padding around Prompt []: = 3
+	Sardir      string   // Saratoga working directory
+}
+
+// Calculate the maximum descriptor size on this platform
+// d16, d32, d64, d128
+func getmaxdesc() (desc string, err error) {
+	err = nil
+	switch MaxUint {
+	case MaxUint16:
+		desc = "d16"
+	case MaxUint32:
+		desc = "d32"
+	case MaxUint64:
+		desc = "d64"
+	default: // yes we never get here till we have 128 bit integers
+		desc = "d128"
+		err = errors.New("descriptor d128 not supported")
+	}
+	return desc, err
 }
 
 // Read  in the JSON Config data
 func ReadConfig(fname string, c *Cliflags) error {
 	var err error
 
-	/*
-		// Work out the Maaximum values of various types of Ints
-
-		// SOMETHING VERY WRONG HERE!!!! MaxInt & MaxUint are coming out same on MacOSX but
-		// CORRECT on Raspberry Pi!!!!!
-		var xint int
-		MaxInt = uint64(math.Pow(2.0, float64(reflect.TypeOf(xint).Size()*8.0))/2.0 - 1.0)
-
-		var xuint uint
-		MaxUint = uint64(math.Pow(2.0, float64(reflect.TypeOf(xuint).Size()*8.0)) - 1.0)
-
-		var xuint16 uint16
-		MaxUint16 = uint64(math.Pow(2.0, float64(reflect.TypeOf(xuint16).Size()*8.0)) - 1.0)
-
-		var xint16 int16
-		MaxInt16 = uint64(math.Pow(2.0, float64(reflect.TypeOf(xint16).Size()*8.0))/2.0 - 1.0)
-
-		var xuint32 uint32
-		MaxUint32 = uint64(math.Pow(2.0, float64(reflect.TypeOf(xuint32).Size()*8.0)) - 1.0)
-
-		var xint32 int32
-		MaxInt32 = uint64(math.Pow(2, float64(reflect.TypeOf(xint32).Size()*8))/2 - 1)
-
-		var xuint64 uint64
-		MaxUint64 = uint64(math.Pow(2, float64(reflect.TypeOf(xuint64).Size()*8)) - 1)
-
-		var xint64 int64
-		MaxInt64 = uint64(math.Pow(2, float64(reflect.TypeOf(xint64).Size()*8))/2 - 1)
-	*/
-
 	// var cmu sync.Mutex
 	Flags = make(map[string]Flagtype)         // Setup the Flags global map
 	Frameflags = make(map[string][]string)    // Setup Frameflags global map
 	DateFlags = make(map[string]DateFlagtype) // Setup Dateflags global map
 	Commands = make(map[string]Cmdtype)       // Setup Commands global map
+
+	// Find the maximum descriptor on this platform
+	if MaxDescriptor, err = getmaxdesc(); err != nil {
+		return err
+	}
 
 	var confdata []byte
 	if confdata, err = ioutil.ReadFile(fname); err != nil {
@@ -331,6 +333,12 @@ func ReadConfig(fname string, c *Cliflags) error {
 	for key, value := range sarconfdata {
 		// fmt.Println(key, "=", value)
 		switch key {
+		case "v4multicast":
+			conf.V4multicast = value.(string)
+		case "v6multicast":
+			conf.V6multicast = value.(string)
+		case "udpport":
+			conf.Port = int(value.(float64))
 		case "descriptor":
 			conf.Descriptor = value.(string)
 		case "csumtype":
@@ -502,6 +510,9 @@ func ReadConfig(fname string, c *Cliflags) error {
 	c.Global["reqstatus"] = conf.Reqstatus
 	c.Global["udplite"] = conf.Udplite
 	c.Global["descriptor"] = conf.Descriptor
+	c.V4Multicast = conf.V4multicast
+	c.V6Multicast = conf.V6multicast
+	c.Port = conf.Port
 	c.Timestamp = conf.Timestamp                 // Default timestamp type to use
 	c.Timeout.Metadata = conf.Timeout.Metadata   // Seconds
 	c.Timeout.Request = conf.Timeout.Request     // Seconds
@@ -541,6 +552,9 @@ func Valid(flag string, option string) bool {
 
 // CopyCliflags - copy from source to desination the Clieflags structure
 func CopyCliflags(d *Cliflags, s *Cliflags) error {
+	d.V4Multicast = s.V4Multicast
+	d.V6Multicast = s.V4Multicast
+	d.Port = s.Port
 	d.Timestamp = s.Timestamp
 	d.Datacnt = s.Datacnt
 	d.Timezone = s.Timezone
@@ -580,7 +594,6 @@ func Value(flag string, option string) int {
 
 // Get - Given a current flag and bitfield name return the integer value of the bitfield
 func Get(curflag uint32, field string) uint32 {
-
 	fl := Flags[field]
 	shiftbits := uint32(flagsize - fl.Len - fl.Msb)
 	maskbits := uint32((1 << fl.Len) - 1)

@@ -1,5 +1,8 @@
 {
 	"_comment" : "Refer to Config struct comments in sarflags.go and saratoga.go",
+	"v4multicast" :		"224.0.0.108",
+	"v6multicast" :		"FF02::6c",
+	"udpport" :			7542,
 	"descriptor" :      "d64",
 	"csumtype" :        "none",
 	"freespace" :       "yes",

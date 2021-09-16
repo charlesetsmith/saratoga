@@ -18,7 +18,6 @@ import (
 	"github.com/charlesetsmith/saratoga/metadata"
 	"github.com/charlesetsmith/saratoga/request"
 	"github.com/charlesetsmith/saratoga/sarflags"
-	"github.com/charlesetsmith/saratoga/sarnet"
 	"github.com/charlesetsmith/saratoga/sarscreen"
 	"github.com/charlesetsmith/saratoga/status"
 	"github.com/jroimartin/gocui"
@@ -430,9 +429,9 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	var udpaddr *net.UDPAddr
 
 	if t.peer.To4() == nil { // IPv6
-		udpad = "[" + t.peer.String() + "]" + ":" + strconv.Itoa(sarnet.Port())
+		udpad = "[" + t.peer.String() + "]" + ":" + strconv.Itoa(t.cliflags.Port)
 	} else { // IPv4
-		udpad = t.peer.String() + ":" + strconv.Itoa(sarnet.Port())
+		udpad = t.peer.String() + ":" + strconv.Itoa(t.cliflags.Port)
 	}
 	if udpaddr, err = net.ResolveUDPAddr("udp", udpad); err != nil {
 		errflag <- "cantsend"
@@ -575,9 +574,9 @@ func cputblind(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	// Set up the connection
 	var udpad string
 	if t.peer.To4() == nil { // IPv6
-		udpad = "[" + t.peer.String() + "]" + ":" + strconv.Itoa(sarnet.Port())
+		udpad = "[" + t.peer.String() + "]" + ":" + strconv.Itoa(t.cliflags.Port)
 	} else { // IPv4
-		udpad = t.peer.String() + ":" + strconv.Itoa(sarnet.Port())
+		udpad = t.peer.String() + ":" + strconv.Itoa(t.cliflags.Port)
 	}
 	conn, err := net.Dial("udp", udpad)
 	if err != nil {
