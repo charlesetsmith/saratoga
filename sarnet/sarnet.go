@@ -3,6 +3,7 @@
 package sarnet
 
 import (
+	"errors"
 	"log"
 	"net"
 	"os"
@@ -19,7 +20,7 @@ import (
 
 // MaxFrameSize -- Maximum Saratoga Frame Size
 // Move this to Network Section & Calculate it
-const MaxFrameSize = 1500 - 60 // After MTU & IPv6 Header
+// const MaxFrameSize = 1500 - 60 // After MTU & IPv6 Header
 
 // UDPinfo - Return string of IP Address and Port #
 func UDPinfo(addr *net.UDPAddr) string {
@@ -51,18 +52,23 @@ func OutboundIP(typ string) net.IP {
 }
 
 // SetMulticastLoop - Set the Multicast Loopback address OK for Rx Multicasts
-func SetMulticastLoop(conn net.PacketConn, v4orv6 string) {
+func SetMulticastLoop(conn net.PacketConn, v4orv6 string) error {
 	file, _ := conn.(*net.UDPConn).File()
 	fd := int(file.Fd())
-	if v4orv6 == "IPv4" {
+	switch v4orv6 {
+	case "IPv4":
 		if err := syscall.SetsockoptInt(fd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_LOOP, 1); err != nil {
-			panic(err)
+			return err
 		}
-	}
-	if v4orv6 == "IPv6" {
+		return nil
+	case "IPv6":
 		if err := syscall.SetsockoptInt(fd, syscall.IPPROTO_IPV6, syscall.IPV6_MULTICAST_LOOP, 1); err != nil {
-			panic(err)
+			return err
 		}
+		return nil
+	default:
+		err := "invalid - should be IPv4 or IPv6:" + v4orv6
+		return errors.New(err)
 	}
 	//syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
 }

@@ -440,11 +440,11 @@ func starxhandler(g *gocui.Gui, s status.Status, conn *net.UDPConn, remoteAddr *
 // correct frame handlers
 func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 
-	buf := make([]byte, sarnet.MaxFrameSize+100) // Just in case...
+	maxframesize := sarflags.MTU - 60     // Handles IPv4 & IPv6 header
+	buf := make([]byte, maxframesize+100) // Just in case...
 	framelen := 0
 	err := error(nil)
-	remoteAddr := new(net.UDPAddr)
-	sarscreen.Fprintln(g, "msg", "green_black", "Listen Remote Address:", remoteAddr)
+	var remoteAddr *net.UDPAddr = new(net.UDPAddr)
 	for err == nil { // Loop forever grabbing frames
 		// Read into buf
 		framelen, remoteAddr, err = conn.ReadFromUDP(buf)
@@ -453,6 +453,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 			quit <- err
 			return
 		}
+		sarscreen.Fprintln(g, "msg", "green_black", "Listen read", framelen, "bytes from", remoteAddr.String())
 
 		// Very basic frame checks before we get into what it is
 		if framelen < 8 {
@@ -461,7 +462,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 				sarnet.UDPinfo(remoteAddr))
 			continue
 		}
-		if framelen > sarnet.MaxFrameSize {
+		if framelen > maxframesize {
 			sarscreen.Fprintln(g, "msg", "red_black", "Rx Saratoga Frame too long", framelen,
 				"from", sarnet.UDPinfo(remoteAddr))
 			continue
@@ -678,11 +679,12 @@ func main() {
 		Port: Cmdptr.Port,
 		IP:   net.ParseIP(Cmdptr.V4Multicast),
 	}
-
-	v6mcastaddr := net.UDPAddr{
-		Port: Cmdptr.Port,
-		IP:   net.ParseIP(Cmdptr.V6Multicast),
-	}
+	/*
+		v6mcastaddr := net.UDPAddr{
+			Port: Cmdptr.Port,
+			IP:   net.ParseIP(Cmdptr.V6Multicast),
+		}
+	*/
 	// What Interface are we receiving Multicasts on
 	var iface *net.Interface
 	var err error
@@ -731,22 +733,24 @@ func main() {
 			}
 		}
 	}
+	/*
+		// When will we return from listening for v6 frames
+		v6listenquit := make(chan error)
 
-	// When will we return from listening for v6 frames
-	v6listenquit := make(chan error)
-
-	// Listen to Unicast & Multicast v6
-	v6mcastcon, err := net.ListenMulticastUDP("udp6", iface, &v6mcastaddr)
-	if err != nil {
-		log.Println("Saratoga Unable to Listen on IPv6 Multicast", v6mcastaddr.IP, v6mcastaddr.Port)
-		log.Fatal(err)
-	} else {
-		sarnet.SetMulticastLoop(v6mcastcon, "IPv6")
-		go listen(g, v6mcastcon, v6listenquit)
-		sarscreen.Fprintln(g, "msg", "green_black", "Saratoga IPv6 Multicast Listener started on",
-			sarnet.UDPinfo(&v6mcastaddr))
-	}
-
+		// Listen to Unicast & Multicast v6
+		v6mcastcon, err := net.ListenMulticastUDP("udp6", iface, &v6mcastaddr)
+		if err != nil {
+			log.Println("Saratoga Unable to Listen on IPv6 Multicast", v6mcastaddr.IP, v6mcastaddr.Port)
+			log.Fatal(err)
+		} else {
+			if err := sarnet.SetMulticastLoop(v6mcastcon, "IPv6"); err != nil {
+				log.Fatal(err)
+			}
+			go listen(g, v6mcastcon, v6listenquit)
+			sarscreen.Fprintln(g, "msg", "green_black", "Saratoga IPv6 Multicast Listener started on",
+				sarnet.UDPinfo(&v6mcastaddr))
+		}
+	*/
 	// When will we return from listening for v4 frames
 	v4listenquit := make(chan error)
 
@@ -756,7 +760,9 @@ func main() {
 		log.Println("Saratoga Unable to Listen on IPv4 Multicast", v4mcastaddr.IP, v4mcastaddr.Port)
 		log.Fatal(err)
 	} else {
-		sarnet.SetMulticastLoop(v4mcastcon, "IPv4")
+		if err := sarnet.SetMulticastLoop(v4mcastcon, "IPv4"); err != nil {
+			log.Fatal(err)
+		}
 		go listen(g, v4mcastcon, v4listenquit)
 		sarscreen.Fprintln(g, "msg", "green_black", "Saratoga IPv4 Multicast Listener started on",
 			sarnet.UDPinfo(&v4mcastaddr))
@@ -784,8 +790,8 @@ func main() {
 	go mainloop(g, errflag, Cmdptr)
 
 	select {
-	case v6err := <-v6listenquit:
-		fmt.Println("Saratoga v6 listener has quit:", v6err)
+	// case v6err := <-v6listenquit:
+	//	fmt.Println("Saratoga v6 listener has quit:", v6err)
 	case v4err := <-v4listenquit:
 		fmt.Println("Saratoga v4 lisntener has quit:", v4err)
 	case err := <-errflag:

@@ -1,7 +1,7 @@
 {
 	"_comment" : "Refer to Config struct comments in sarflags.go and saratoga.go",
 	"v4multicast" :		"224.0.0.108",
-	"v6multicast" :		"FF02::6c",
+	"v6multicast" :		"ff02::6c",
 	"udpport" :			7542,
 	"descriptor" :      "d64",
 	"csumtype" :        "none",
@@ -43,7 +43,7 @@
 			"help" : "set checksums required and type"
 		},
 		"descriptor" : {
-			"usage" : "descriptor [auto|d16|d32|d64|d128",
+			"usage" : "descriptor [auto|d16|d32|d64|d128]",
 			"help" : "advertise & set default descriptor size"
 		},
 		"exit" : {
@@ -59,7 +59,7 @@
 			"help" : "advertise freespace or show amount left"
 		},
 		"get" : {
-			"usage" :"exit [0|1]",
+			"usage" :"get [<peer> <filename>]",
 			"help"  : "get a file from a peer"
 		},
 		"getdir" : {
@@ -67,7 +67,7 @@
 			"help" : "get a directory listing from a peer"
 		},
 		"getrm" : {
-			"usage" : "getrm [<peer> <filename>",
+			"usage" : "getrm [<peer> <filename>]",
 			"help" : "get a file from a peer and remove it from peer when successfully transferred"
 		},
 		"help" :  {
@@ -79,7 +79,7 @@
 			"help" :  "show command history"
 		},
 		"home" : {
-			"usage" :  "home <dirname>",
+			"usage" :  "home [<dirname>]",
 			"help" : "set home directory for transfers"
 		},
 		"interval" : {
