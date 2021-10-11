@@ -58,7 +58,7 @@ func (b *Beacon) New(flags string) error {
 				return err
 			}
 			switch f[1] {
-			case "d16", "d32", "d64":
+			case "d16", "d32", "d64", "d128":
 				if b.Header, err = sarflags.Set(b.Header, f[0], f[1]); err != nil {
 					return err
 				}
@@ -145,6 +145,8 @@ func (b Beacon) Put() ([]byte, error) {
 			framelen += 4
 		case "d64":
 			framelen += 8
+		case "d128":
+			framelen += 16
 		default:
 			return nil, errors.New("invalid beacon frame")
 		}
@@ -165,6 +167,8 @@ func (b Beacon) Put() ([]byte, error) {
 		case "d64":
 			binary.BigEndian.PutUint64(frame[pos:12], uint64(b.Freespace))
 			pos += 8
+		case "d128": // d128 we use d64 for the moment untill we have 128 bit uints!
+			binary.BigEndian.PutUint64(frame[pos:20], uint64(b.Freespace))
 		default:
 			return nil, errors.New("invalid beacon frame")
 		}
@@ -188,6 +192,9 @@ func (b *Beacon) Get(frame []byte) error {
 		case "d64":
 			b.Freespace = binary.BigEndian.Uint64(frame[4:12])
 			b.Eid = string(frame[12:])
+		case "d128":
+			b.Freespace = binary.BigEndian.Uint64(frame[4:20])
+			b.Eid = string(frame[20:])
 		default:
 			b.Freespace = 0
 			b.Eid = string(frame[4:])
@@ -279,7 +286,7 @@ func (b *Beacon) Send(g *gocui.Gui, addr string, port int, count uint, interval 
 
 // Handler We have an inbound beacon frame
 func (b *Beacon) Handler(g *gocui.Gui, from *net.UDPAddr) string {
-	// screen.Fprintln(g,  "yellow_black", b.Print())
+	// sarscreen.MsgPrintln(g,  "yellow_black", b.Print())
 	// We add / alter the peer information
 	if b.NewPeer(from) {
 		sarscreen.MsgPrintln(g, "yellow_black", "Beacon Received Added/Changed Peer", from.String())
