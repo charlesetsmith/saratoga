@@ -238,7 +238,7 @@ func keybindings(g *gocui.Gui) error {
 	if err := g.SetKeybinding("cmd", gocui.KeyEnter, gocui.ModNone, getLine); err != nil {
 		return err
 	}
-	if err := g.SetKeybinding("cmd", gocui.KeyEnter, gocui.ModNone, getLine); err != nil {
+	if err := g.SetKeybinding("msg", gocui.KeyEnter, gocui.ModNone, getLine); err != nil {
 		return err
 	}
 	if err := g.SetKeybinding("cmd", gocui.KeyBackspace, gocui.ModNone, backSpace); err != nil {
@@ -292,7 +292,7 @@ func layout(g *gocui.Gui) error {
 		cmd.Wrap = true
 	}
 	// This is the message view window - Status & error messages go here
-	if msg, err = g.SetView("cmd", 0, 0, maxX-1, maxY-maxY/ratio); err != nil {
+	if msg, err = g.SetView("msg", 0, 0, maxX-1, maxY-maxY/ratio); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
@@ -324,7 +324,6 @@ func layout(g *gocui.Gui) error {
 
 // Request Handler for Server
 func reqrxhandler(g *gocui.Gui, r request.Request, remoteAddr *net.UDPAddr) string {
-
 	// Handle the request
 	reqtype := sarflags.GetStr(r.Header, "reqtype")
 	switch reqtype {
@@ -773,16 +772,15 @@ func main() {
 		(uint64(fs.Bsize)*fs.Bavail)/1024/1024)
 	// sarscreen.MsgPrintf(g,  "green_black", "Sizes of Ints is %d\n", sarflags.MaxUint)
 
-	/*
-		sarscreen.MsgPrintln(g,  "green_black", "MaxInt=", sarflags.MaxInt)
-		sarscreen.MsgPrintln(g,  "green_black", "MaxUint=", sarflags.MaxUint)
-		sarscreen.MsgPrintln(g,  "green_black", "MaxInt16=", sarflags.MaxInt16)
-		sarscreen.MsgPrintln(g,  "green_black", "MaxUint16=", sarflags.MaxUint16)
-		sarscreen.MsgPrintln(g,  "green_black", "MaxInt32=", sarflags.MaxInt32)
-		sarscreen.MsgPrintln(g,  "green_black", "MaxUint32=", sarflags.MaxUint32)
-		sarscreen.MsgPrintln(g,  "green_black", "MaxInt64=", sarflags.MaxInt64)
-		sarscreen.MsgPrintln(g,  "green_black", "MaxUint64=", sarflags.MaxUint64)
-	*/
+	sarscreen.MsgPrintln(g, "green_black", "MaxInt=", sarflags.MaxInt)
+	sarscreen.MsgPrintln(g, "green_black", "MaxUint=", sarflags.MaxUint)
+	sarscreen.MsgPrintln(g, "green_black", "MaxInt16=", sarflags.MaxInt16)
+	sarscreen.MsgPrintln(g, "green_black", "MaxUint16=", sarflags.MaxUint16)
+	sarscreen.MsgPrintln(g, "green_black", "MaxInt32=", sarflags.MaxInt32)
+	sarscreen.MsgPrintln(g, "green_black", "MaxUint32=", sarflags.MaxUint32)
+	sarscreen.MsgPrintln(g, "green_black", "MaxInt64=", sarflags.MaxInt64)
+	sarscreen.MsgPrintln(g, "green_black", "MaxUint64=", sarflags.MaxUint64)
+
 	sarscreen.MsgPrintln(g, "green_black", "Maximum Descriptor is:", sarflags.MaxDescriptor)
 
 	// The Base calling functions for Saratoga live in cli.go so look there first!
