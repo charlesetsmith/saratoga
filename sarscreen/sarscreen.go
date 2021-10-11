@@ -135,18 +135,22 @@ func Fprintln(g *gocui.Gui, vname string, colour string, args ...interface{}) {
 	})
 }
 
+// Send formatted output to "msg"  window
 func MsgPrintf(g *gocui.Gui, colour string, format string, args ...interface{}) {
 	sarscreen.Fprintf(g, "msg", colour, format, args...)
 }
 
+// Send unformatted output to "msg" window
 func MsgPrintln(g *gocui.Gui, colour string, args ...interface{}) {
 	sarscreen.Fprintln(g, "msg", colour, args...)
 }
 
+// Send formatted output to "cmd" window
 func CmdPrintf(g *gocui.Gui, colour string, format string, args ...interface{}) {
 	sarscreen.Fprintf(g, "cmd", colour, format, args...)
 }
 
+// Send unformatted output to "cmd" window
 func CmdPrintln(g *gocui.Gui, colour string, args ...interface{}) {
 	sarscreen.Fprintln(g, "cmd", colour, args...)
 }
