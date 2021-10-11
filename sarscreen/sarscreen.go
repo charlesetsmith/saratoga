@@ -7,6 +7,7 @@ import (
 	"log"
 	"strings"
 
+	"github.com/charlesetsmith/oldsaratoga/src/sarscreen"
 	"github.com/jroimartin/gocui"
 )
 
@@ -132,4 +133,20 @@ func Fprintln(g *gocui.Gui, vname string, colour string, args ...interface{}) {
 		fmt.Fprintf(v, "%s", setcolour("off"))
 		return nil
 	})
+}
+
+func MsgPrintf(g *gocui.Gui, colour string, format string, args ...interface{}) {
+	sarscreen.Fprintf(g, "msg", colour, format, args...)
+}
+
+func MsgPrintln(g *gocui.Gui, colour string, args ...interface{}) {
+	sarscreen.Fprintln(g, "msg", colour, args...)
+}
+
+func CmdPrintf(g *gocui.Gui, colour string, format string, args ...interface{}) {
+	sarscreen.Fprintf(g, "cmd", colour, format, args...)
+}
+
+func CmdPrintln(g *gocui.Gui, colour string, args ...interface{}) {
+	sarscreen.Fprintln(g, "cmd", colour, args...)
 }

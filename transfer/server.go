@@ -147,13 +147,13 @@ func SMatch(ip string, session uint32) *STransfer {
 func SNew(g *gocui.Gui, ttype string, r request.Request, ip string, session uint32) error {
 
 	var t STransfer
-	// screen.Fprintln(g, "msg", "red_black", "Addtran for", ip, fname, flags)
+	// screen.Fprintln(g,  "red_black", "Addtran for", ip, fname, flags)
 	if addr := net.ParseIP(ip); addr != nil { // We have a valid IP Address
 		for _, i := range STransfers { // Don't add duplicates
 			if addr.Equal(i.Peer) && session == i.Session {
 				emsg := fmt.Sprintf("STransfer for session %d to %s is currently in progress, cannnot add transfer",
 					session, i.Peer.String())
-				sarscreen.Fprintln(g, "msg", "red_black", emsg)
+				sarscreen.MsgPrintln(g, "red_black", emsg)
 				return errors.New(emsg)
 			}
 		}
@@ -172,10 +172,10 @@ func SNew(g *gocui.Gui, ttype string, r request.Request, ip string, session uint
 		msg := fmt.Sprintf("Added %s Transfer to %s session %d",
 			t.Ttype, t.Peer.String(), t.Session)
 		STransfers = append(STransfers, t)
-		sarscreen.Fprintln(g, "msg", "green_black", msg)
+		sarscreen.MsgPrintln(g, "green_black", msg)
 		return nil
 	}
-	sarscreen.Fprintln(g, "msg", "red_black", "CTransfer not added, invalid IP address", ip)
+	sarscreen.MsgPrintln(g, "red_black", "CTransfer not added, invalid IP address", ip)
 	return errors.New("invalid IP Address")
 }
 
@@ -199,7 +199,7 @@ func (t *STransfer) SChange(g *gocui.Gui, m metadata.MetaData) error {
 		return errors.New(emsg)
 	}
 	t.Havemeta = true
-	sarscreen.Fprintln(g, "msg", "yellow_black", "Added metadata to transfer and file buffer size", len(t.Data))
+	sarscreen.MsgPrintln(g, "yellow_black", "Added metadata to transfer and file buffer size", len(t.Data))
 	Strmu.Unlock()
 	return nil
 }

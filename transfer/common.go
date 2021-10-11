@@ -60,10 +60,10 @@ func Info(g *gocui.Gui, ttype string) {
 			sbuf += sslice[key]
 		}
 		sbuf += sborder
-		sarscreen.Fprintln(g, "msg", "magenta_black", sbuf)
+		sarscreen.MsgPrintln(g, "magenta_black", sbuf)
 	} else {
 		msg := fmt.Sprintf("No %s transfers currently in progress", ttype)
-		sarscreen.Fprintln(g, "msg", "green_black", msg)
+		sarscreen.MsgPrintln(g, "green_black", msg)
 	}
 }
 

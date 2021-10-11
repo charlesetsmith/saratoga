@@ -258,19 +258,16 @@ func (b *Beacon) Send(g *gocui.Gui, addr string, port int, count uint, interval 
 	// Make sure we have at least 1 beacon going out
 	if count == 0 {
 		count = 1
-	}
-	// Beacons default at 1 second intervals
-	if interval == 0 {
-		interval = 1
+		interval = 0
 	}
 
 	var i uint
 	for i = 0; i < count; i++ {
 		if _, err := conn.Write(frame); err != nil {
-			sarscreen.Fprintln(g, "msg", "red_black", "error writing beacon to", addr)
+			sarscreen.MsgPrintln(g, "red_black", "error writing beacon to", addr)
 		}
 
-		sarscreen.Fprintf(g, "msg", "green_black", "Beacon %d to %s\n", i+1, addr)
+		sarscreen.MsgPrintln(g, "green_black", "Sent Beacon", i+1, "of", count, "to", addr, "every", interval, "seconds")
 		// select { // We may need to add some more channel i/o here so use select
 		// default:
 		time.Sleep(time.Duration(interval) * time.Second)
@@ -282,12 +279,12 @@ func (b *Beacon) Send(g *gocui.Gui, addr string, port int, count uint, interval 
 
 // Handler We have an inbound beacon frame
 func (b *Beacon) Handler(g *gocui.Gui, from *net.UDPAddr) string {
-	// screen.Fprintln(g, "msg", "yellow_black", b.Print())
+	// screen.Fprintln(g,  "yellow_black", b.Print())
 	// We add / alter the peer information
 	if b.NewPeer(from) {
-		sarscreen.Fprintln(g, "msg", "yellow_black", "Added/Changed Peer", from.String())
+		sarscreen.MsgPrintln(g, "yellow_black", "Beacon Received Added/Changed Peer", from.String())
 	} else {
-		sarscreen.Fprintln(g, "msg", "yellow_black", "No new peer")
+		sarscreen.MsgPrintln(g, "yellow_black", "Beacon Received peer", from.String(), "previously added")
 	}
 	return "success"
 }
@@ -308,23 +305,20 @@ var Peers []Peer
 
 // NewPeer - Add/Change peer info from received beacon
 func (b *Beacon) NewPeer(from *net.UDPAddr) bool {
-
 	// Scan through existing Peers and change if the peer exists
 	for p := range Peers {
 		if Peers[p].Addr == from.IP.String() { // Source IP address matches
 			pmu.Lock()
 			defer pmu.Unlock()
-			if Peers[p].Freespace != b.Freespace { // Update freespace
+			// Has anything changed since the last beacon for this peer ?
+			if Peers[p].Freespace != b.Freespace || Peers[p].Eid != b.Eid || Peers[p].Maxdesc != sarflags.GetStr(b.Header, "descriptor") {
 				Peers[p].Freespace = b.Freespace
-			}
-			if Peers[p].Eid != b.Eid { // Update Eid
 				Peers[p].Eid = b.Eid
-			}
-			if Peers[p].Maxdesc != sarflags.GetStr(b.Header, "descriptor") { // Update Maxdesc
 				Peers[p].Maxdesc = sarflags.GetStr(b.Header, "descriptor")
+				Peers[p].Updated.Now("posix32_32") // Last updated now
+				return true
 			}
-			Peers[p].Updated.Now("posix32_32") // Last updated now
-			return true
+			return false
 		}
 	}
 	// We have a new Peer - add it
@@ -335,7 +329,6 @@ func (b *Beacon) NewPeer(from *net.UDPAddr) bool {
 	newp.Maxdesc = sarflags.GetStr(b.Header, "descriptor")
 	newp.Created.Now("posix32_32")
 	newp.Updated = newp.Created
-
 	pmu.Lock()
 	defer pmu.Unlock()
 	Peers = append(Peers, newp)
