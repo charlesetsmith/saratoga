@@ -124,7 +124,7 @@ func (r *Request) Decode(frame []byte) error {
 	return nil
 }
 
-// Print - Print out details of Beacon struct
+// Print - Print out details of Request struct
 func (r *Request) Print() string {
 	sflag := fmt.Sprintf("Request: 0x%x\n", r.Header)
 	rflags := sarflags.Values("request")
@@ -136,4 +136,9 @@ func (r *Request) Print() string {
 	sflag += fmt.Sprintf("  filename:<%s>", r.Fname)
 	sflag += fmt.Sprintf("  auth:<%s>\n", r.Auth)
 	return sflag
+}
+
+// Print - Print out details of Request struct
+func (r *Request) ShortPrint() string {
+	return r.Print()
 }
