@@ -81,7 +81,7 @@ func (r *Request) Make(header uint32, session uint32, fname string, auth []byte)
 }
 
 // Put -- Encode the Saratoga Request buffer
-func (r *Request) Put() ([]byte, error) {
+func (r *Request) Encode() ([]byte, error) {
 
 	// Create the frame slice
 	framelen := 4 + 4 + len(r.Fname) + 1 + len(r.Auth) // Header + Session + Fname + NULL + Auth
@@ -99,7 +99,7 @@ func (r *Request) Put() ([]byte, error) {
 }
 
 // Get -- Decode Data byte slice frame into Data struct
-func (r *Request) Get(frame []byte) error {
+func (r *Request) Decode(frame []byte) error {
 
 	if len(frame) < 9 {
 		return errors.New("request.Get - Frame too short")

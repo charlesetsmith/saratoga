@@ -102,7 +102,7 @@ func (d *Data) Make(header uint32, session uint32, offset uint64, payload []byte
 }
 
 // Get -- Decode Data byte slice frame into Data struct
-func (d *Data) Get(frame []byte) error {
+func (d *Data) Decode(frame []byte) error {
 
 	if len(frame) < 10 {
 		return errors.New("data.Get - Frame too short")
@@ -158,7 +158,7 @@ func (d *Data) Get(frame []byte) error {
 }
 
 // Put -- Encode the Saratoga Data Frame buffer
-func (d *Data) Put() ([]byte, error) {
+func (d *Data) Encode() ([]byte, error) {
 
 	havetstamp := false
 

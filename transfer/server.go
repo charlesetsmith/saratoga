@@ -61,7 +61,7 @@ func WriteErrStatus(g *gocui.Gui, flags string, session uint32, conn *net.UDPCon
 	}
 	var wframe []byte
 	var err error
-	if wframe, err = st.Put(); err != nil {
+	if wframe, err = st.Encode(); err != nil {
 		return "badstatus"
 	}
 	_, err = conn.WriteToUDP(wframe, remoteAddr)
@@ -115,7 +115,7 @@ func WriteStatus(g *gocui.Gui, t *STransfer, sflags string, conn *net.UDPConn, r
 		}
 		var wframe []byte
 		var err error
-		if wframe, err = st.Put(); err != nil {
+		if wframe, err = st.Encode(); err != nil {
 			return "badstatus"
 		}
 		_, err = conn.WriteToUDP(wframe, remoteAddr)

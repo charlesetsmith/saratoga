@@ -482,7 +482,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 		switch sarflags.GetStr(header, "frametype") {
 		case "beacon":
 			var rxb beacon.Beacon
-			if rxerr := rxb.Get(frame); rxerr != nil {
+			if rxerr := rxb.Decode(frame); rxerr != nil {
 				// We just drop bad beacons
 				sarwin.MsgPrintln(g, "red_black", "Bad Beacon:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr))
@@ -499,7 +499,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 			// Handle incoming request
 			var r request.Request
 			var rxerr error
-			if rxerr = r.Get(frame); rxerr != nil {
+			if rxerr = r.Decode(frame); rxerr != nil {
 				// We just drop bad requests
 				sarwin.MsgPrintln(g, "red_black", "Bad Request:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr))
@@ -529,7 +529,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 			// Handle incoming data
 			var d data.Data
 			var rxerr error
-			if rxerr = d.Get(frame); rxerr != nil {
+			if rxerr = d.Decode(frame); rxerr != nil {
 				session := binary.BigEndian.Uint32(frame[4:8])
 				// Bad Packet send back a Status to the client
 				stheader := "descriptor=" + sarflags.GetStr(header, "descriptor")
@@ -550,7 +550,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 				_ = st.New(stheader, session, 0, 0, nil)
 				var wframe []byte
 				var txerr error
-				if wframe, txerr = st.Put(); txerr == nil {
+				if wframe, txerr = st.Encode(); txerr == nil {
 					conn.WriteToUDP(wframe, remoteAddr)
 				}
 			}
@@ -560,7 +560,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 			// Handle incoming metadata
 			var m metadata.MetaData
 			var rxerr error
-			if rxerr = m.Get(frame); rxerr != nil {
+			if rxerr = m.Decode(frame); rxerr != nil {
 				session := binary.BigEndian.Uint32(frame[4:8])
 				var se status.Status
 				// Bad Packet send back a Status to the client
@@ -587,7 +587,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 		case "status":
 			// Handle incoming status
 			var s status.Status
-			if rxerr := s.Get(frame); rxerr != nil {
+			if rxerr := s.Decode(frame); rxerr != nil {
 				session := binary.BigEndian.Uint32(frame[4:8])
 				var se status.Status
 				// Bad Packet send back a Status to the client

@@ -106,7 +106,7 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 			// No metadata has been received yet so send/resend it
 			var wframe []byte
 			var err error
-			if wframe, err = m.Put(); err != nil { // Send/Resend the Metadata
+			if wframe, err = m.Encode(); err != nil { // Send/Resend the Metadata
 				errflag <- "badrequest"
 				return
 			}
@@ -118,7 +118,7 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 		}
 		// We have "success" so Decode into a Status
 		var st status.Status
-		if err := st.Get(rframe); err != nil {
+		if err := st.Decode(rframe); err != nil {
 			sarwin.MsgPrintln(g, "red_black", "Bad Status with error:", err)
 			errflag <- "badstatus"
 			return
@@ -166,7 +166,7 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 				}
 
 				df.New(dflags, t.session, uint64(pstart), buf[pstart:pend]) // Create the Data
-				if wframe, err := df.Put(); err != nil {
+				if wframe, err := df.Encode(); err != nil {
 					sarwin.MsgPrintln(g, "blue_black", "We have a bad df.New:", df.Print())
 					errflag <- "badoffset"
 					return
@@ -228,7 +228,7 @@ func senddata(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 			return
 		}
 		// sarwin.MsgPrintln(g,  "red_black", "Data Frame to Write is:", d.Print())
-		if wframe, err := d.Put(); err != nil {
+		if wframe, err := d.Encode(); err != nil {
 			errflag <- "badpacket"
 			return
 		} else if _, err = conn.Write(wframe); err != nil { // And send it
@@ -457,7 +457,7 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 		errflag <- "badrequest"
 		return
 	}
-	if wframe, err = r.Put(); err != nil {
+	if wframe, err = r.Encode(); err != nil {
 		conn.Close()
 		errflag <- "badrequest"
 		return
@@ -486,7 +486,7 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 		errflag <- "badrequest"
 		return
 	}
-	if wframe, err = m.Put(); err != nil {
+	if wframe, err = m.Encode(); err != nil {
 		conn.Close()
 		errflag <- "badrequest"
 		return
@@ -596,7 +596,7 @@ func cputblind(t *CTransfer, g *gocui.Gui, errflag chan string) {
 		errflag <- "badrequest"
 		return
 	}
-	if wframe, err = m.Put(); err != nil {
+	if wframe, err = m.Encode(); err != nil {
 		errflag <- "badrequest"
 		return
 	}

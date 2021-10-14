@@ -70,10 +70,10 @@ func statfile(fname string, header uint32) (string, error) {
 		}
 		// You can't get a checksum from a stream
 		if sarflags.GetStr(header, "csumtype") != "none" {
-			return direntflags, errors.New("Cannot have checksum with stream transfers")
+			return direntflags, errors.New("cannot have checksum with stream transfers")
 		}
 	case "bundle":
-		return direntflags, errors.New("Bundle Transfers not supported")
+		return direntflags, errors.New("bundle transfers not supported")
 	case "file":
 		if !file {
 			e := fname + " is not a file"
@@ -85,7 +85,7 @@ func statfile(fname string, header uint32) (string, error) {
 			return direntflags, errors.New(e)
 		}
 	default:
-		return direntflags, errors.New("Invalid Transfer type")
+		return direntflags, errors.New("invalid Transfer type")
 	}
 	return direntflags, nil
 }
@@ -209,7 +209,7 @@ func (m *MetaData) Make(header uint32, session uint32, fname string) error {
 }
 
 // Put -- Encode the Saratoga Metadata buffer
-func (m MetaData) Put() ([]byte, error) {
+func (m MetaData) Encode() ([]byte, error) {
 
 	// Create the frame slice
 	framelen := 4 + 4 // Header + Session
@@ -236,7 +236,7 @@ func (m MetaData) Put() ([]byte, error) {
 }
 
 // Get -- Decode Data byte slice frame into Data struct
-func (m *MetaData) Get(frame []byte) (err error) {
+func (m *MetaData) Decode(frame []byte) (err error) {
 
 	if len(frame) < 8 {
 		return errors.New("MetaDataGet - Frame too short")
@@ -270,7 +270,7 @@ func (m MetaData) Print() string {
 	if cs := sarflags.GetStr(m.Header, "csumtype"); cs != "none" {
 		sflag += fmt.Sprintf("  Checksum [%s]:%x\n", cs, m.Checksum)
 	}
-	sflag += fmt.Sprintf("%s", m.Dir.Print())
+	sflag += m.Dir.Print()
 	return sflag
 }
 

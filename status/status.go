@@ -95,7 +95,7 @@ func (s *Status) Make(header uint32, session uint32, progress uint64, inrespto u
 }
 
 // Put - Encode the Saratoga Status frame
-func (s Status) Put() ([]byte, error) {
+func (s Status) Encode() ([]byte, error) {
 
 	havetstamp := false
 
@@ -169,7 +169,7 @@ func (s Status) Put() ([]byte, error) {
 }
 
 // Get -- Decode Status byte slice frame into Status struct
-func (s *Status) Get(frame []byte) error {
+func (s *Status) Decode(frame []byte) error {
 
 	if len(frame) < 12 {
 		return errors.New("Status Frame too short")

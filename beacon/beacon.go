@@ -132,7 +132,7 @@ func (b *Beacon) Make(header uint32, eid string, freespace uint64) error {
 }
 
 // Put -- Encode the Saratoga Beacon into a Frame buffer
-func (b Beacon) Put() ([]byte, error) {
+func (b Beacon) Encode() ([]byte, error) {
 
 	var frame []byte
 
@@ -178,7 +178,7 @@ func (b Beacon) Put() ([]byte, error) {
 }
 
 // Get -- Decode Beacon byte slice frame into Beacon struct
-func (b *Beacon) Get(frame []byte) error {
+func (b *Beacon) Decode(frame []byte) error {
 
 	b.Header = binary.BigEndian.Uint32(frame[:4])
 	if sarflags.GetStr(b.Header, "freespace") == "yes" {
@@ -249,7 +249,7 @@ func (b *Beacon) Send(g *gocui.Gui, addr string, port int, count uint, interval 
 	var frame []byte
 	var err error
 
-	if frame, err = txb.Put(); err != nil {
+	if frame, err = txb.Encode(); err != nil {
 		errflag <- "badpacket"
 		return
 	}
