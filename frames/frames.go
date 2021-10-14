@@ -29,3 +29,23 @@ type Frame interface {
 		MakeBeacon(header uint32, eid string, freespace uint64) error
 	*/
 }
+
+// Decode a frame into its structure via Frame interface
+func Decode(f Frame, buf []byte) error {
+	return f.Decode(buf)
+}
+
+// Encode a frame into its structure via Frame interface
+func Encode(f Frame) ([]byte, error) {
+	return f.Encode()
+}
+
+// Print a frame into its structure via Frame interface
+func Print(f Frame) string {
+	return f.Print()
+}
+
+// ShortPrint a frame into its structure via Frame interface
+func ShortPrint(f Frame) string {
+	return f.ShortPrint()
+}
