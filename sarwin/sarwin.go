@@ -7,7 +7,6 @@ import (
 	"log"
 	"strings"
 
-	"github.com/charlesetsmith/oldsaratoga/src/sarwin"
 	"github.com/jroimartin/gocui"
 )
 
@@ -137,20 +136,20 @@ func Fprintln(g *gocui.Gui, vname string, colour string, args ...interface{}) {
 
 // Send formatted output to "msg"  window
 func MsgPrintf(g *gocui.Gui, colour string, format string, args ...interface{}) {
-	sarwin.Fprintf(g, "msg", colour, format, args...)
+	Fprintf(g, "msg", colour, format, args...)
 }
 
 // Send unformatted output to "msg" window
 func MsgPrintln(g *gocui.Gui, colour string, args ...interface{}) {
-	sarwin.Fprintln(g, "msg", colour, args...)
+	Fprintln(g, "msg", colour, args...)
 }
 
 // Send formatted output to "cmd" window
 func CmdPrintf(g *gocui.Gui, colour string, format string, args ...interface{}) {
-	sarwin.Fprintf(g, "cmd", colour, format, args...)
+	Fprintf(g, "cmd", colour, format, args...)
 }
 
 // Send unformatted output to "cmd" window
 func CmdPrintln(g *gocui.Gui, colour string, args ...interface{}) {
-	sarwin.Fprintln(g, "cmd", colour, args...)
+	Fprintln(g, "cmd", colour, args...)
 }

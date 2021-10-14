@@ -14,7 +14,7 @@ import (
 	"github.com/charlesetsmith/saratoga/metadata"
 	"github.com/charlesetsmith/saratoga/request"
 	"github.com/charlesetsmith/saratoga/sarflags"
-	"github.com/charlesetsmith/saratoga/sarscreen"
+	"github.com/charlesetsmith/saratoga/sarwin"
 	"github.com/charlesetsmith/saratoga/status"
 	"github.com/charlesetsmith/saratoga/timestamp"
 	"github.com/jroimartin/gocui"
@@ -153,7 +153,7 @@ func SNew(g *gocui.Gui, ttype string, r request.Request, ip string, session uint
 			if addr.Equal(i.Peer) && session == i.Session {
 				emsg := fmt.Sprintf("STransfer for session %d to %s is currently in progress, cannnot add transfer",
 					session, i.Peer.String())
-				sarscreen.MsgPrintln(g, "red_black", emsg)
+				sarwin.MsgPrintln(g, "red_black", emsg)
 				return errors.New(emsg)
 			}
 		}
@@ -172,10 +172,10 @@ func SNew(g *gocui.Gui, ttype string, r request.Request, ip string, session uint
 		msg := fmt.Sprintf("Added %s Transfer to %s session %d",
 			t.Ttype, t.Peer.String(), t.Session)
 		STransfers = append(STransfers, t)
-		sarscreen.MsgPrintln(g, "green_black", msg)
+		sarwin.MsgPrintln(g, "green_black", msg)
 		return nil
 	}
-	sarscreen.MsgPrintln(g, "red_black", "CTransfer not added, invalid IP address", ip)
+	sarwin.MsgPrintln(g, "red_black", "CTransfer not added, invalid IP address", ip)
 	return errors.New("invalid IP Address")
 }
 
@@ -199,7 +199,7 @@ func (t *STransfer) SChange(g *gocui.Gui, m metadata.MetaData) error {
 		return errors.New(emsg)
 	}
 	t.Havemeta = true
-	sarscreen.MsgPrintln(g, "yellow_black", "Added metadata to transfer and file buffer size", len(t.Data))
+	sarwin.MsgPrintln(g, "yellow_black", "Added metadata to transfer and file buffer size", len(t.Data))
 	Strmu.Unlock()
 	return nil
 }

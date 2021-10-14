@@ -10,7 +10,7 @@ import (
 	"sync"
 
 	"github.com/charlesetsmith/saratoga/sarflags"
-	"github.com/charlesetsmith/saratoga/sarscreen"
+	"github.com/charlesetsmith/saratoga/sarwin"
 	"github.com/jroimartin/gocui"
 )
 
@@ -60,10 +60,10 @@ func Info(g *gocui.Gui, ttype string) {
 			sbuf += sslice[key]
 		}
 		sbuf += sborder
-		sarscreen.MsgPrintln(g, "magenta_black", sbuf)
+		sarwin.MsgPrintln(g, "magenta_black", sbuf)
 	} else {
 		msg := fmt.Sprintf("No %s transfers currently in progress", ttype)
-		sarscreen.MsgPrintln(g, "green_black", msg)
+		sarwin.MsgPrintln(g, "green_black", msg)
 	}
 }
 
