@@ -21,20 +21,20 @@ import (
 	"github.com/charlesetsmith/saratoga/request"
 	"github.com/charlesetsmith/saratoga/sarflags"
 	"github.com/charlesetsmith/saratoga/sarnet"
-	"github.com/charlesetsmith/saratoga/sarscreen"
+	"github.com/charlesetsmith/saratoga/sarwin"
 	"github.com/charlesetsmith/saratoga/status"
 	"github.com/charlesetsmith/saratoga/transfer"
 	"github.com/jroimartin/gocui"
 )
 
 // Cinfo - Information held on the cmd view
-var Cinfo sarscreen.Viewinfo
+var Cinfo sarwin.Viewinfo
 
 // Minfo - Information held on the msg view
-var Minfo sarscreen.Viewinfo
+var Minfo sarwin.Viewinfo
 
 // Return the length of the prompt
-func promptlen(v sarscreen.Viewinfo) int {
+func promptlen(v sarwin.Viewinfo) int {
 	return len(v.Prompt) + len(strconv.Itoa(v.Curline)) + v.Ppad
 }
 
@@ -75,7 +75,7 @@ func cursorLeft(g *gocui.Gui, v *gocui.View) error {
 	}
 	// Move back a character
 	if err := v.SetCursor(cx-1, cy); err != nil {
-		sarscreen.MsgPrintln(g, "bwhite_black", "LeftArrow:", "cx=", cx, "cy=", cy, "error=", err)
+		sarwin.MsgPrintln(g, "bwhite_black", "LeftArrow:", "cx=", cx, "cy=", cy, "error=", err)
 	}
 	return nil
 }
@@ -93,7 +93,7 @@ func cursorRight(g *gocui.Gui, v *gocui.View) error {
 	}
 	// Move forward a character
 	if err := v.SetCursor(cx+1, cy); err != nil {
-		sarscreen.MsgPrintln(g, "bwhite_red", "RightArrow:", "cx=", cx, "cy=", cy, "error=", err)
+		sarwin.MsgPrintln(g, "bwhite_red", "RightArrow:", "cx=", cx, "cy=", cy, "error=", err)
 	}
 	return nil
 }
@@ -114,7 +114,7 @@ func cursorDown(g *gocui.Gui, v *gocui.View) error {
 	err := v.SetCursor(cx, cy+1)
 	if err != nil { // Reset the origin
 		if err := v.SetOrigin(0, oy+1); err != nil { // changed ox to 0
-			sarscreen.MsgPrintf(g, "bwhite_red", "SetOrigin error=%s", err)
+			sarwin.MsgPrintf(g, "bwhite_red", "SetOrigin error=%s", err)
 			return err
 		}
 
@@ -137,7 +137,7 @@ func cursorUp(g *gocui.Gui, v *gocui.View) error {
 	err := v.SetCursor(cx, cy-1)
 	if err != nil && oy > 0 { // Reset the origin
 		if err := v.SetOrigin(0, oy-1); err != nil { // changed ox to 0
-			sarscreen.MsgPrintf(g, "bwhite_red", "SetOrigin error=%s", err)
+			sarwin.MsgPrintf(g, "bwhite_red", "SetOrigin error=%s", err)
 			return err
 		}
 	}
@@ -165,7 +165,7 @@ func getLine(g *gocui.Gui, v *gocui.View) error {
 	_, cy := v.Cursor()
 	// Get the line
 	line, _ := v.Line(cy)
-	// sarscreen.MsgPrintf(g,  "red_black", "cx=%d cy=%d lines=%d line=%s\n",
+	// sarwin.MsgPrintf(g,  "red_black", "cx=%d cy=%d lines=%d line=%s\n",
 	//      len(v.BufferLines()), cx, cy, line)
 	command := strings.SplitN(line, ":", 2)
 	if command[1] == "" { // We have just hit enter - do nothing
@@ -192,22 +192,22 @@ func getLine(g *gocui.Gui, v *gocui.View) error {
 	// Have we scrolled past the length of v, if so reset the origin
 
 	if err := v.SetCursor(xpos, cy+1); err != nil {
-		sarscreen.MsgPrintln(g, "red_black", "We Scrolled past length of v", err)
+		sarwin.MsgPrintln(g, "red_black", "We Scrolled past length of v", err)
 		_, oy := v.Origin()
-		// sarscreen.MsgPrintf(g,  "red_black", "Origin reset ox=%d oy=%d\n", ox, oy)
+		// sarwin.MsgPrintf(g,  "red_black", "Origin reset ox=%d oy=%d\n", ox, oy)
 		if err := v.SetOrigin(0, oy+1); err != nil { // changed xpos to 0
-			// sarscreen.MsgPrintln(g,  "red_black", "SetOrigin Error:", err)
+			// sarwin.MsgPrintln(g,  "red_black", "SetOrigin Error:", err)
 			return err
 		}
 		// Set the cursor to last line in v
 		if verr := v.SetCursor(xpos, cy); verr != nil {
-			sarscreen.MsgPrintln(g, "bwite_red", "Setcursor out of bounds:", verr)
+			sarwin.MsgPrintln(g, "bwite_red", "Setcursor out of bounds:", verr)
 		}
 		cx, cy := v.Cursor()
-		sarscreen.MsgPrintf(g, "red_black", "cx=%d cy=%d line=%s\n", cx, cy, line)
+		sarwin.MsgPrintf(g, "red_black", "cx=%d cy=%d line=%s\n", cx, cy, line)
 	}
 	// Put up the new prompt on the next line
-	sarscreen.CmdPrintf(g, "yellow_black", "\n%s[%d]:", Cinfo.Prompt, Cinfo.Curline)
+	sarwin.CmdPrintf(g, "yellow_black", "\n%s[%d]:", Cinfo.Prompt, Cinfo.Curline)
 	return nil
 }
 
@@ -261,25 +261,19 @@ var FirstPass = true
 // CmdLines - Number of lines in Cmd View
 var CmdLines int
 
-// MaxX - Maximum screen X Value
-var MaxX int
-
-// MaxY - Maximum screen Y Value
-var MaxY int
-
 func layout(g *gocui.Gui) error {
 
 	var err error
 	var cmd *gocui.View
 	var msg *gocui.View
 
-	ratio := 4 // Ratio of cmd to err views
-	maxX, maxY := g.Size()
-	MaxX = maxX
-	MaxY = maxY
+	ratio := 4 // Ratio of cmd to msg views
+
+	// Maximum size of x and y
+	maxx, maxy := g.Size()
 	// This is the command line input view -- cli inputs and return messages go here
-	if cmd, err = g.SetView("cmd", 0, maxY-(maxY/ratio)+1, maxX-1, maxY-1); err != nil {
-		CmdLines = (maxY / ratio) - 3 // Number of input lines in cmd view
+	if cmd, err = g.SetView("cmd", 0, maxy-(maxy/ratio)+1, maxx-1, maxy-1); err != nil {
+		CmdLines = (maxx / ratio) - 3 // Number of input lines in cmd view
 		if err != gocui.ErrUnknownView {
 			return err
 		}
@@ -292,7 +286,7 @@ func layout(g *gocui.Gui) error {
 		cmd.Wrap = true
 	}
 	// This is the message view window - Status & error messages go here
-	if msg, err = g.SetView("msg", 0, 0, maxX-1, maxY-maxY/ratio); err != nil {
+	if msg, err = g.SetView("msg", 0, 0, maxx-1, maxy-maxy/ratio); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
@@ -315,7 +309,7 @@ func layout(g *gocui.Gui) error {
 		cmd.SetCursor(0, 0)
 		Cinfo.Curline = 0
 		prompt := fmt.Sprintf("%s[%d]:", Cinfo.Prompt, Cinfo.Curline)
-		sarscreen.CmdPrintf(g, "yellow_black", prompt)
+		sarwin.CmdPrintf(g, "yellow_black", prompt)
 		cmd.SetCursor(promptlen(Cinfo), 0)
 		FirstPass = false
 	}
@@ -333,23 +327,23 @@ func reqrxhandler(g *gocui.Gui, r request.Request, remoteAddr *net.UDPAddr) stri
 			// No matching request so add a new transfer
 			var err error
 			if err = transfer.SNew(g, reqtype, r, remoteAddr.IP.String(), r.Session); err == nil {
-				sarscreen.MsgPrintln(g, "yellow_black", "Created Request", reqtype, "from",
+				sarwin.MsgPrintln(g, "yellow_black", "Created Request", reqtype, "from",
 					sarnet.UDPinfo(remoteAddr),
 					"session", r.Session)
 				return "success"
 			}
-			sarscreen.MsgPrintln(g, "red_black", "Cannot create Request", reqtype, "from",
+			sarwin.MsgPrintln(g, "red_black", "Cannot create Request", reqtype, "from",
 				sarnet.UDPinfo(remoteAddr),
 				"session", r.Session, err)
 			return "badrequest"
 		}
 		// Request is currently in progress
-		sarscreen.MsgPrintln(g, "red_black", "Request", reqtype, "from",
+		sarwin.MsgPrintln(g, "red_black", "Request", reqtype, "from",
 			sarnet.UDPinfo(remoteAddr),
 			"for session", r.Session, "already in progress")
 		return "badrequest"
 	default:
-		sarscreen.MsgPrintln(g, "red_black", "Invalid Request from",
+		sarwin.MsgPrintln(g, "red_black", "Invalid Request from",
 			sarnet.UDPinfo(remoteAddr),
 			"session", r.Session)
 		return "badrequest"
@@ -359,18 +353,18 @@ func reqrxhandler(g *gocui.Gui, r request.Request, remoteAddr *net.UDPAddr) stri
 // Metadata handler for Server
 func metrxhandler(g *gocui.Gui, m metadata.MetaData, remoteAddr *net.UDPAddr) string {
 	// Handle the metadata
-	// sarscreen.MsgPrintln(g,  "green_black", m.Print())
+	// sarwin.MsgPrintln(g,  "green_black", m.Print())
 	var t *transfer.STransfer
 	if t = transfer.SMatch(remoteAddr.IP.String(), m.Session); t != nil {
 		if err := t.SChange(g, m); err != nil { // Size of file has changed!!!
 			return "unspecified"
 		}
-		sarscreen.MsgPrintln(g, "yellow_black", "Changed Transfer", m.Session, "from",
+		sarwin.MsgPrintln(g, "yellow_black", "Changed Transfer", m.Session, "from",
 			sarnet.UDPinfo(remoteAddr))
 		return "success"
 	}
 	// Request is currently in progress
-	sarscreen.MsgPrintln(g, "red_black", "Metadata received for no such transfer as", m.Session, "from",
+	sarwin.MsgPrintln(g, "red_black", "Metadata received for no such transfer as", m.Session, "from",
 		sarnet.UDPinfo(remoteAddr))
 	return "badpacket"
 }
@@ -378,7 +372,7 @@ func metrxhandler(g *gocui.Gui, m metadata.MetaData, remoteAddr *net.UDPAddr) st
 // Data handler for server
 func datrxhandler(g *gocui.Gui, d data.Data, conn *net.UDPConn, remoteAddr *net.UDPAddr) string {
 	// Handle the data
-	// sarscreen.MsgPrintln(g,  "green_black", m.Print())
+	// sarwin.MsgPrintln(g,  "green_black", m.Print())
 	var t *transfer.STransfer
 	if t = transfer.SMatch(remoteAddr.IP.String(), d.Session); t != nil {
 		// t.SData(g, d, conn, remoteAddr) // The data handler for the transfer
@@ -407,14 +401,14 @@ func datrxhandler(g *gocui.Gui, d data.Data, conn *net.UDPConn, remoteAddr *net.
 			// Send back a status to the client to tell it a success with creating the transfer
 			transfer.WriteStatus(g, t, stheader, conn, remoteAddr)
 		}
-		sarscreen.MsgPrintln(g, "yellow_black", "Server Recieved Data Len:", len(d.Payload), "Pos:", d.Offset)
+		sarwin.MsgPrintln(g, "yellow_black", "Server Recieved Data Len:", len(d.Payload), "Pos:", d.Offset)
 		transfer.Strmu.Unlock()
-		sarscreen.MsgPrintln(g, "yellow_black", "Changed Transfer", d.Session, "from",
+		sarwin.MsgPrintln(g, "yellow_black", "Changed Transfer", d.Session, "from",
 			sarnet.UDPinfo(remoteAddr))
 		return "success"
 	}
 	// No transfer is currently in progress
-	sarscreen.MsgPrintln(g, "red_black", "Data received for no such transfer as", d.Session, "from",
+	sarwin.MsgPrintln(g, "red_black", "Data received for no such transfer as", d.Session, "from",
 		sarnet.UDPinfo(remoteAddr))
 	return "badpacket"
 }
@@ -448,21 +442,21 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 		// Read into buf
 		framelen, remoteAddr, err = conn.ReadFromUDP(buf)
 		if err != nil {
-			sarscreen.MsgPrintln(g, "red_black", "Sarataga listener failed:", err)
+			sarwin.MsgPrintln(g, "red_black", "Sarataga listener failed:", err)
 			quit <- err
 			return
 		}
-		sarscreen.MsgPrintln(g, "green_black", "Listen read", framelen, "bytes from", remoteAddr.String())
+		sarwin.MsgPrintln(g, "green_black", "Listen read", framelen, "bytes from", remoteAddr.String())
 
 		// Very basic frame checks before we get into what it is
 		if framelen < 8 {
 			// Saratoga packet too small
-			sarscreen.MsgPrintln(g, "red_black", "Rx Saratoga Frame too short from ",
+			sarwin.MsgPrintln(g, "red_black", "Rx Saratoga Frame too short from ",
 				sarnet.UDPinfo(remoteAddr))
 			continue
 		}
 		if framelen > maxframesize {
-			sarscreen.MsgPrintln(g, "red_black", "Rx Saratoga Frame too long", framelen,
+			sarwin.MsgPrintln(g, "red_black", "Rx Saratoga Frame too long", framelen,
 				"from", sarnet.UDPinfo(remoteAddr))
 			continue
 		}
@@ -478,7 +472,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 				// Bad Packet send back a Status to the client
 				var se status.Status
 				_ = se.New("errcode=badpacket", 0, 0, 0, nil)
-				sarscreen.MsgPrintln(g, "red_black", "Not Saratoga Version 1 Frame from ",
+				sarwin.MsgPrintln(g, "red_black", "Not Saratoga Version 1 Frame from ",
 					sarnet.UDPinfo(remoteAddr))
 			}
 			continue
@@ -490,13 +484,13 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 			var rxb beacon.Beacon
 			if rxerr := rxb.Get(frame); rxerr != nil {
 				// We just drop bad beacons
-				sarscreen.MsgPrintln(g, "red_black", "Bad Beacon:", rxerr, " from ",
+				sarwin.MsgPrintln(g, "red_black", "Bad Beacon:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr))
 				continue
 			}
 			// Handle the beacon
 			if errcode := rxb.Handler(g, remoteAddr); errcode != "success" {
-				sarscreen.MsgPrintln(g, "red_black", "Bad Beacon:", errcode, " from ",
+				sarwin.MsgPrintln(g, "red_black", "Bad Beacon:", errcode, " from ",
 					sarnet.UDPinfo(remoteAddr))
 				continue
 			}
@@ -507,7 +501,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 			var rxerr error
 			if rxerr = r.Get(frame); rxerr != nil {
 				// We just drop bad requests
-				sarscreen.MsgPrintln(g, "red_black", "Bad Request:", rxerr, " from ",
+				sarwin.MsgPrintln(g, "red_black", "Bad Request:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr))
 				continue
 			}
@@ -521,7 +515,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 
 			if errcode != "success" {
 				transfer.WriteErrStatus(g, stheader, session, conn, remoteAddr)
-				sarscreen.MsgPrintln(g, "red_black", "Bad Status:", rxerr, " from ",
+				sarwin.MsgPrintln(g, "red_black", "Bad Status:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr), " session ", session)
 			} else {
 				var t *transfer.STransfer
@@ -541,7 +535,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 				stheader := "descriptor=" + sarflags.GetStr(header, "descriptor")
 				stheader += ",metadatarecvd=no,allholes=yes,reqholes=requested,errcode=badpacket"
 				transfer.WriteErrStatus(g, stheader, session, conn, remoteAddr)
-				sarscreen.MsgPrintln(g, "red_black", "Bad Data:", rxerr, " from ",
+				sarwin.MsgPrintln(g, "red_black", "Bad Data:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr), " session ", session)
 				continue
 			}
@@ -574,7 +568,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 				stheader += ",metadatarecvd=no,allholes=yes,reqholes=requested,"
 				stheader += "errcode=badpacket"
 				_ = se.New(stheader, session, 0, 0, nil)
-				sarscreen.MsgPrintln(g, "red_black", "Bad MetaData:", rxerr, " from ",
+				sarwin.MsgPrintln(g, "red_black", "Bad MetaData:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr), " session ", session)
 				continue
 			}
@@ -585,7 +579,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 				stheader += ",metadatarecvd=no,allholes=yes,reqholes=requested,"
 				stheader += "errcode=" + errcode
 				transfer.WriteErrStatus(g, stheader, session, conn, remoteAddr)
-				sarscreen.MsgPrintln(g, "red_black", "Bad Metadata:", rxerr, " from ",
+				sarwin.MsgPrintln(g, "red_black", "Bad Metadata:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr), " session ", session)
 			}
 			continue
@@ -601,7 +595,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 				stheader += ",metadatarecvd=no,allholes=yes,reqholes=requested,"
 				stheader += "errcode=badpacket"
 				_ = se.New(stheader, session, 0, 0, nil)
-				sarscreen.MsgPrintln(g, "red_black", "Bad Status:", rxerr, " from ",
+				sarwin.MsgPrintln(g, "red_black", "Bad Status:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr), " session ", session)
 				continue
 			} // Handle the status
@@ -611,14 +605,14 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 				stheader += ",metadatarecvd=no,allholes=yes,reqholes=requested,"
 				stheader += "errcode=" + errcode
 				transfer.WriteErrStatus(g, stheader, s.Session, conn, remoteAddr)
-				sarscreen.MsgPrintln(g, "red_black", "Bad Status:", errcode, " from ",
+				sarwin.MsgPrintln(g, "red_black", "Bad Status:", errcode, " from ",
 					sarnet.UDPinfo(remoteAddr), " session ", s.Session)
 			}
 			continue
 
 		default:
 			// Bad Packet drop it
-			sarscreen.MsgPrintln(g, "red_black", "Invalid Saratoga Frame Recieved from ",
+			sarwin.MsgPrintln(g, "red_black", "Invalid Saratoga Frame Recieved from ",
 				sarnet.UDPinfo(remoteAddr))
 		}
 	}
@@ -712,22 +706,22 @@ func main() {
 	// Show Host Interfaces & Address's
 	ifis, ierr := net.Interfaces()
 	if ierr != nil {
-		sarscreen.MsgPrintln(g, "green_black", ierr.Error())
+		sarwin.MsgPrintln(g, "green_black", ierr.Error())
 	}
 	for _, ifi := range ifis {
 		if ifi.Name == os.Args[2] { // || ifi.Name == "lo0" {
-			sarscreen.MsgPrintln(g, "green_black", ifi.Name, "MTU", ifi.MTU, ifi.Flags.String(), ":")
+			sarwin.MsgPrintln(g, "green_black", ifi.Name, "MTU", ifi.MTU, ifi.Flags.String(), ":")
 			adrs, _ := ifi.Addrs()
 			for _, adr := range adrs {
 				if strings.Contains(adr.Network(), "ip") {
-					sarscreen.MsgPrintln(g, "green_black", "\t Unicast ", adr.String(), adr.Network())
+					sarwin.MsgPrintln(g, "green_black", "\t Unicast ", adr.String(), adr.Network())
 				}
 			}
 			madrs, _ := ifi.MulticastAddrs()
 			for _, madr := range madrs {
 				if strings.Contains(madr.String(), Cmdptr.V4Multicast) ||
 					strings.Contains(strings.ToLower(madr.String()), strings.ToLower(Cmdptr.V6Multicast)) {
-					sarscreen.MsgPrintln(g, "green_black", "\t Multicast ", madr.String(), madr.Network())
+					sarwin.MsgPrintln(g, "green_black", "\t Multicast ", madr.String(), madr.Network())
 				}
 			}
 		}
@@ -746,7 +740,7 @@ func main() {
 				log.Fatal(err)
 			}
 			go listen(g, v6mcastcon, v6listenquit)
-			sarscreen.MsgPrintln(g,  "green_black", "Saratoga IPv6 Multicast Listener started on",
+			sarwin.MsgPrintln(g,  "green_black", "Saratoga IPv6 Multicast Listener started on",
 				sarnet.UDPinfo(&v6mcastaddr))
 		}
 	*/
@@ -763,25 +757,25 @@ func main() {
 			log.Fatal(err)
 		}
 		go listen(g, v4mcastcon, v4listenquit)
-		sarscreen.MsgPrintln(g, "green_black", "Saratoga IPv4 Multicast Listener started on",
+		sarwin.MsgPrintln(g, "green_black", "Saratoga IPv4 Multicast Listener started on",
 			sarnet.UDPinfo(&v4mcastaddr))
 	}
 
-	sarscreen.MsgPrintf(g, "green_black", "Saratoga Directory is %s\n", Cmdptr.Sardir)
-	sarscreen.MsgPrintf(g, "green_black", "Available space is %d MB\n",
+	sarwin.MsgPrintf(g, "green_black", "Saratoga Directory is %s\n", Cmdptr.Sardir)
+	sarwin.MsgPrintf(g, "green_black", "Available space is %d MB\n",
 		(uint64(fs.Bsize)*fs.Bavail)/1024/1024)
-	// sarscreen.MsgPrintf(g,  "green_black", "Sizes of Ints is %d\n", sarflags.MaxUint)
+	// sarwin.MsgPrintf(g,  "green_black", "Sizes of Ints is %d\n", sarflags.MaxUint)
 
-	sarscreen.MsgPrintln(g, "green_black", "MaxInt=", sarflags.MaxInt)
-	sarscreen.MsgPrintln(g, "green_black", "MaxUint=", sarflags.MaxUint)
-	sarscreen.MsgPrintln(g, "green_black", "MaxInt16=", sarflags.MaxInt16)
-	sarscreen.MsgPrintln(g, "green_black", "MaxUint16=", sarflags.MaxUint16)
-	sarscreen.MsgPrintln(g, "green_black", "MaxInt32=", sarflags.MaxInt32)
-	sarscreen.MsgPrintln(g, "green_black", "MaxUint32=", sarflags.MaxUint32)
-	sarscreen.MsgPrintln(g, "green_black", "MaxInt64=", sarflags.MaxInt64)
-	sarscreen.MsgPrintln(g, "green_black", "MaxUint64=", sarflags.MaxUint64)
+	sarwin.MsgPrintln(g, "green_black", "MaxInt=", sarflags.MaxInt)
+	sarwin.MsgPrintln(g, "green_black", "MaxUint=", sarflags.MaxUint)
+	sarwin.MsgPrintln(g, "green_black", "MaxInt16=", sarflags.MaxInt16)
+	sarwin.MsgPrintln(g, "green_black", "MaxUint16=", sarflags.MaxUint16)
+	sarwin.MsgPrintln(g, "green_black", "MaxInt32=", sarflags.MaxInt32)
+	sarwin.MsgPrintln(g, "green_black", "MaxUint32=", sarflags.MaxUint32)
+	sarwin.MsgPrintln(g, "green_black", "MaxInt64=", sarflags.MaxInt64)
+	sarwin.MsgPrintln(g, "green_black", "MaxUint64=", sarflags.MaxUint64)
 
-	sarscreen.MsgPrintln(g, "green_black", "Maximum Descriptor is:", sarflags.MaxDescriptor)
+	sarwin.MsgPrintln(g, "green_black", "Maximum Descriptor is:", sarflags.MaxDescriptor)
 
 	// The Base calling functions for Saratoga live in cli.go so look there first!
 	errflag := make(chan error, 1)
