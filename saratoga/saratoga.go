@@ -430,16 +430,6 @@ func starxhandler(g *gocui.Gui, s status.Status, conn *net.UDPConn, remoteAddr *
 	return "success"
 }
 
-// Decode a frame into its structure via Frame interface
-func decode(f frames.Frame, buf []byte) error {
-	return f.Decode(buf)
-}
-
-// Encode a frame into its structure via Frame interface
-func encode(f frames.Frame) ([]byte, error) {
-	return f.Encode()
-}
-
 // Listen -- Go routine for recieving IPv4 & IPv6 for an incoming frames and shunt them off to the
 // correct frame handlers
 func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
@@ -493,7 +483,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 		switch sarflags.GetStr(header, "frametype") {
 		case "beacon":
 			var rxb beacon.Beacon
-			if rxerr := decode(&rxb, frame); rxerr != nil {
+			if rxerr := frames.Decode(&rxb, frame); rxerr != nil {
 				// if rxerr := rxb.Decode(frame); rxerr != nil {
 				// We just drop bad beacons
 				sarwin.MsgPrintln(g, "red_black", "Bad Beacon:", rxerr, " from ",
@@ -511,7 +501,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 			// Handle incoming request
 			var r request.Request
 			var rxerr error
-			if rxerr = decode(&r, frame); rxerr != nil {
+			if rxerr = frames.Decode(&r, frame); rxerr != nil {
 				// We just drop bad requests
 				sarwin.MsgPrintln(g, "red_black", "Bad Request:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr))
@@ -541,7 +531,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 			// Handle incoming data
 			var d data.Data
 			var rxerr error
-			if rxerr = decode(&d, frame); rxerr != nil {
+			if rxerr = frames.Decode(&d, frame); rxerr != nil {
 				session := binary.BigEndian.Uint32(frame[4:8])
 				// Bad Packet send back a Status to the client
 				stheader := "descriptor=" + sarflags.GetStr(header, "descriptor")
@@ -562,7 +552,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 				_ = st.New(stheader, session, 0, 0, nil)
 				var wframe []byte
 				var txerr error
-				if wframe, txerr = encode(&st); txerr == nil {
+				if wframe, txerr = frames.Encode(&st); txerr == nil {
 					conn.WriteToUDP(wframe, remoteAddr)
 				}
 			}
@@ -572,7 +562,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 			// Handle incoming metadata
 			var m metadata.MetaData
 			var rxerr error
-			if rxerr = decode(&m, frame); rxerr != nil {
+			if rxerr = frames.Decode(&m, frame); rxerr != nil {
 				session := binary.BigEndian.Uint32(frame[4:8])
 				var se status.Status
 				// Bad Packet send back a Status to the client
@@ -599,7 +589,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 		case "status":
 			// Handle incoming status
 			var s status.Status
-			if rxerr := decode(&s, frame); rxerr != nil {
+			if rxerr := frames.Decode(&s, frame); rxerr != nil {
 				session := binary.BigEndian.Uint32(frame[4:8])
 				var se status.Status
 				// Bad Packet send back a Status to the client
