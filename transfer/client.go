@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/charlesetsmith/saratoga/data"
+	"github.com/charlesetsmith/saratoga/frames"
 	"github.com/charlesetsmith/saratoga/metadata"
 	"github.com/charlesetsmith/saratoga/request"
 	"github.com/charlesetsmith/saratoga/sarflags"
@@ -104,21 +105,14 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 		// Process the status header
 		if sarflags.GetStr(header, "metadatarecvd") == "no" {
 			// No metadata has been received yet so send/resend it
-			var wframe []byte
-			var err error
-			if wframe, err = m.Encode(); err != nil { // Send/Resend the Metadata
-				errflag <- "badrequest"
-				return
-			}
-			_, err = conn.Write(wframe)
-			if err != nil {
-				errflag <- "cantsend"
+			if retcode := frames.UDPWrite(m, conn); retcode != "success" {
+				errflag <- retcode
 				return
 			}
 		}
 		// We have "success" so Decode into a Status
 		var st status.Status
-		if err := st.Decode(rframe); err != nil {
+		if err := frames.Decode(&st, rframe); err != nil {
 			sarwin.MsgPrintln(g, "red_black", "Bad Status with error:", err)
 			errflag <- "badstatus"
 			return
@@ -166,12 +160,8 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 				}
 
 				df.New(dflags, t.session, uint64(pstart), buf[pstart:pend]) // Create the Data
-				if wframe, err := df.Encode(); err != nil {
-					sarwin.MsgPrintln(g, "blue_black", "We have a bad df.New:", df.Print())
-					errflag <- "badoffset"
-					return
-				} else if _, err = conn.Write(wframe); err != nil { // And send it
-					errflag <- "cantsend"
+				if retcode := frames.UDPWrite(&df, conn); retcode != "success" {
+					errflag <- retcode
 					return
 				}
 			}
@@ -228,12 +218,8 @@ func senddata(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 			return
 		}
 		// sarwin.MsgPrintln(g,  "red_black", "Data Frame to Write is:", d.Print())
-		if wframe, err := d.Encode(); err != nil {
-			errflag <- "badpacket"
-			return
-		} else if _, err = conn.Write(wframe); err != nil { // And send it
-			errflag <- "cantsend"
-			return
+		if retcode := frames.UDPWrite(&d, conn); retcode != "success" {
+			errflag <- retcode
 		}
 		curpos += uint64(nread)
 		// sarwin.MsgPrintln(g,  "yellow_black", "Data Frame Written is:", d.Print(), "nread=", nread, "curpos=", curpos)
@@ -401,7 +387,6 @@ var clienthandler = map[string]clientfunc{
 //
 func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	var err error
-	var wframe []byte // The frame to write
 	var fp *os.File
 	var pos int64
 
@@ -457,18 +442,12 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 		errflag <- "badrequest"
 		return
 	}
-	if wframe, err = r.Encode(); err != nil {
+	if retcode := frames.UDPWrite(r, conn); retcode != "success" {
 		conn.Close()
-		errflag <- "badrequest"
+		errflag <- retcode
 		return
 	}
-	// Send the request frame
-	_, err = conn.Write(wframe)
-	if err != nil {
-		conn.Close()
-		errflag <- "cantsend"
-		return
-	}
+
 	sarwin.MsgPrintln(g, "green_black", "Sent:", t.Print())
 	sarwin.MsgPrintln(g, "green_black", "CTransfer Request Sent to",
 		t.peer.String())
@@ -486,16 +465,9 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 		errflag <- "badrequest"
 		return
 	}
-	if wframe, err = m.Encode(); err != nil {
+	if retcode := frames.UDPWrite(m, conn); retcode != "success" {
 		conn.Close()
-		errflag <- "badrequest"
-		return
-	}
-	// Send the initial metadata frame
-	_, err = conn.Write(wframe)
-	if err != nil {
-		conn.Close()
-		errflag <- "cantsend"
+		errflag <- retcode
 		return
 	}
 
@@ -550,7 +522,6 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 // client blind put a file
 func cputblind(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	var err error
-	var wframe []byte // The frame to write
 	var pos int64
 
 	// Open the local data file for reading only
@@ -578,8 +549,13 @@ func cputblind(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	} else { // IPv4
 		udpad = t.peer.String() + ":" + strconv.Itoa(t.cliflags.Port)
 	}
-	conn, err := net.Dial("udp", udpad)
-	if err != nil {
+	var udpaddr *net.UDPAddr
+	if udpaddr, err = net.ResolveUDPAddr("udp", udpad); err != nil {
+		errflag <- "cantsend"
+		return
+	}
+	var conn *net.UDPConn
+	if conn, err = net.DialUDP("udp", nil, udpaddr); err != nil {
 		errflag <- "cantsend"
 		return
 	}
@@ -596,17 +572,11 @@ func cputblind(t *CTransfer, g *gocui.Gui, errflag chan string) {
 		errflag <- "badrequest"
 		return
 	}
-	if wframe, err = m.Encode(); err != nil {
-		errflag <- "badrequest"
+	if retcode := frames.UDPWrite(m, conn); retcode != "success" {
+		errflag <- retcode
 		return
 	}
 
-	// Send the initial metadata frame
-	_, err = conn.Write(wframe)
-	if err != nil {
-		errflag <- "cantsend"
-		return
-	}
 	sarwin.MsgPrintln(g, "green_black", "Sent:", t.Print())
 	sarwin.MsgPrintln(g, "green_black", "CTransfer Metadata Sent for blind put to",
 		t.peer.String())

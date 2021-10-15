@@ -6,8 +6,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"net"
 	"strings"
 
+	"github.com/charlesetsmith/saratoga/frames"
 	"github.com/charlesetsmith/saratoga/sarflags"
 	"github.com/charlesetsmith/saratoga/timestamp"
 )
@@ -246,4 +248,9 @@ func (d Data) ShortPrint() string {
 	sflag += fmt.Sprintf("offset:%d,", d.Offset)
 	sflag += fmt.Sprintf("Payloadlen:%d", len(d.Payload))
 	return sflag
+}
+
+// Send a data out the UDP connection
+func (d *Data) UDPWrite(conn *net.UDPConn) string {
+	return frames.UDPWrite(d, conn)
 }

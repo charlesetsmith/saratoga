@@ -6,8 +6,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"net"
 	"strings"
 
+	"github.com/charlesetsmith/saratoga/frames"
 	"github.com/charlesetsmith/saratoga/sarflags"
 )
 
@@ -141,4 +143,9 @@ func (r *Request) Print() string {
 // Print - Print out details of Request struct
 func (r *Request) ShortPrint() string {
 	return r.Print()
+}
+
+// Send a request out the UDP connection
+func (r *Request) UDPWrite(conn *net.UDPConn) string {
+	return frames.UDPWrite(r, conn)
 }

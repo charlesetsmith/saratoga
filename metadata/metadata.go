@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"strings"
 
@@ -277,4 +278,9 @@ func (m MetaData) Print() string {
 // ShortPrint - Print out details of MetaData struct
 func (m MetaData) ShortPrint() string {
 	return m.Print()
+}
+
+// Send a metadata out the UDP connection
+func (m *MetaData) UDPWrite(conn *net.UDPConn) string {
+	return frames.UDPWrite(m, conn)
 }

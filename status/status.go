@@ -6,8 +6,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"net"
 	"strings"
 
+	"github.com/charlesetsmith/saratoga/frames"
 	"github.com/charlesetsmith/saratoga/holes"
 	"github.com/charlesetsmith/saratoga/sarflags"
 	"github.com/charlesetsmith/saratoga/timestamp"
@@ -53,7 +55,9 @@ func (s *Status) New(flags string, session uint32, progress uint64, inrespto uin
 			if err = s.Tstamp.Now(f[0]); err != nil {
 				return err
 			}
-			s.Header, err = sarflags.Set(s.Header, "reqtsamp", "yes")
+			if s.Header, err = sarflags.Set(s.Header, "reqtsamp", "yes"); err != nil {
+				return err
+			}
 		default:
 			e := "Invalid Flag " + f[0] + " for Status Frame"
 			return errors.New(e)
@@ -116,7 +120,7 @@ func (s Status) Encode() ([]byte, error) {
 	case "d64":
 		dsize = 8
 	default:
-		return nil, errors.New("Invalid descriptor in Status frame")
+		return nil, errors.New("invalid descriptor in status frame")
 	}
 	framelen += (dsize*2 + (dsize * len(s.Holes) * 2)) // progress + inrespto + holes
 	frame := make([]byte, framelen)
@@ -233,7 +237,7 @@ func (s *Status) Decode(frame []byte) error {
 			s.Holes = append(s.Holes, holes.Hole{Start: start, End: end})
 		}
 	default:
-		return errors.New("Invalid descriptor in Status frame")
+		return errors.New("invalid descriptor in status frame")
 	}
 	return nil
 }
@@ -261,4 +265,9 @@ func (s Status) Print() string {
 // ShortPrint - Quick print out of Status struct
 func (s Status) ShortPrint() string {
 	return s.Print()
+}
+
+// Send a status out the UDP connection
+func (s *Status) UDPWrite(conn *net.UDPConn) string {
+	return frames.UDPWrite(s, conn)
 }

@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/charlesetsmith/saratoga/frames"
 	"github.com/charlesetsmith/saratoga/sarflags"
 	"github.com/charlesetsmith/saratoga/sarwin"
 	"github.com/charlesetsmith/saratoga/timestamp"
@@ -340,4 +341,9 @@ func (b *Beacon) NewPeer(from *net.UDPAddr) bool {
 	defer pmu.Unlock()
 	Peers = append(Peers, newp)
 	return true
+}
+
+// Send a beacon out the UDP connection
+func (b *Beacon) UDPWrite(conn *net.UDPConn) string {
+	return frames.UDPWrite(b, conn)
 }
