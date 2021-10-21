@@ -11,30 +11,13 @@ import (
 // Frame - Handler for different frames
 // 	beacon, data, metadata, request, status
 type Frame interface {
-	Encode() ([]byte, error)      // Encode from frame struct into []bytes
-	Decode([]byte) error          // Decode from []bytes into frame struct (beacon, request, data, metadata, status)
-	Print() string                // Print out contents of some type of frame
-	ShortPrint() string           // Quick summary print out of some type of frame
-	UDPWrite(*net.UDPConn) string // "success" is OK any other string is sent back to callier on channel
-	New(string, interface{}) error
-	Make(uint32, interface{}) error
-
-	/*
-		New() error
-		Make() error
-
-		NewData(flags string, session uint32, offset uint64, payload []byte) error
-		NewRequest(flags string, session uint32, fname string, auth []byte) error
-		NewMetaData(flags string, session uint32, fname string) error
-		NewStatus(flags string, session uint32, progress uint64, inrespto uint64, holes holes.Holes) error
-		NewBeacon(flags string) error
-
-		MakeData(header uint32, session uint32, offset uint64, payload []byte) error
-		MakeRequest(header uint32, session uint32, fname string, auth []byte) error
-		MakeMetadata(header uint32, session uint32, fname string) error
-		MakeStatus(header uint32, session uint32, progress uint64, inrespto uint64, holes holes.Holes) error
-		MakeBeacon(header uint32, eid string, freespace uint64) error
-	*/
+	Encode() ([]byte, error)        // Encode from frame struct into []bytes
+	Decode([]byte) error            // Decode from []bytes into frame struct (beacon, request, data, metadata, status)
+	Print() string                  // Print out contents of some type of frame
+	ShortPrint() string             // Quick summary print out of some type of frame
+	UDPWrite(*net.UDPConn) string   // "success" is OK any other string is sent back to callier on channel
+	New(string, interface{}) error  // Create New Frame with flags & info via interface
+	Make(uint32, interface{}) error //Make New Frame with header & info voa interface
 }
 
 // Decode a frame into its structure via Frame interface
@@ -62,6 +45,9 @@ func UDPWrite(f Frame, conn *net.UDPConn) string {
 	var wframe []byte
 	var err error
 	if wframe, err = Encode(f); err != nil {
+		return "badpacket"
+	}
+	if len(wframe) <= 0 {
 		return "badpacket"
 	}
 	if _, err = conn.Write(wframe); err != nil { // And send it
