@@ -152,6 +152,7 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 			// Loop around re-sending data frames for the hole
 			for fc := 0; fc < dframes; fc++ { // Bump frame counter
 				var df data.Data
+				d := &df
 				pstart := rlen - (fc * plen)
 				if pstart+plen > int(h.End) {
 					pend = int(h.End) // Last frame may be shorter
@@ -159,11 +160,11 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 					pend = pstart + plen
 				}
 				dinfo := data.Dinfo{Session: t.session, Offset: uint64(pstart), Payload: buf[pstart:pend]}
-				if frames.New(&df, dflags, &dinfo) != nil {
+				if frames.New(d, dflags, &dinfo) != nil {
 					errflag <- "badpacket"
 					return
 				} // Create the Data
-				if retcode := frames.UDPWrite(&df, conn); retcode != "success" {
+				if retcode := frames.UDPWrite(d, conn); retcode != "success" {
 					errflag <- retcode
 					return
 				}
@@ -215,14 +216,15 @@ func senddata(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 
 		// OK so create the data frame and send it
 		var df data.Data
+		d := &df
 
 		dinfo := data.Dinfo{Session: t.session, Offset: curpos, Payload: rbuf[:nread]}
-		if frames.New(&df, flags, &dinfo) != nil {
+		if frames.New(d, flags, &dinfo) != nil {
 			errflag <- "badpacket"
 			return
 		}
 		// sarwin.MsgPrintln(g,  "red_black", "Data Frame to Write is:", d.Print())
-		if retcode := frames.UDPWrite(&df, conn); retcode != "success" {
+		if retcode := frames.UDPWrite(d, conn); retcode != "success" {
 			errflag <- retcode
 		}
 		curpos += uint64(nread)
