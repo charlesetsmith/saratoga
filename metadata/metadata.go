@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"reflect"
 	"strings"
 
 	"github.com/charlesetsmith/saratoga/dirent"
@@ -21,6 +22,11 @@ type MetaData struct {
 	Session  uint32
 	Checksum []byte
 	Dir      dirent.DirEnt
+}
+
+type Minfo struct {
+	Session uint32
+	Fname   string
 }
 
 // THERE MIGHT BE PROBLEMS HERE with direntflags
@@ -93,7 +99,8 @@ func statfile(fname string, header uint32) (string, error) {
 
 // New - Construct a Metadata structure
 // Flags is of format "flagname1=flagval1,flagname2=flagval2...
-func (m *MetaData) New(flags string, session uint32, fname string) error {
+// func (m *MetaData) New(flags string, session uint32, fname string) error {
+func (m *MetaData) New(flags string, info interface{}) error {
 
 	var err error
 
@@ -104,8 +111,7 @@ func (m *MetaData) New(flags string, session uint32, fname string) error {
 	if m.Header, err = sarflags.Set(m.Header, "frametype", "metadata"); err != nil {
 		return err
 	}
-	var direntflags string // Particular Flags for directory entry
-	var csumtype string    // Checksum type
+	var csumtype string // Checksum type
 
 	// Grab the flags and set the frame header
 	flag := strings.Split(flags, ",") // The name=val of the flag
@@ -139,15 +145,21 @@ func (m *MetaData) New(flags string, session uint32, fname string) error {
 		}
 	}
 
+	var fname string
+	var direntflags string // Particular Flags for directory entry
+
+	e := reflect.ValueOf(info).Elem()
+	// Get Session and filename from Minfo interface struct
+	m.Session = uint32(e.FieldByName("Session").Uint())
+	fname = e.FieldByName("Session").String()
 	if direntflags, err = statfile(fname, m.Header); err != nil {
 		return err
 	}
-	// Directory Entry
+	// Create Directory Entry
 	if err = m.Dir.New(direntflags, fname); err != nil {
 		return err
 	}
 
-	m.Session = session
 	// Checksum calculation
 	if sarflags.GetStr(m.Header, "transfer") != "stream" {
 		// Make sure we dont try and calc a checksum of a named pipe (it will wait forever)
@@ -164,12 +176,12 @@ func (m *MetaData) New(flags string, session uint32, fname string) error {
 	} else {
 		m.Checksum = nil
 	}
-
 	return nil
 }
 
 // Make - Construct a Metadata structure given a header
-func (m *MetaData) Make(header uint32, session uint32, fname string) error {
+// func (m *MetaData) Make(header uint32, session uint32, fname string) error {
+func (m *MetaData) Make(header uint32, info interface{}) error {
 
 	var err error
 
@@ -179,9 +191,14 @@ func (m *MetaData) Make(header uint32, session uint32, fname string) error {
 	if header, err = sarflags.Set(header, "frametype", "metadata"); err != nil {
 		return err
 	}
+	m.Header = header
 
+	var fname string
+	e := reflect.ValueOf(info).Elem()
+	m.Session = uint32(e.FieldByName("Session").Uint())
+	fname = e.FieldByName("Session").String()
 	var direntflags string
-	if direntflags, err = statfile(fname, header); err != nil {
+	if direntflags, err = statfile(fname, m.Header); err != nil {
 		return err
 	}
 	// Directory Entry
@@ -189,8 +206,6 @@ func (m *MetaData) Make(header uint32, session uint32, fname string) error {
 		return err
 	}
 
-	m.Header = header
-	m.Session = session
 	// Make sure we dont try and calc a checksum of a named pipe "stream" (it will wait forever)
 	if sarflags.GetStr(m.Header, "transfer") != "stream" {
 		var checksum []byte

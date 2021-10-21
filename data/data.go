@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"reflect"
 	"strings"
 
 	"github.com/charlesetsmith/saratoga/frames"
@@ -18,7 +19,14 @@ import (
 type Data struct {
 	Header  uint32
 	Session uint32
-	Tstamp  timestamp.Timestamp
+	Tstamp  timestamp.Timestamp // This is set at the time of creation of the Data stuct i.e. Now
+	Offset  uint64
+	Payload []byte
+}
+
+// Data info struct we send to Interface for creation in New and Make
+type Dinfo struct {
+	Session uint32
 	Offset  uint64
 	Payload []byte
 }
@@ -26,7 +34,8 @@ type Data struct {
 // New - Construct a data frame - return byte slice of frame and Data structure
 // Flags is of format "flagname1=flagval1,flagname2=flagval2...
 // The timestamp type to use is also in the flags as "timestamp=flagval"
-func (d *Data) New(flags string, session uint32, offset uint64, payload []byte) error {
+// func (d *Data) New(flags string, session uint32, offset uint64, payload []byte) error {
+func (d *Data) New(flags string, info interface{}) error {
 
 	var err error
 
@@ -70,36 +79,60 @@ func (d *Data) New(flags string, session uint32, offset uint64, payload []byte) 
 				if err = d.Tstamp.Now("posix32"); err != nil { // Set the timestamp to right now
 					return err
 				}
+			default:
+				e := "invalid timestamp type in data - " + f[1]
+				return errors.New(e)
 			}
 		default:
 			e := "Invalid Flag " + f[0] + " for Data Frame"
 			return errors.New(e)
 		}
 	}
-	d.Session = session
-	d.Offset = offset
-	d.Payload = make([]byte, len(payload))
-	copy(d.Payload, payload)
+
+	e := reflect.ValueOf(info).Elem()
+	// Assign the values from the interface Dinfo structure
+	d.Session = uint32(e.FieldByName("Session").Uint())
+	d.Offset = e.FieldByName("Offset").Uint()
+	copy(d.Payload, e.FieldByName("Payload").Bytes())
 	return nil
 }
 
 // Make - Construct a data frame with a given header - return byte slice of frame and Data structure
-func (d *Data) Make(header uint32, session uint32, offset uint64, payload []byte) error {
+// func (d *Data) Make(header uint32, session uint32, offset uint64, payload []byte) error {
+func (d *Data) Make(header uint32, info interface{}) error {
 
 	var err error
 
-	if header, err = sarflags.Set(header, "version", "v1"); err != nil {
+	d.Header = header
+	if d.Header, err = sarflags.Set(d.Header, "version", "v1"); err != nil {
 		return err
 	}
-	if header, err = sarflags.Set(header, "frametype", "data"); err != nil {
+	if d.Header, err = sarflags.Set(d.Header, "frametype", "data"); err != nil {
 		return err
 	}
 
-	d.Header = header
-	d.Session = session
-	d.Offset = offset
-	d.Payload = make([]byte, len(payload))
-	copy(d.Payload, payload)
+	tstamp := sarflags.GetStr(d.Header, "reqtstamp")
+	switch tstamp {
+	case "no":
+		// Don't do anything it's already set to no
+	case "localinterp", "posix32", "posix64", "posix32_32", "posix64_32", "epoch2000_32":
+		if err = d.Tstamp.Now(tstamp); err != nil { // Set the timestamp to right now
+			return err
+		}
+	case "yes":
+		if err = d.Tstamp.Now("posix32"); err != nil { // Set the timestamp to right now
+			return err
+		}
+	default:
+		return errors.New("invalid timestamp type in data")
+	}
+
+	e := reflect.ValueOf(info).Elem()
+	// Assign the values from the interface Dinfo structure
+	d.Session = uint32(e.FieldByName("Session").Uint())
+	d.Offset = e.FieldByName("Offset").Uint()
+	copy(d.Payload, e.FieldByName("Payload").Bytes())
+
 	return nil
 }
 

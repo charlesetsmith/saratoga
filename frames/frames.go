@@ -11,11 +11,13 @@ import (
 // Frame - Handler for different frames
 // 	beacon, data, metadata, request, status
 type Frame interface {
-	Encode() ([]byte, error)      // Put some type of frame
-	Decode([]byte) error          // Get some type of frame
+	Encode() ([]byte, error)      // Encode from frame struct into []bytes
+	Decode([]byte) error          // Decode from []bytes into frame struct (beacon, request, data, metadata, status)
 	Print() string                // Print out contents of some type of frame
 	ShortPrint() string           // Quick summary print out of some type of frame
-	UDPWrite(*net.UDPConn) string // "" is OK any other string is sent back on
+	UDPWrite(*net.UDPConn) string // "success" is OK any other string is sent back to callier on channel
+	New(string, interface{}) error
+	Make(uint32, interface{}) error
 
 	/*
 		New() error
@@ -66,4 +68,12 @@ func UDPWrite(f Frame, conn *net.UDPConn) string {
 		return "cantsend"
 	}
 	return "success"
+}
+
+func New(f Frame, header string, info interface{}) error {
+	return f.New(header, info)
+}
+
+func Make(f Frame, header uint32, info interface{}) error {
+	return f.Make(header, info)
 }

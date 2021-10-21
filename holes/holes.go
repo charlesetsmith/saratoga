@@ -26,7 +26,7 @@ type Hole struct {
 }
 
 // Holes - Slices of Hole or Fill
-// The MUST be sorted, thats why Add has a sort in it to reorder the Holes
+// This MUST be sorted, thats why Add has a sort in it to reorder the Holes
 type Holes []Hole
 
 // Removes an entry from Holes slice

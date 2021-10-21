@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -27,9 +28,13 @@ type Beacon struct {
 	Freespace uint64 // Set in b.New
 	Eid       string // This changes depending upon Host IP Address. Set in "b.Send"
 }
+type Binfo struct {
+	Freespace uint64
+	Eid       string
+}
 
-// New - Construct a beacon - Fill in the Beacon struct - Not EID we do that in Send
-func (b *Beacon) New(flags string) error {
+// New - Construct a beacon - Fill in the Beacon struct
+func (b *Beacon) New(flags string, info interface{}) error {
 	var err error
 
 	// Always present in a Beacon
@@ -73,9 +78,14 @@ func (b *Beacon) New(flags string) error {
 			return errors.New(e)
 		}
 	}
-	b.Eid = ""
+	e := reflect.ValueOf(info).Elem()
+	// Set the Eid to what is passed in from binfo (normally "")
+	b.Eid = e.FieldByName("Eid").String()
 
 	if sarflags.GetStr(b.Header, "freespace") == "yes" {
+		// Assign the values from the interface Dinfo structure
+		b.Freespace = e.FieldByName("Freespace").Uint()
+
 		// Ignore if freespaced is set, just set it to the correct size
 		var fs syscall.Statfs_t
 		var sardir string
@@ -87,13 +97,15 @@ func (b *Beacon) New(flags string) error {
 			return err
 		}
 
-		if err := syscall.Statfs(sardir, &fs); err != nil {
-			b.Header, _ = sarflags.Set(b.Header, "freespace", "no")
-			b.Freespace = 0
-			return nil
-		}
 		// Freespace is number of Kilobytes (1024 bytes) left on disk
-		b.Freespace = (uint64(fs.Bsize) * fs.Bavail) / 1024
+		if b.Freespace == 0 { // It has not been set in info so set it here via Statfs
+			if err := syscall.Statfs(sardir, &fs); err != nil {
+				b.Header, _ = sarflags.Set(b.Header, "freespace", "no")
+				b.Freespace = 0
+				return nil
+			}
+			b.Freespace = (uint64(fs.Bsize) * fs.Bavail) / 1024
+		}
 		if b.Freespace < sarflags.MaxUint16 {
 			b.Header, _ = sarflags.Set(b.Header, "freespaced", "d16")
 			return nil
@@ -109,12 +121,16 @@ func (b *Beacon) New(flags string) error {
 		e := "beacon.New: More than uint64 can hold freespace left - We dont do d128 yet"
 		return errors.New(e)
 	}
+	if sarflags.GetStr(b.Header, "freespace") == "no" {
+		b.Freespace = 0
+	}
 
 	return nil
 }
 
 // Make - Construct a beacon with a given header - return byte slice of frame
-func (b *Beacon) Make(header uint32, eid string, freespace uint64) error {
+// func (b *Beacon) Make(header uint32, eid string, freespace uint64) error {
+func (b *Beacon) Make(header uint32, info interface{}) error {
 	var err error
 
 	// Always present in a Beacon
@@ -125,10 +141,54 @@ func (b *Beacon) Make(header uint32, eid string, freespace uint64) error {
 	if header, err = sarflags.Set(header, "frametype", "beacon"); err != nil {
 		return err
 	}
-
 	b.Header = header
-	b.Freespace = freespace
-	b.Eid = eid
+
+	e := reflect.ValueOf(info).Elem()
+	// Set the Eid to what is passed in from binfo (normally "")
+	b.Eid = e.FieldByName("Eid").String()
+
+	if sarflags.GetStr(b.Header, "freespace") == "yes" {
+		// Assign the values from the interface Dinfo structure
+		b.Freespace = e.FieldByName("Freespace").Uint()
+
+		// Ignore if freespaced is set, just set it to the correct size
+		var fs syscall.Statfs_t
+		var sardir string
+
+		// Where we put/get files from/to
+		if sardir, err = os.Getwd(); err != nil {
+			b.Header, _ = sarflags.Set(b.Header, "freespace", "no")
+			b.Freespace = 0
+			return err
+		}
+
+		// Freespace is number of Kilobytes (1024 bytes) left on disk
+		if b.Freespace == 0 { // It has not been set in info so set it here via Statfs
+			if err := syscall.Statfs(sardir, &fs); err != nil {
+				b.Header, _ = sarflags.Set(b.Header, "freespace", "no")
+				b.Freespace = 0
+				return nil
+			}
+			b.Freespace = (uint64(fs.Bsize) * fs.Bavail) / 1024
+		}
+		if b.Freespace < sarflags.MaxUint16 {
+			b.Header, _ = sarflags.Set(b.Header, "freespaced", "d16")
+			return nil
+		}
+		if b.Freespace < sarflags.MaxUint32 {
+			b.Header, _ = sarflags.Set(b.Header, "freespaced", "d32")
+			return nil
+		}
+		if b.Freespace < sarflags.MaxUint64 {
+			b.Header, _ = sarflags.Set(b.Header, "freespaced", "d64")
+			return nil
+		}
+		e := "beacon.New: More than uint64 can hold freespace left - We dont do d128 yet"
+		return errors.New(e)
+	}
+	if sarflags.GetStr(b.Header, "freespace") == "no" {
+		b.Freespace = 0
+	}
 	return nil
 }
 
@@ -241,7 +301,7 @@ func (b *Beacon) Send(g *gocui.Gui, addr string, port int, count uint, interval 
 	if ad := net.ParseIP(addr); ad != nil {
 		eid = fmt.Sprintf("%s-%d", ad.String(), os.Getpid())
 	} else {
-		errflag <- "badpacket"
+		errflag <- "unknownid"
 		return
 	}
 	txb.Eid = eid

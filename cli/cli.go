@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/charlesetsmith/saratoga/beacon"
+	"github.com/charlesetsmith/saratoga/frames"
 	"github.com/charlesetsmith/saratoga/sarflags"
 	"github.com/charlesetsmith/saratoga/sarwin"
 	"github.com/charlesetsmith/saratoga/transfer"
@@ -61,7 +62,8 @@ func sendbeacons(g *gocui.Gui, flags string, count uint, interval uint, host str
 	}
 	// Loop thru the address(s) for the host and send beacons to them
 	for _, addr := range addrs {
-		if err := txb.New(flags); err == nil {
+		binfo := beacon.Binfo{Freespace: 0, Eid: ""}
+		if err := frames.New(&txb, flags, &binfo); err == nil {
 			go txb.Send(g, addr, port, count, interval, errflag)
 			errcode := <-errflag
 			if errcode != "success" {

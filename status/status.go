@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"reflect"
 	"strings"
 
 	"github.com/charlesetsmith/saratoga/frames"
@@ -25,10 +26,21 @@ type Status struct {
 	Holes    holes.Holes
 }
 
+type Sinfo struct {
+	Session  uint32
+	Progress uint64
+	Inrespto uint64
+	Holes    holes.Holes
+	Start    []uint64 // Start of Each Hole
+	End      []uint64 // End of Each Hole
+
+}
+
 // New - Construct a Status frame - return byte slice of frame
 // Flags is of format "flagname1=flagval1,flagname2=flagval2...
 // The timestamp type to use is also in the flags as "timestamp=flagval"
-func (s *Status) New(flags string, session uint32, progress uint64, inrespto uint64, holes holes.Holes) error {
+// func (s *Status) New(flags string, session uint32, progress uint64, inrespto uint64, holes holes.Holes) error {
+func (s *Status) New(flags string, info interface{}) error {
 
 	var err error
 
@@ -63,19 +75,23 @@ func (s *Status) New(flags string, session uint32, progress uint64, inrespto uin
 			return errors.New(e)
 		}
 	}
-	s.Session = session
-	s.Progress = progress
-	s.Inrespto = inrespto
-	for i := range holes {
-		s.Holes[i].Start = holes[i].Start
-		s.Holes[i].End = holes[i].End
+	e := reflect.ValueOf(info).Elem()
+	s.Session = uint32(e.FieldByName("Session").Uint())
+	s.Progress = e.FieldByName("Progress").Uint()
+	s.Inrespto = e.FieldByName("Inrespto").Uint()
+	for i := 0; i < e.FieldByName("Holes").Len(); i++ {
+		var h holes.Hole
+		// Get the Start and End from within the Holes Structure
+		h.Start = int(e.FieldByName("Holes").Index(i).FieldByName("Start").Int())
+		h.End = int(e.FieldByName("Holes").Index(i).FieldByName("End").Int())
+		s.Holes = append(s.Holes, h)
 	}
-
 	return nil
 }
 
 // Make - Construct a status frame with a given header
-func (s *Status) Make(header uint32, session uint32, progress uint64, inrespto uint64, holes holes.Holes) error {
+// func (s *Status) Make(header uint32, session uint32, progress uint64, inrespto uint64, holes holes.Holes) error {
+func (s *Status) Make(header uint32, info interface{}) error {
 
 	var err error
 
@@ -87,14 +103,17 @@ func (s *Status) Make(header uint32, session uint32, progress uint64, inrespto u
 	}
 
 	s.Header = header
-	s.Session = session
-	s.Progress = progress
-	s.Inrespto = inrespto
-	for i := range holes {
-		s.Holes[i].Start = holes[i].Start
-		s.Holes[i].End = holes[i].End
+	e := reflect.ValueOf(info).Elem()
+	s.Session = uint32(e.FieldByName("Session").Uint())
+	s.Progress = e.FieldByName("Progress").Uint()
+	s.Inrespto = e.FieldByName("Inrespto").Uint()
+	for i := 0; i < e.FieldByName("Holes").Len(); i++ {
+		var h holes.Hole
+		// Get the Start and End from within the Holes Structure
+		h.Start = int(e.FieldByName("Holes").Index(i).FieldByName("Start").Int())
+		h.End = int(e.FieldByName("Holes").Index(i).FieldByName("End").Int())
+		s.Holes = append(s.Holes, h)
 	}
-
 	return nil
 }
 

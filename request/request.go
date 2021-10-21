@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"reflect"
 	"strings"
 
 	"github.com/charlesetsmith/saratoga/frames"
@@ -20,9 +21,15 @@ type Request struct {
 	Fname   string
 	Auth    []byte
 }
+type Rinfo struct {
+	Session uint32
+	Fname   string
+	Auth    []byte
+}
 
 // New - Construct a request - Fill in the request struct
-func (r *Request) New(flags string, session uint32, fname string, auth []byte) error {
+// func (r *Request) New(flags string, session uint32, fname string, auth []byte) error {
+func (r *Request) New(flags string, info interface{}) error {
 	var err error
 
 	// Always present in a Request
@@ -51,14 +58,17 @@ func (r *Request) New(flags string, session uint32, fname string, auth []byte) e
 			return errors.New(e)
 		}
 	}
-	r.Session = session
-	r.Fname = fname
-	r.Auth = auth
+	e := reflect.ValueOf(info).Elem()
+	r.Session = uint32(e.FieldByName("Session").Uint())
+	r.Fname = e.FieldByName("Fname").String()
+	copy(r.Auth, e.FieldByName("Auth").Bytes())
+
 	return nil
 }
 
 // Make - Construct a request frame with a given header
-func (r *Request) Make(header uint32, session uint32, fname string, auth []byte) error {
+//func (r *Request) Make(header uint32, session uint32, fname string, auth []byte) error {
+func (r *Request) Make(header uint32, info interface{}) error {
 
 	var err error
 
@@ -71,14 +81,12 @@ func (r *Request) Make(header uint32, session uint32, fname string, auth []byte)
 	}
 
 	r.Header = header
-	r.Session = session
-	r.Fname = fname
-	if auth != nil {
-		r.Auth = make([]byte, len(auth))
-		copy(r.Auth, auth)
-	} else {
-		r.Auth = nil
-	}
+
+	e := reflect.ValueOf(info).Elem()
+	r.Session = uint32(e.Elem().FieldByName("Session").Uint())
+	r.Fname = e.FieldByName("Fname").String()
+	copy(r.Auth, e.FieldByName("Auth").Bytes())
+
 	return nil
 }
 
