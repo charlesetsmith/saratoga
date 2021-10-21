@@ -158,8 +158,11 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 				} else {
 					pend = pstart + plen
 				}
-
-				df.New(dflags, t.session, uint64(pstart), buf[pstart:pend]) // Create the Data
+				dinfo := data.Dinfo{Session: t.session, Offset: uint64(pstart), Payload: buf[pstart:pend]}
+				if frames.New(&df, dflags, &dinfo) != nil {
+					errflag <- "badpacket"
+					return
+				} // Create the Data
 				if retcode := frames.UDPWrite(&df, conn); retcode != "success" {
 					errflag <- retcode
 					return
@@ -211,14 +214,15 @@ func senddata(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 		}
 
 		// OK so create the data frame and send it
-		var d data.Data
+		var df data.Data
 
-		if d.New(flags, t.session, curpos, rbuf[:nread]) != nil {
+		dinfo := data.Dinfo{Session: t.session, Offset: curpos, Payload: rbuf[:nread]}
+		if frames.New(&df, flags, &dinfo) != nil {
 			errflag <- "badpacket"
 			return
 		}
 		// sarwin.MsgPrintln(g,  "red_black", "Data Frame to Write is:", d.Print())
-		if retcode := frames.UDPWrite(&d, conn); retcode != "success" {
+		if retcode := frames.UDPWrite(&df, conn); retcode != "success" {
 			errflag <- retcode
 		}
 		curpos += uint64(nread)
@@ -436,7 +440,8 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	rflags += sarflags.Setglobal("request", t.cliflags)
 	rflags = replaceflag(rflags, tdesc)
 	sarwin.MsgPrintln(g, "magenta_black", "Request Flags <", rflags, ">")
-	if err = r.New(rflags, t.session, t.filename, nil); err != nil {
+	rinfo := request.Rinfo{Session: t.session, Fname: t.filename, Auth: nil}
+	if err := frames.New(r, rflags, &rinfo); err != nil {
 		sarwin.MsgPrintln(g, "red_black", "Cannot create request", err.Error())
 		conn.Close()
 		errflag <- "badrequest"
@@ -459,7 +464,8 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	mflags += sarflags.Setglobal("metadata", t.cliflags)
 	mflags = replaceflag(mflags, tdesc)
 	sarwin.MsgPrintln(g, "magenta_black", "Metadata Flags <", mflags, ">")
-	if err = m.New(mflags, t.session, t.filename); err != nil {
+	minfo := metadata.Minfo{Session: t.session, Fname: t.filename}
+	if err = frames.New(m, mflags, &minfo); err != nil {
 		sarwin.MsgPrintln(g, "red_black", "Cannot create metadata", err.Error())
 		conn.Close()
 		errflag <- "badrequest"
@@ -567,7 +573,8 @@ func cputblind(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	mflags := "transfer=file,progress=inprogress,"
 	mflags += sarflags.Setglobal("metadata", t.cliflags)
 	mflags = replaceflag(mflags, tdesc)
-	if err = m.New(mflags, t.session, t.filename); err != nil {
+	minfo := metadata.Minfo{Session: t.session, Fname: t.filename}
+	if err = frames.New(m, mflags, &minfo); err != nil {
 		sarwin.MsgPrintln(g, "red_black", "Cannot create metadata", err.Error())
 		errflag <- "badrequest"
 		return

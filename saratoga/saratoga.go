@@ -472,7 +472,10 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 			if _, err = sarflags.Set(0, "errno", "badpacket"); err != nil {
 				// Bad Packet send back a Status to the client
 				var se status.Status
-				_ = se.New("errcode=badpacket", 0, 0, 0, nil)
+				sinfo := status.Sinfo{Session: 0, Progress: 0, Inrespto: 0, Holes: nil}
+				if frames.New(&se, "errcode=badpacket", &sinfo) != nil {
+					sarwin.MsgPrintln(g, "red_black", "Cannot create badpacket status")
+				}
 				sarwin.MsgPrintln(g, "red_black", "Not Saratoga Version 1 Frame from ",
 					sarnet.UDPinfo(remoteAddr))
 			}
@@ -549,7 +552,10 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 				stheader += "errcode=" + errcode
 				// Send back a status to the client to tell it the error or that we have a success with creating the transfer
 				var st status.Status
-				_ = st.New(stheader, session, 0, 0, nil)
+				sinfo := status.Sinfo{Session: session, Progress: 0, Inrespto: 0, Holes: nil}
+				if frames.New(&st, stheader, &sinfo) != nil {
+					sarwin.MsgPrintln(g, "red_black", "Cannot asemble status")
+				}
 				var wframe []byte
 				var txerr error
 				if wframe, txerr = frames.Encode(&st); txerr == nil {
@@ -569,7 +575,10 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 				stheader := "descriptor=" + sarflags.GetStr(header, "descriptor")
 				stheader += ",metadatarecvd=no,allholes=yes,reqholes=requested,"
 				stheader += "errcode=badpacket"
-				_ = se.New(stheader, session, 0, 0, nil)
+				sinfo := status.Sinfo{Session: session, Progress: 0, Inrespto: 0, Holes: nil}
+				if frames.New(&se, stheader, &sinfo) != nil {
+					sarwin.MsgPrintln(g, "red_black", "Cannot assemble status")
+				}
 				sarwin.MsgPrintln(g, "red_black", "Bad MetaData:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr), " session ", session)
 				continue
@@ -596,7 +605,10 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 				stheader := "descriptor=" + sarflags.GetStr(header, "descriptor")
 				stheader += ",metadatarecvd=no,allholes=yes,reqholes=requested,"
 				stheader += "errcode=badpacket"
-				_ = se.New(stheader, session, 0, 0, nil)
+				sinfo := status.Sinfo{Session: session, Progress: 0, Inrespto: 0, Holes: nil}
+				if frames.New(&se, stheader, &sinfo) != nil {
+					sarwin.MsgPrintln(g, "red_black", "Cannot assemble status")
+				}
 				sarwin.MsgPrintln(g, "red_black", "Bad Status:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr), " session ", session)
 				continue

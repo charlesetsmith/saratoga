@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/charlesetsmith/saratoga/dirent"
+	"github.com/charlesetsmith/saratoga/frames"
 	"github.com/charlesetsmith/saratoga/holes"
 	"github.com/charlesetsmith/saratoga/metadata"
 	"github.com/charlesetsmith/saratoga/request"
@@ -56,19 +57,12 @@ func WriteErrStatus(g *gocui.Gui, flags string, session uint32, conn *net.UDPCon
 		return "success"
 	}
 	var st status.Status
-	if err := st.New(flags, session, 0, 0, nil); err != nil {
+	sinfo := status.Sinfo{Session: session, Progress: 0, Inrespto: 0, Holes: nil}
+	if err := st.New(flags, sinfo); err != nil {
+		// if err := st.New(flags, session, 0, 0, nil); err != nil {
 		return "badstatus"
 	}
-	var wframe []byte
-	var err error
-	if wframe, err = st.Encode(); err != nil {
-		return "badstatus"
-	}
-	_, err = conn.WriteToUDP(wframe, remoteAddr)
-	if err != nil {
-		return "cantsend"
-	}
-	return "success"
+	return frames.UDPWrite(&st, conn)
 }
 
 // WriteStatus -- compose & send status frames
@@ -82,11 +76,9 @@ func WriteStatus(g *gocui.Gui, t *STransfer, sflags string, conn *net.UDPConn, r
 
 	errf := flagvalue(sflags, "errcode")
 	var lasthole int
+	h := t.CurFills.Getholes()
 	if errf == "success" {
-		h := t.CurFills.Getholes()
 		lasthole = len(h) // How many holes do we have
-	} else {
-		lasthole = 0 // We have no holes if an error is being sent
 	}
 
 	var framecnt int // Number of status frames we will need (at least 1)
@@ -103,24 +95,20 @@ func WriteStatus(g *gocui.Gui, t *STransfer, sflags string, conn *net.UDPConn, r
 	// Loop through creating and sending the status frames with the holes in them
 	for fc := 0; fc < framecnt; fc++ {
 		starthole := fc * maxholes
-		endhole := fc*maxholes + maxholes
+		endhole := starthole + maxholes
 		if endhole > lasthole {
 			endhole = lasthole
 		}
 
 		var st status.Status
 		h := t.CurFills.Getholes()
-		if err := st.New(flags, t.Session, t.Progress, t.Inrespto, h[starthole:endhole]); err != nil {
+		sinfo := status.Sinfo{Session: t.Session, Progress: t.Progress, Inrespto: t.Inrespto, Holes: h}
+		if err := frames.New(&st, flags, &sinfo); err != nil {
+			// if err := st.New(flags, t.Session, t.Progress, t.Inrespto, h[starthole:endhole]); err != nil {
 			return "badstatus"
 		}
-		var wframe []byte
-		var err error
-		if wframe, err = st.Encode(); err != nil {
-			return "badstatus"
-		}
-		_, err = conn.WriteToUDP(wframe, remoteAddr)
-		if err != nil {
-			return "cantsend"
+		if e := frames.UDPWrite(&st, conn); e != "success" {
+			return e
 		}
 	}
 	return "success"
