@@ -53,6 +53,7 @@ func sendbeacons(g *gocui.Gui, flags string, count uint, interval uint, host str
 	var addrs []string
 	var err error
 	var txb beacon.Beacon // The assembled beacon to transmit
+	b := &txb
 
 	errflag := make(chan string, 1) // The return channel holding the saratoga errflag
 
@@ -63,7 +64,7 @@ func sendbeacons(g *gocui.Gui, flags string, count uint, interval uint, host str
 	// Loop thru the address(s) for the host and send beacons to them
 	for _, addr := range addrs {
 		binfo := beacon.Binfo{Freespace: 0, Eid: ""}
-		if err := frames.New(&txb, flags, &binfo); err == nil {
+		if err := frames.New(b, flags, &binfo); err == nil {
 			go txb.Send(g, addr, port, count, interval, errflag)
 			errcode := <-errflag
 			if errcode != "success" {
