@@ -151,7 +151,7 @@ func (m *MetaData) New(flags string, info interface{}) error {
 	e := reflect.ValueOf(info).Elem()
 	// Get Session and filename from Minfo interface struct
 	m.Session = uint32(e.FieldByName("Session").Uint())
-	fname = e.FieldByName("Session").String()
+	fname = e.FieldByName("Fname").String()
 	if direntflags, err = statfile(fname, m.Header); err != nil {
 		return err
 	}
