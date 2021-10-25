@@ -177,9 +177,6 @@ const flagsize uint32 = 32
 // MaxBuff -- Maximum read []byte buffer, set to Jumbo to be sure
 const MaxBuff = uint64(9000)
 
-// MTU -- Maximum write []byte buffer, set to interface MTU
-var MTU int
-
 // Timeouts - Global Timeouts and counters
 type Timeouts struct {
 	Metadata  int  `json:"metadata"`  // Secs to wait for a metadatarecvd before a resend
@@ -279,6 +276,19 @@ type Cliflags struct {
 	Prompt      string   // Prompt
 	Ppad        int      // Length of Padding around Prompt []: = 3
 	Sardir      string   // Saratoga working directory
+}
+
+// MTU -- Maximum write []byte buffer, set to interface MTU
+var mtu int
+
+// Set the MTU
+func MtuSet(m int) {
+	mtu = m
+}
+
+// Getet the MTU
+func Mtu() int {
+	return mtu
 }
 
 // Calculate the maximum descriptor size on this platform

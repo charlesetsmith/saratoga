@@ -434,7 +434,8 @@ func starxhandler(g *gocui.Gui, s status.Status, conn *net.UDPConn, remoteAddr *
 // correct frame handlers
 func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 
-	maxframesize := sarflags.MTU - 60     // Handles IPv4 & IPv6 header
+	// Investigate using conn.PathMTU()
+	maxframesize := sarflags.Mtu() - 60   // Handles IPv4 & IPv6 header
 	buf := make([]byte, maxframesize+100) // Just in case...
 	framelen := 0
 	err := error(nil)
@@ -701,7 +702,8 @@ func main() {
 		fmt.Println("Saratoga Unable to lookup interfacebyname:", os.Args[1])
 		log.Fatal(err)
 	}
-	sarflags.MTU = iface.MTU
+	// Sete the Mtu to Interface we are using
+	sarflags.MtuSet(iface.MTU)
 
 	// Set up the gocui interface and start the mainloop
 	g, err := gocui.NewGui(gocui.OutputNormal)
