@@ -142,8 +142,8 @@ func flagvalue(flags, flag string) string {
 // Work out the maximum payload in data.Data frame given flags
 func dpaylen(flags string) int {
 
-	plen := sarflags.MTU - 60 - 8 // 60 for IP header, 8 for UDP header
-	plen -= 8                     // Saratoga Header + Offset
+	plen := sarflags.Mtu() - 60 - 8 // 60 for IP header, 8 for UDP header
+	plen -= 8                       // Saratoga Header + Offset
 
 	flags = strings.Replace(flags, " ", "", -1) // Get rid of extra spaces in flags
 	// Grab the flags and set the frame header
@@ -179,8 +179,8 @@ func stpaylen(flags string) int {
 	var hsize int
 	var plen int
 
-	plen = sarflags.MTU - 60 - 8 // 60 for IP header, 8 for UDP header
-	plen -= 8                    // Saratoga Header + Session
+	plen = sarflags.Mtu() - 60 - 8 // 60 for IP header, 8 for UDP header
+	plen -= 8                      // Saratoga Header + Session
 
 	flags = strings.Replace(flags, " ", "", -1) // Get rid of extra spaces in flags
 	// Grab the flags and set the frame header

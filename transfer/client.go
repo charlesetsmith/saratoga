@@ -487,15 +487,16 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	dflags = replaceflag(dflags, tdesc)
 	sarwin.MsgPrintln(g, "magenta_black", "Data Flags <", dflags, ">")
 
-	statuserr := make(chan string, 1)  // The return channel holding the saratoga errflag
-	datapos := make(chan [2]uint64, 1) // The return channel from readstatus with progress & inrespto
+	statuserr := make(chan string, 1)    // The return channel holding the saratoga errflag
+	statuspos := make(chan [2]uint64, 1) // The return channel from readstatus with progress & inrespto
+	datapos := make(chan [2]uint64, 1)
 	dataerr := make(chan string, 1)
 
 	// ISSUE CAUSING HANG SOMEWHERE IN HERE!!!!
 
 	// This is the guts of handling status. It sits in a loop reading away and processing
 	// the status when received. It sends metadata & data (to fill holes) as required
-	go readstatus(g, t, dflags, conn, m, datapos, statuserr)
+	go readstatus(g, t, dflags, conn, m, statuspos, statuserr)
 	go senddata(g, t, dflags, conn, datapos, dataerr)
 	for { // Multiplex between writing data & reading status when we have messages coming back
 		select {
@@ -509,16 +510,21 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 				dpos[1] = inrespto
 				datapos <- dpos
 			} else if serr != "success" {
+				sarwin.MsgPrintln(g, "red_black", "Status Error in go senddata:", serr)
 				conn.Close()
 				errflag <- serr
 				return
 			}
 		case derr := <-dataerr:
 			if derr != "success" {
+				// Close the connection
 				conn.Close()
+				sarwin.MsgPrintln(g, "red_black", "Data Error in go senddata:", derr)
 				errflag <- derr
 				return
 			}
+		case spos := <-statuspos:
+			sarwin.MsgPrintln(g, "magenta_black", "Read Status Pos=", spos)
 		case dpos := <-datapos:
 			sarwin.MsgPrintln(g, "magenta_black", "Read Data Pos=", dpos)
 			// default: // the select is non-blocking, fall through
