@@ -76,7 +76,7 @@ func cursorLeft(g *gocui.Gui, v *gocui.View) error {
 	}
 	// Move back a character
 	if err := v.SetCursor(cx-1, cy); err != nil {
-		sarwin.MsgPrintln(g, "bwhite_black", "LeftArrow:", "cx=", cx, "cy=", cy, "error=", err)
+		sarwin.MsgPrintln(g, "white_black", "LeftArrow:", "cx=", cx, "cy=", cy, "error=", err)
 	}
 	return nil
 }
@@ -94,7 +94,7 @@ func cursorRight(g *gocui.Gui, v *gocui.View) error {
 	}
 	// Move forward a character
 	if err := v.SetCursor(cx+1, cy); err != nil {
-		sarwin.MsgPrintln(g, "bwhite_red", "RightArrow:", "cx=", cx, "cy=", cy, "error=", err)
+		sarwin.MsgPrintln(g, "white_red", "RightArrow:", "cx=", cx, "cy=", cy, "error=", err)
 	}
 	return nil
 }
@@ -115,7 +115,7 @@ func cursorDown(g *gocui.Gui, v *gocui.View) error {
 	err := v.SetCursor(cx, cy+1)
 	if err != nil { // Reset the origin
 		if err := v.SetOrigin(0, oy+1); err != nil { // changed ox to 0
-			sarwin.MsgPrintf(g, "bwhite_red", "SetOrigin error=%s", err)
+			sarwin.MsgPrintf(g, "white_red", "SetOrigin error=%s", err)
 			return err
 		}
 
@@ -138,7 +138,7 @@ func cursorUp(g *gocui.Gui, v *gocui.View) error {
 	err := v.SetCursor(cx, cy-1)
 	if err != nil && oy > 0 { // Reset the origin
 		if err := v.SetOrigin(0, oy-1); err != nil { // changed ox to 0
-			sarwin.MsgPrintf(g, "bwhite_red", "SetOrigin error=%s", err)
+			sarwin.MsgPrintf(g, "white_red", "SetOrigin error=%s", err)
 			return err
 		}
 	}
@@ -374,6 +374,7 @@ func metrxhandler(g *gocui.Gui, m metadata.MetaData, remoteAddr *net.UDPAddr) st
 func datrxhandler(g *gocui.Gui, d data.Data, conn *net.UDPConn, remoteAddr *net.UDPAddr) string {
 	// Handle the data
 	// sarwin.MsgPrintln(g,  "green_black", m.Print())
+	sarwin.MsgPrintln(g, "white_black", "Received Data payload length", len(d.Payload))
 	var t *transfer.STransfer
 	if t = transfer.SMatch(remoteAddr.IP.String(), d.Session); t != nil {
 		// t.SData(g, d, conn, remoteAddr) // The data handler for the transfer
@@ -470,6 +471,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 		// Grab the Saratoga Header
 		header := binary.BigEndian.Uint32(frame[:4])
 		if sarflags.GetStr(header, "version") != "v1" { // Make sure we are Version 1
+			sarwin.MsgPrintln(g, "red_black", "Header is not Saratoga v1")
 			if _, err = sarflags.Set(0, "errno", "badpacket"); err != nil {
 				// Bad Packet send back a Status to the client
 				var se status.Status
@@ -482,6 +484,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 			}
 			continue
 		}
+		sarwin.MsgPrintln(g, "white_black", "Received: ", sarflags.GetStr(header, "frametype"))
 
 		// Process the frame
 		switch sarflags.GetStr(header, "frametype") {
@@ -535,6 +538,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 			// Handle incoming data
 			var d data.Data
 			var rxerr error
+			sarwin.MsgPrintln(g, "white_black", "Data frame length is:", len(frame))
 			if rxerr = frames.Decode(&d, frame); rxerr != nil {
 				session := binary.BigEndian.Uint32(frame[4:8])
 				// Bad Packet send back a Status to the client
@@ -545,6 +549,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 					sarnet.UDPinfo(remoteAddr), " session ", session)
 				continue
 			}
+			// sarwin.MsgPrintln(g, "white_black", "Decoded data ", d.Print())
 			session := binary.BigEndian.Uint32(frame[4:8])
 			errcode := datrxhandler(g, d, conn, remoteAddr) // process the data
 			if errcode != "success" {                       // If we have a error send back a status with it
@@ -682,17 +687,6 @@ func main() {
 		log.Fatal(errors.New("cannot stat saratoga working directory"))
 	}
 
-	// Open up V4 & V6 sockets for listening on the Saratoga Port
-	v4mcastaddr := net.UDPAddr{
-		Port: Cmdptr.Port,
-		IP:   net.ParseIP(Cmdptr.V4Multicast),
-	}
-	/*
-		v6mcastaddr := net.UDPAddr{
-			Port: Cmdptr.Port,
-			IP:   net.ParseIP(Cmdptr.V6Multicast),
-		}
-	*/
 	// What Interface are we receiving Multicasts on
 	var iface *net.Interface
 	var err error
@@ -702,7 +696,7 @@ func main() {
 		fmt.Println("Saratoga Unable to lookup interfacebyname:", os.Args[1])
 		log.Fatal(err)
 	}
-	// Sete the Mtu to Interface we are using
+	// Set the Mtu to Interface we are using
 	sarflags.MtuSet(iface.MTU)
 
 	// Set up the gocui interface and start the mainloop
@@ -731,39 +725,52 @@ func main() {
 			for _, adr := range adrs {
 				if strings.Contains(adr.Network(), "ip") {
 					sarwin.MsgPrintln(g, "green_black", "\t Unicast ", adr.String(), adr.Network())
+
 				}
 			}
-			madrs, _ := ifi.MulticastAddrs()
-			for _, madr := range madrs {
-				if strings.Contains(madr.String(), Cmdptr.V4Multicast) ||
-					strings.Contains(strings.ToLower(madr.String()), strings.ToLower(Cmdptr.V6Multicast)) {
-					sarwin.MsgPrintln(g, "green_black", "\t Multicast ", madr.String(), madr.Network())
+			/*
+				madrs, _ := ifi.MulticastAddrs()
+				for _, madr := range madrs {
+					if strings.Contains(madr.Network(), "ip") {
+						sarwin.MsgPrintln(g, "green_black", "\t Multicast ", madr.String(),
+						 "Net:", madr.Network())
+					}
 				}
-			}
+			*/
 		}
 	}
-	/*
-		// When will we return from listening for v6 frames
-		v6listenquit := make(chan error)
+	// When will we return from listening for v6 frames
+	v6listenquit := make(chan error)
 
-		// Listen to Unicast & Multicast v6
-		v6mcastcon, err := net.ListenMulticastUDP("udp6", iface, &v6mcastaddr)
-		if err != nil {
-			log.Println("Saratoga Unable to Listen on IPv6 Multicast", v6mcastaddr.IP, v6mcastaddr.Port)
+	// Open up V6 sockets for listening on the Saratoga Port
+	v6mcastaddr := net.UDPAddr{
+		Port: Cmdptr.Port,
+		IP:   net.ParseIP(Cmdptr.V6Multicast),
+	}
+	// Listen to Multicast v6
+	v6mcastcon, err := net.ListenMulticastUDP("udp6", iface, &v6mcastaddr)
+	if err != nil {
+		log.Println("Saratoga Unable to Listen on IPv6 Multicast", v6mcastaddr.IP, v6mcastaddr.Port)
+		log.Fatal(err)
+	} else {
+		if err := sarnet.SetMulticastLoop(v6mcastcon, "IPv6"); err != nil {
 			log.Fatal(err)
-		} else {
-			if err := sarnet.SetMulticastLoop(v6mcastcon, "IPv6"); err != nil {
-				log.Fatal(err)
-			}
-			go listen(g, v6mcastcon, v6listenquit)
-			sarwin.MsgPrintln(g,  "green_black", "Saratoga IPv6 Multicast Listener started on",
-				sarnet.UDPinfo(&v6mcastaddr))
 		}
-	*/
+		go listen(g, v6mcastcon, v6listenquit)
+		sarwin.MsgPrintln(g, "green_black", "Saratoga IPv6 Multicast Listener started on",
+			sarnet.UDPinfo(&v6mcastaddr))
+	}
+
 	// When will we return from listening for v4 frames
 	v4listenquit := make(chan error)
 
-	// Listen to Unicast & Multicast v4
+	// Open up V4 sockets for listening on the Saratoga Port
+	v4mcastaddr := net.UDPAddr{
+		Port: Cmdptr.Port,
+		IP:   net.ParseIP(Cmdptr.V4Multicast),
+	}
+
+	// Listen to Multicast v4
 	v4mcastcon, err := net.ListenMulticastUDP("udp4", iface, &v4mcastaddr)
 	if err != nil {
 		log.Println("Saratoga Unable to Listen on IPv4 Multicast", v4mcastaddr.IP, v4mcastaddr.Port)
@@ -777,20 +784,20 @@ func main() {
 			sarnet.UDPinfo(&v4mcastaddr))
 	}
 
+	// v4unicastcon, err := net.ListenUDP("udp4", iface, &v4addr)
 	sarwin.MsgPrintf(g, "green_black", "Saratoga Directory is %s\n", Cmdptr.Sardir)
 	sarwin.MsgPrintf(g, "green_black", "Available space is %d MB\n",
 		(uint64(fs.Bsize)*fs.Bavail)/1024/1024)
-	// sarwin.MsgPrintf(g,  "green_black", "Sizes of Ints is %d\n", sarflags.MaxUint)
-
-	sarwin.MsgPrintln(g, "green_black", "MaxInt=", sarflags.MaxInt)
-	sarwin.MsgPrintln(g, "green_black", "MaxUint=", sarflags.MaxUint)
-	sarwin.MsgPrintln(g, "green_black", "MaxInt16=", sarflags.MaxInt16)
-	sarwin.MsgPrintln(g, "green_black", "MaxUint16=", sarflags.MaxUint16)
-	sarwin.MsgPrintln(g, "green_black", "MaxInt32=", sarflags.MaxInt32)
-	sarwin.MsgPrintln(g, "green_black", "MaxUint32=", sarflags.MaxUint32)
-	sarwin.MsgPrintln(g, "green_black", "MaxInt64=", sarflags.MaxInt64)
-	sarwin.MsgPrintln(g, "green_black", "MaxUint64=", sarflags.MaxUint64)
-
+	/*
+		sarwin.MsgPrintln(g, "green_black", "MaxInt=", sarflags.MaxInt)
+		sarwin.MsgPrintln(g, "green_black", "MaxUint=", sarflags.MaxUint)
+		sarwin.MsgPrintln(g, "green_black", "MaxInt16=", sarflags.MaxInt16)
+		sarwin.MsgPrintln(g, "green_black", "MaxUint16=", sarflags.MaxUint16)
+		sarwin.MsgPrintln(g, "green_black", "MaxInt32=", sarflags.MaxInt32)
+		sarwin.MsgPrintln(g, "green_black", "MaxUint32=", sarflags.MaxUint32)
+		sarwin.MsgPrintln(g, "green_black", "MaxInt64=", sarflags.MaxInt64)
+		sarwin.MsgPrintln(g, "green_black", "MaxUint64=", sarflags.MaxUint64)
+	*/
 	sarwin.MsgPrintln(g, "green_black", "Maximum Descriptor is:", sarflags.MaxDescriptor)
 
 	// The Base calling functions for Saratoga live in cli.go so look there first!
@@ -798,10 +805,10 @@ func main() {
 	go mainloop(g, errflag, Cmdptr)
 
 	select {
-	// case v6err := <-v6listenquit:
-	//	fmt.Println("Saratoga v6 listener has quit:", v6err)
 	case v4err := <-v4listenquit:
 		fmt.Println("Saratoga v4 lisntener has quit:", v4err)
+	case v6err := <-v6listenquit:
+		fmt.Println("Saratoga v6 lisntener has quit:", v6err)
 	case err := <-errflag:
 		fmt.Println("Mainloop has quit:", err.Error())
 	}
