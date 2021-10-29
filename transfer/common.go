@@ -140,7 +140,7 @@ func flagvalue(flags, flag string) string {
 }
 
 // Work out the maximum payload in data.Data frame given flags
-func dpaylen(flags string) int {
+func maxpaylen(flags string) int {
 
 	plen := sarflags.Mtu() - 60 - 8 // 60 for IP header, 8 for UDP header
 	plen -= 8                       // Saratoga Header + Offset

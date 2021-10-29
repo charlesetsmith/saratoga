@@ -287,6 +287,6 @@ func (s Status) ShortPrint() string {
 }
 
 // Send a status out the UDP connection
-func (s *Status) UDPWrite(conn *net.UDPConn) string {
-	return frames.UDPWrite(s, conn)
+func (s *Status) UDPWrite(conn *net.UDPConn, addr *net.UDPAddr) string {
+	return frames.UDPWrite(s, conn, addr)
 }

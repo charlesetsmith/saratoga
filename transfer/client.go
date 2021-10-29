@@ -49,7 +49,7 @@ var CTransfers = []CTransfer{}
 // We assemble Data using dflags
 // We transmit metadata as required
 // We send back a string holding the status error code "success" keeps transfer alive
-func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
+func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn, addr *net.UDPAddr,
 	m *metadata.MetaData, pos chan [2]uint64, errflag chan string) {
 
 	var filelen uint64
@@ -68,12 +68,12 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 
 	timeout := time.Duration(t.cliflags.Timeout.Status) * time.Second
 	for {
-		sarwin.MsgPrintln(g, "blue_black", "Waiting to Read a Status Frame on",
+		sarwin.MsgPrintln(g, "blue_black", "Client Waiting to Read a Status Frame on",
 			conn.LocalAddr().String())
 		conn.SetReadDeadline(time.Now().Add(timeout))
 		rlen, err := conn.Read(rbuf)
 		if err != nil {
-			sarwin.MsgPrintln(g, "blue_black", "Timeout on Status Read",
+			sarwin.MsgPrintln(g, "blue_black", "Client Timeout on Status Read",
 				":", err.Error())
 			errflag <- "cantreceive"
 			return
@@ -84,7 +84,7 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 		copy(rframe, rbuf[:rlen])
 		header := binary.BigEndian.Uint32(rframe[:4])
 		if sarflags.GetStr(header, "version") != "v1" { // Make sure we are Version 1
-			sarwin.MsgPrintln(g, "red_black", "Not Saratoga Version 1 Frame from ",
+			sarwin.MsgPrintln(g, "red_black", "Client Not Saratoga Version 1 Frame from ",
 				t.peer.String())
 			errflag <- "badpacket"
 			return
@@ -98,6 +98,8 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 			}
 			sarwin.MsgPrintln(g, "blue_black", "Client Status Read:", errf)
 		} else { // Not a status frame
+			sarwin.MsgPrintln(g, "blue_black", "Client Expected status but received ",
+				sarflags.GetStr(header, "frametpye"), "frame")
 			errflag <- "badpacket"
 			return
 		}
@@ -105,7 +107,7 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 		// Process the status header
 		if sarflags.GetStr(header, "metadatarecvd") == "no" {
 			// No metadata has been received yet so send/resend it
-			if retcode := frames.UDPWrite(m, conn); retcode != "success" {
+			if retcode := frames.UDPWrite(m, conn, addr); retcode != "success" {
 				errflag <- retcode
 				return
 			}
@@ -113,7 +115,7 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 		// We have "success" so Decode into a Status
 		var st status.Status
 		if err := frames.Decode(&st, rframe); err != nil {
-			sarwin.MsgPrintln(g, "red_black", "Bad Status with error:", err)
+			sarwin.MsgPrintln(g, "red_black", "Client read Bad Status with error:", err)
 			errflag <- "badstatus"
 			return
 		} // else {
@@ -128,7 +130,7 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 		pos <- proins
 
 		if st.Progress == filelen {
-			sarwin.MsgPrintln(g, "blue_black", "File",
+			sarwin.MsgPrintln(g, "blue_black", "Client File",
 				t.filename, "length", filelen, "successfully transferred")
 			errflag <- "success"
 		}
@@ -141,14 +143,14 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 			var err error
 			// Seek to the hole start and read it all into buf
 			if rlen, err = t.fp.ReadAt(buf, int64(h.Start)); err != nil {
-				sarwin.MsgPrintln(g, "blue_black", "We have a bad Hole:", h.Start, h.End)
+				sarwin.MsgPrintln(g, "blue_black", "Client we have a bad Hole:", h.Start, h.End)
 				errflag <- "badoffset"
 				return
 			}
 			var pend int
 
-			plen := dpaylen(dflags) // Work out maximum payload for data frame
-			dframes := rlen / plen  // Work out how many frames we need to re-send
+			plen := maxpaylen(dflags) // Work out maximum payload for data frame
+			dframes := rlen / plen    // Work out how many frames we need to re-send
 			// Loop around re-sending data frames for the hole
 			for fc := 0; fc < dframes; fc++ { // Bump frame counter
 				var df data.Data
@@ -164,13 +166,13 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 					errflag <- "badpacket"
 					return
 				} // Create the Data
-				if retcode := frames.UDPWrite(d, conn); retcode != "success" {
+				if retcode := frames.UDPWrite(d, conn, addr); retcode != "success" {
 					errflag <- retcode
 					return
 				}
 			}
 		}
-		sarwin.MsgPrintln(g, "blue_black", "File",
+		sarwin.MsgPrintln(g, "blue_black", "Client File",
 			t.filename, "length", filelen, "successfully processed status")
 		errflag <- "success"
 		// MMMMM should this be a forever looping for !!!!!!
@@ -180,7 +182,7 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 // senddata - Read from fp and send the data to the server
 // Handle datapos as recieved from the channel - THIS NOT DONE IN THIS SIMPLE VERSION YET!!!
 // Send out errflag on its channel if failure or success (done)
-func senddata(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
+func senddata(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn, addr *net.UDPAddr,
 	datapos chan [2]uint64, errflag chan string) {
 
 	var curpos uint64
@@ -194,9 +196,13 @@ func senddata(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 	}
 
 	// Allocate a read buffer for a data frame
-	rbuf := make([]byte, dpaylen(dflags))
-	sarwin.MsgPrintln(g, "yellow_black", "Data Payload Len=", len(rbuf))
+	rbuf := make([]byte, maxpaylen(dflags))
+	sarwin.MsgPrintln(g, "yellow_black", "Client Max Data Payload Len=", len(rbuf))
 	for { // Just blast away and send the complete file asking for a status every 100 frames sent
+		if t.fp == nil {
+			sarwin.MsgPrintln(g, "yellow_black", "File Pointer is nil", len(rbuf))
+			errflag <- "accessdenied"
+		}
 		nread, err := t.fp.ReadAt(rbuf, int64(curpos))
 		if err != nil && err != io.EOF {
 			errflag <- "accessdenied"
@@ -223,8 +229,8 @@ func senddata(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn,
 			errflag <- "badpacket"
 			return
 		}
-		// sarwin.MsgPrintln(g,  "red_black", "Data Frame to Write is:", d.Print())
-		if retcode := frames.UDPWrite(d, conn); retcode != "success" {
+		// sarwin.MsgPrintln(g, "white_black", "New Data (", len(rbuf[:nread]), ")", d.Print())
+		if retcode := frames.UDPWrite(d, conn, addr); retcode != "success" {
 			errflag <- retcode
 		}
 		curpos += uint64(nread)
@@ -277,7 +283,7 @@ func Doclient(t *CTransfer, g *gocui.Gui, errstr chan string) {
 				go fn(t, g, errflag)
 				retcode := <-errflag
 				close(errflag)
-				sarwin.MsgPrintln(g, "yellow_black", "Doclient completed with errstr:", retcode)
+				sarwin.MsgPrintln(g, "yellow_black", "Client Doclient completed with errstr:", retcode)
 				errstr <- retcode
 				return
 			}
@@ -293,7 +299,7 @@ func (t *CTransfer) CNew(g *gocui.Gui, ttype string, ip string, fname string, c 
 	if addr := net.ParseIP(ip); addr != nil { // We have a valid IP Address
 		for _, i := range CTransfers { // Don't add duplicates
 			if addr.Equal(i.peer) && fname == i.filename {
-				emsg := fmt.Sprintf("CTransfer for %s to %s is currently in progress, cannnot add transfer",
+				emsg := fmt.Sprintf("Client CTransfer for %s to %s is currently in progress, cannnot add transfer",
 					fname, i.peer.String())
 				sarwin.MsgPrintln(g, "red_black", emsg)
 				return errors.New(emsg)
@@ -316,13 +322,13 @@ func (t *CTransfer) CNew(g *gocui.Gui, ttype string, ip string, fname string, c 
 			panic(err)
 		}
 
-		msg := fmt.Sprintf("Added %s CTransfer to %s %s",
+		msg := fmt.Sprintf("Client Added %s CTransfer to %s %s",
 			t.ttype, t.peer.String(), t.filename)
 		CTransfers = append(CTransfers, *t)
 		sarwin.MsgPrintln(g, "green_black", msg)
 		return nil
 	}
-	sarwin.MsgPrintln(g, "red_black", "CTransfer not added, invalid IP address", ip)
+	sarwin.MsgPrintln(g, "red_black", "Client CTransfer not added, invalid IP address", ip)
 	return errors.New("invalid IP Address")
 }
 
@@ -336,7 +342,7 @@ func (t *CTransfer) Remove() error {
 			return nil
 		}
 	}
-	emsg := fmt.Sprintf("Cannot remove %s CTransfer for %s to %s",
+	emsg := fmt.Sprintf("Client Cannot remove %s CTransfer for %s to %s",
 		t.ttype, t.filename, t.peer.String())
 	return errors.New(emsg)
 }
@@ -402,7 +408,7 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 		strings.TrimLeft(t.filename, string(os.PathSeparator))
 	if t.fp, err = os.Open(fname); err != nil {
 		t.fp = fp
-		sarwin.MsgPrintln(g, "red_black", "Cannot open", fname)
+		sarwin.MsgPrintln(g, "red_black", "Client Cannot open", fname)
 		errflag <- "filenotfound"
 		return
 	}
@@ -410,7 +416,7 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	tdesc := filedescriptor(fname) // CTransfer descriptor to be used
 
 	if pos, err = t.fp.Seek(0, io.SeekStart); err != nil {
-		sarwin.MsgPrintln(g, "red_black", "Cannot seek to", pos)
+		sarwin.MsgPrintln(g, "red_black", "Client Cannot seek to", pos)
 		errflag <- "badoffset"
 		return
 	}
@@ -428,8 +434,11 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 		errflag <- "cantsend"
 		return
 	}
+	sarwin.MsgPrintln(g, "magenta_black", "Client Dialing ", udpaddr.String())
 	conn, err := net.DialUDP("udp", nil, udpaddr)
 	if err != nil {
+		s := "Could not Dial " + udpaddr.String() + ":" + err.Error()
+		sarwin.MsgPrintln(g, "red_black", s)
 		conn.Close()
 		errflag <- "cantsend"
 		return
@@ -441,22 +450,22 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	rflags := "reqtype=put,fileordir=file,"
 	rflags += sarflags.Setglobal("request", t.cliflags)
 	rflags = replaceflag(rflags, tdesc)
-	sarwin.MsgPrintln(g, "magenta_black", "Request Flags <", rflags, ">")
+	sarwin.MsgPrintln(g, "magenta_black", "Client Request Flags <", rflags, ">")
 	rinfo := request.Rinfo{Session: t.session, Fname: t.filename, Auth: nil}
 	if err := frames.New(r, rflags, &rinfo); err != nil {
-		sarwin.MsgPrintln(g, "red_black", "Cannot create request", err.Error())
+		sarwin.MsgPrintln(g, "red_black", "Client Cannot create request", err.Error())
 		conn.Close()
 		errflag <- "badrequest"
 		return
 	}
-	if retcode := frames.UDPWrite(r, conn); retcode != "success" {
+	if retcode := frames.UDPWrite(r, conn, udpaddr); retcode != "success" {
 		conn.Close()
 		errflag <- retcode
 		return
 	}
 
 	sarwin.MsgPrintln(g, "green_black", "Sent:", t.Print())
-	sarwin.MsgPrintln(g, "green_black", "CTransfer Request Sent to",
+	sarwin.MsgPrintln(g, "green_black", "Client CTransfer Request Sent to",
 		t.peer.String())
 
 	// Create the metadata & send
@@ -465,15 +474,15 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	mflags := "transfer=file,progress=inprogress,"
 	mflags += sarflags.Setglobal("metadata", t.cliflags)
 	mflags = replaceflag(mflags, tdesc)
-	sarwin.MsgPrintln(g, "magenta_black", "Metadata Flags <", mflags, ">")
+	sarwin.MsgPrintln(g, "magenta_black", "Client Metadata Flags <", mflags, ">")
 	minfo := metadata.Minfo{Session: t.session, Fname: t.filename}
 	if err = frames.New(m, mflags, &minfo); err != nil {
-		sarwin.MsgPrintln(g, "red_black", "Cannot create metadata", err.Error())
+		sarwin.MsgPrintln(g, "red_black", "Client Cannot create metadata", err.Error())
 		conn.Close()
 		errflag <- "badrequest"
 		return
 	}
-	if retcode := frames.UDPWrite(m, conn); retcode != "success" {
+	if retcode := frames.UDPWrite(m, conn, udpaddr); retcode != "success" {
 		conn.Close()
 		errflag <- retcode
 		return
@@ -485,7 +494,7 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	dflags := "transfer=file,eod=no,"
 	dflags += sarflags.Setglobal("data", t.cliflags)
 	dflags = replaceflag(dflags, tdesc)
-	sarwin.MsgPrintln(g, "magenta_black", "Data Flags <", dflags, ">")
+	sarwin.MsgPrintln(g, "magenta_black", "Client Data Flags <", dflags, ">")
 
 	statuserr := make(chan string, 1)    // The return channel holding the saratoga errflag
 	statuspos := make(chan [2]uint64, 1) // The return channel from readstatus with progress & inrespto
@@ -496,21 +505,21 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 
 	// This is the guts of handling status. It sits in a loop reading away and processing
 	// the status when received. It sends metadata & data (to fill holes) as required
-	go readstatus(g, t, dflags, conn, m, statuspos, statuserr)
-	go senddata(g, t, dflags, conn, datapos, dataerr)
+	go readstatus(g, t, dflags, conn, udpaddr, m, statuspos, statuserr)
+	go senddata(g, t, dflags, conn, udpaddr, datapos, dataerr)
 	for { // Multiplex between writing data & reading status when we have messages coming back
 		select {
 		case serr := <-statuserr:
 			var progress, inrespto uint64
 			if n, _ := fmt.Sscanf(serr, "%d %d", &progress, &inrespto); n == 2 {
-				sarwin.MsgPrintln(g, "magenta_black", "Progress=", progress, "Inrespto=", inrespto)
+				sarwin.MsgPrintln(g, "magenta_black", "Client Progress=", progress, "Inrespto=", inrespto)
 				var dpos [2]uint64
 				// Send on datapos channel to senddata the latest progress & inrespto indicators
 				dpos[0] = progress
 				dpos[1] = inrespto
 				datapos <- dpos
 			} else if serr != "success" {
-				sarwin.MsgPrintln(g, "red_black", "Status Error in go senddata:", serr)
+				sarwin.MsgPrintln(g, "red_black", "Client Status Error in go senddata:", serr)
 				conn.Close()
 				errflag <- serr
 				return
@@ -519,14 +528,14 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 			if derr != "success" {
 				// Close the connection
 				conn.Close()
-				sarwin.MsgPrintln(g, "red_black", "Data Error in go senddata:", derr)
+				sarwin.MsgPrintln(g, "red_black", "Client Data Error in go senddata:", derr)
 				errflag <- derr
 				return
 			}
 		case spos := <-statuspos:
-			sarwin.MsgPrintln(g, "magenta_black", "Read Status Pos=", spos)
+			sarwin.MsgPrintln(g, "magenta_black", "Client Read Status Pos=", spos)
 		case dpos := <-datapos:
-			sarwin.MsgPrintln(g, "magenta_black", "Read Data Pos=", dpos)
+			sarwin.MsgPrintln(g, "magenta_black", "Client Read Data Pos=", dpos)
 			// default: // the select is non-blocking, fall through
 			// screen.Fprintf(g,  "magenta_black", "*")
 		}
@@ -543,7 +552,7 @@ func cputblind(t *CTransfer, g *gocui.Gui, errflag chan string) {
 		string(os.PathSeparator) +
 		strings.TrimLeft(t.filename, string(os.PathSeparator))
 	if t.fp, err = os.Open(fname); err != nil {
-		sarwin.MsgPrintln(g, "red_black", "Cannot open", fname)
+		sarwin.MsgPrintln(g, "red_black", "Client cputblind Cannot open", fname)
 		errflag <- "filenotfound"
 		return
 	}
@@ -551,7 +560,7 @@ func cputblind(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	tdesc := filedescriptor(fname) // CTransfer descriptor to be used
 
 	if pos, err = t.fp.Seek(0, io.SeekStart); err != nil {
-		sarwin.MsgPrintln(g, "red_black", "Cannot seek to", pos)
+		sarwin.MsgPrintln(g, "red_black", "Client cputblind Cannot seek to", pos)
 		errflag <- "badoffset"
 		return
 	}
@@ -583,17 +592,17 @@ func cputblind(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	mflags = replaceflag(mflags, tdesc)
 	minfo := metadata.Minfo{Session: t.session, Fname: t.filename}
 	if err = frames.New(m, mflags, &minfo); err != nil {
-		sarwin.MsgPrintln(g, "red_black", "Cannot create metadata", err.Error())
+		sarwin.MsgPrintln(g, "red_black", "Client cputblind Cannot create metadata", err.Error())
 		errflag <- "badrequest"
 		return
 	}
-	if retcode := frames.UDPWrite(m, conn); retcode != "success" {
+	if retcode := frames.UDPWrite(m, conn, udpaddr); retcode != "success" {
 		errflag <- retcode
 		return
 	}
 
-	sarwin.MsgPrintln(g, "green_black", "Sent:", t.Print())
-	sarwin.MsgPrintln(g, "green_black", "CTransfer Metadata Sent for blind put to",
+	sarwin.MsgPrintln(g, "green_black", "Client cputblind Sent:", t.Print())
+	sarwin.MsgPrintln(g, "green_black", "Client cputblind CTransfer Metadata Sent for blind put to",
 		t.peer.String())
 	errflag <- "success"
 }
@@ -607,14 +616,14 @@ func cputrm(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	errcode := <-rmerrflag
 	if errcode == "success" {
 		fname := strings.TrimRight(os.Getenv("SARDIR"), "/") + "/" + t.filename
-		sarwin.MsgPrintln(g, "green_black", "Successfully put file", fname)
+		sarwin.MsgPrintln(g, "green_black", "Client cputrm Successfully put file", fname)
 		// All good so remove the local file
 		if os.Remove(fname) != nil {
-			sarwin.MsgPrintln(g, "red_black", "Cannot remove local file", fname)
+			sarwin.MsgPrintln(g, "red_black", "Client cputrm Cannot remove local file", fname)
 			errflag <- "didnotdelete"
 			return
 		}
-		sarwin.MsgPrintln(g, "red_black", "Local file", fname, "removed")
+		sarwin.MsgPrintln(g, "red_black", "Client cputrm Local file", fname, "removed")
 	}
 	errflag <- errcode
 }

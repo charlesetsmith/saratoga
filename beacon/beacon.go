@@ -404,6 +404,6 @@ func (b *Beacon) NewPeer(from *net.UDPAddr) bool {
 }
 
 // Send a beacon out the UDP connection
-func (b *Beacon) UDPWrite(conn *net.UDPConn) string {
-	return frames.UDPWrite(b, conn)
+func (b *Beacon) UDPWrite(conn *net.UDPConn, addr *net.UDPAddr) string {
+	return frames.UDPWrite(b, conn, addr)
 }

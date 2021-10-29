@@ -296,6 +296,6 @@ func (m MetaData) ShortPrint() string {
 }
 
 // Send a metadata out the UDP connection
-func (m *MetaData) UDPWrite(conn *net.UDPConn) string {
-	return frames.UDPWrite(m, conn)
+func (m *MetaData) UDPWrite(conn *net.UDPConn, addr *net.UDPAddr) string {
+	return frames.UDPWrite(m, conn, addr)
 }

@@ -52,17 +52,18 @@ var STransfers = []STransfer{}
 var Dcount int
 
 // WriteErrStatus - Send an error status
+
 func WriteErrStatus(g *gocui.Gui, flags string, session uint32, conn *net.UDPConn, remoteAddr *net.UDPAddr) string {
 	if flagvalue(flags, "errcode") == "success" { // Dont send success that is silly
 		return "success"
 	}
 	var st status.Status
 	sinfo := status.Sinfo{Session: session, Progress: 0, Inrespto: 0, Holes: nil}
-	if err := st.New(flags, sinfo); err != nil {
+	if err := frames.New(&st, flags, &sinfo); err != nil {
 		// if err := st.New(flags, session, 0, 0, nil); err != nil {
 		return "badstatus"
 	}
-	return frames.UDPWrite(&st, conn)
+	return frames.UDPWrite(&st, conn, remoteAddr)
 }
 
 // WriteStatus -- compose & send status frames
@@ -72,6 +73,10 @@ func WriteErrStatus(g *gocui.Gui, flags string, session uint32, conn *net.UDPCon
 // We send back a string holding the status error code or "success" keeps transfer alive
 func WriteStatus(g *gocui.Gui, t *STransfer, sflags string, conn *net.UDPConn, remoteAddr *net.UDPAddr) string {
 
+	if conn != nil {
+		sarwin.MsgPrintln(g, "cyan_black", "Server Connection from", remoteAddr.String())
+	}
+	sarwin.MsgPrintln(g, "cyan_black", "Server Assemble & Send status to", remoteAddr.String())
 	var maxholes = stpaylen(sflags) // Work out maximum # holes we can put in a single status frame
 
 	errf := flagvalue(sflags, "errcode")
@@ -104,11 +109,16 @@ func WriteStatus(g *gocui.Gui, t *STransfer, sflags string, conn *net.UDPConn, r
 		h := t.CurFills.Getholes()
 		sinfo := status.Sinfo{Session: t.Session, Progress: t.Progress, Inrespto: t.Inrespto, Holes: h}
 		if err := frames.New(&st, flags, &sinfo); err != nil {
-			// if err := st.New(flags, t.Session, t.Progress, t.Inrespto, h[starthole:endhole]); err != nil {
+			sarwin.MsgPrintln(g, "cyan_black", "Server Bad Status:", err, frames.Print(&st))
 			return "badstatus"
 		}
-		if e := frames.UDPWrite(&st, conn); e != "success" {
+		if e := frames.UDPWrite(&st, conn, remoteAddr); e != "success" {
+			//sarwin.MsgPrintln(g, "cyan_black", "Server cant write Status:", e, frames.Print(&st),
+			//	"to", conn.RemoteAddr().String())
 			return e
+		} else {
+			sarwin.MsgPrintln(g, "cyan_black", "Server Sent Status:", frames.Print(&st),
+				"to", conn.RemoteAddr().String())
 		}
 	}
 	return "success"

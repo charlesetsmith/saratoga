@@ -93,6 +93,8 @@ func (d *Data) New(flags string, info interface{}) error {
 	// Assign the values from the interface Dinfo structure
 	d.Session = uint32(e.FieldByName("Session").Uint())
 	d.Offset = e.FieldByName("Offset").Uint()
+	dlen := e.FieldByName("Payload").Len()
+	d.Payload = make([]byte, dlen)
 	copy(d.Payload, e.FieldByName("Payload").Bytes())
 	return nil
 }
@@ -131,6 +133,8 @@ func (d *Data) Make(header uint32, info interface{}) error {
 	// Assign the values from the interface Dinfo structure
 	d.Session = uint32(e.FieldByName("Session").Uint())
 	d.Offset = e.FieldByName("Offset").Uint()
+	dlen := e.FieldByName("Payload").Len()
+	d.Payload = make([]byte, dlen)
 	copy(d.Payload, e.FieldByName("Payload").Bytes())
 
 	return nil
@@ -153,10 +157,13 @@ func (d *Data) Decode(frame []byte) error {
 			d.Offset = uint64(binary.BigEndian.Uint16(frame[24:26])) // 2 bytes
 			d.Payload = make([]byte, len(frame[26:]))
 			copy(d.Payload, frame[26:])
+			if len(d.Payload) == 0 {
+				return errors.New("length of data payload is 0")
+			}
 		case "d32":
 			d.Offset = uint64(binary.BigEndian.Uint32(frame[24:28])) // 4 bytes
 			d.Payload = make([]byte, len(frame[28:]))
-			copy(d.Payload, frame[26:])
+			copy(d.Payload, frame[28:])
 		case "d64":
 			d.Offset = binary.BigEndian.Uint64(frame[24:32]) // 8 bytes
 			d.Payload = make([]byte, len(frame[32:]))
@@ -186,6 +193,7 @@ func (d *Data) Decode(frame []byte) error {
 	case "d128": // KLUDGE!!!!
 		d.Offset = uint64(binary.BigEndian.Uint64(frame[8+8 : 32]))
 		d.Payload = make([]byte, len(frame[32:]))
+		copy(d.Payload, frame[32:])
 	default:
 		return errors.New("invalid data Frame")
 	}
@@ -284,6 +292,6 @@ func (d Data) ShortPrint() string {
 }
 
 // Send a data out the UDP connection
-func (d *Data) UDPWrite(conn *net.UDPConn) string {
-	return frames.UDPWrite(d, conn)
+func (d *Data) UDPWrite(conn *net.UDPConn, addr *net.UDPAddr) string {
+	return frames.UDPWrite(d, conn, addr)
 }

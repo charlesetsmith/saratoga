@@ -154,6 +154,6 @@ func (r *Request) ShortPrint() string {
 }
 
 // Send a request out the UDP connection
-func (r *Request) UDPWrite(conn *net.UDPConn) string {
-	return frames.UDPWrite(r, conn)
+func (r *Request) UDPWrite(conn *net.UDPConn, addr *net.UDPAddr) string {
+	return frames.UDPWrite(r, conn, addr)
 }
