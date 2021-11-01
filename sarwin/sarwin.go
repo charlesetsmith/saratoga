@@ -49,24 +49,24 @@ var fg = map[string]string{
 
 // Background Colours (b=bright)
 var bg = map[string]string{
-	"black":   "40;1",
-	"red":     "41;1",
-	"green":   "42;1",
-	"yellow":  "43;1",
-	"blue":    "44;1",
-	"magenta": "45;1",
-	"cyan":    "46;1",
-	"white":   "47;1",
-	/* Bright background These do not work, they should
-	"bblack":   "100",
-	"bred":     "101",
-	"bgreen":   "102",
-	"byellow":  "103",
-	"bblue":    "104",
-	"bmagenta": "105",
-	"bcyan":    "016",
-	"bwhite":   "107",
-	*/
+	// Normal background
+	"black":   "40",
+	"red":     "41",
+	"green":   "42",
+	"yellow":  "43",
+	"blue":    "44",
+	"magenta": "45",
+	"cyan":    "46",
+	"white":   "47",
+	// Bright background (this just makes foreground lighter)
+	"bblack":   "40;1",
+	"bred":     "41;1",
+	"bgreen":   "42;1",
+	"byellow":  "43;1",
+	"bblue":    "44;1",
+	"bmagenta": "45;1",
+	"bcyan":    "46;1",
+	"bwhite":   "47;1",
 }
 
 // Viewinfo -- Data and info on views (cmd & msg)
@@ -162,4 +162,14 @@ func CmdPrintf(g *gocui.Gui, colour string, format string, args ...interface{}) 
 // Send unformatted output to "cmd" window
 func CmdPrintln(g *gocui.Gui, colour string, args ...interface{}) {
 	Fprintln(g, "cmd", colour, args...)
+}
+
+// Send formatted output to "cmd" window
+func PacketPrintf(g *gocui.Gui, colour string, format string, args ...interface{}) {
+	Fprintf(g, "packet", colour, format, args...)
+}
+
+// Send unformatted output to "cmd" window
+func PacketPrintln(g *gocui.Gui, colour string, args ...interface{}) {
+	Fprintln(g, "packet", colour, args...)
 }

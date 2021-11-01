@@ -142,15 +142,19 @@ func (r *Request) Print() string {
 		n := sarflags.GetStr(r.Header, rflags[f])
 		sflag += fmt.Sprintf("  %s:%s\n", rflags[f], n)
 	}
-	sflag += fmt.Sprintf("  session:%d", r.Session)
-	sflag += fmt.Sprintf("  filename:<%s>", r.Fname)
-	sflag += fmt.Sprintf("  auth:<%s>\n", r.Auth)
+	sflag += fmt.Sprintf("  session:%d\n", r.Session)
+	sflag += fmt.Sprintf("  filename:%s\n", r.Fname)
+	sflag += fmt.Sprintf("  auth:%s", r.Auth)
 	return sflag
 }
 
 // Print - Print out details of Request struct
 func (r *Request) ShortPrint() string {
-	return r.Print()
+	sflag := fmt.Sprintf("Request: 0x%x\n", r.Header)
+	sflag += fmt.Sprintf("  session:%d\n", r.Session)
+	sflag += fmt.Sprintf("  filename:%s\n", r.Fname)
+	sflag += fmt.Sprintf("  auth:%s", r.Auth)
+	return sflag
 }
 
 // Send a request out the UDP connection

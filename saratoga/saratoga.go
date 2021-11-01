@@ -47,6 +47,8 @@ func switchView(g *gocui.Gui, v *gocui.View) error {
 		_, err = g.SetCurrentView("msg")
 	case "msg":
 		_, err = g.SetCurrentView("cmd")
+	case "packet":
+		_, err = g.SetCurrentView("packet")
 	}
 	return err
 }
@@ -216,11 +218,25 @@ func quit(g *gocui.Gui, v *gocui.View) error {
 	return gocui.ErrQuit
 }
 
+func showPacket(g *gocui.Gui, v *gocui.View) error {
+	var err error
+
+	if g == nil || v == nil {
+		log.Fatal("showPacket g is nil")
+	}
+	ShowPacket = !ShowPacket
+	if !ShowPacket {
+		_, err = g.SetViewOnTop("packet")
+	} else {
+		_, err = g.SetViewOnTop("msg")
+	}
+	return err
+}
+
 func keybindings(g *gocui.Gui) error {
 	if err := g.SetKeybinding("cmd", gocui.KeyCtrlSpace, gocui.ModNone, switchView); err != nil {
 		return err
 	}
-
 	if err := g.SetKeybinding("cmd", gocui.KeyArrowDown, gocui.ModNone, cursorDown); err != nil {
 		return err
 	}
@@ -231,6 +247,9 @@ func keybindings(g *gocui.Gui) error {
 		return nil
 	}
 	if err := g.SetKeybinding("cmd", gocui.KeyArrowRight, gocui.ModNone, cursorRight); err != nil {
+		return nil
+	}
+	if err := g.SetKeybinding("cmd", gocui.KeyCtrlP, gocui.ModNone, showPacket); err != nil {
 		return nil
 	}
 	if err := g.SetKeybinding("cmd", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
@@ -262,11 +281,15 @@ var FirstPass = true
 // CmdLines - Number of lines in Cmd View
 var CmdLines int
 
+// ShowPacket - Shohw Packet trace info
+var ShowPacket bool = false
+
 func layout(g *gocui.Gui) error {
 
 	var err error
 	var cmd *gocui.View
 	var msg *gocui.View
+	var packet *gocui.View
 
 	ratio := 4 // Ratio of cmd to msg views
 
@@ -301,10 +324,26 @@ func layout(g *gocui.Gui) error {
 		msg.Autoscroll = true
 	}
 
+	// This is the packet trace window - packet trace history goes here
+	// Toggles on/off with CtrlP
+	if packet, err = g.SetView("packet", maxx-maxx/4, 1, maxx-2, maxy-maxy/ratio-1); err != nil {
+		if err != gocui.ErrUnknownView {
+			return err
+		}
+		packet.Title = "Packets"
+		packet.Highlight = false
+		packet.BgColor = gocui.ColorBlack
+		packet.FgColor = gocui.ColorMagenta
+		packet.Editable = false
+		packet.Wrap = true
+		packet.Overwrite = false
+		packet.Autoscroll = true
+	}
 	// All inputs happen via the cmd view
 	if cmd, err = g.SetCurrentView("cmd"); err != nil {
 		return err
 	}
+
 	// Display the prompt without the \n first time around
 	if FirstPass {
 		cmd.SetCursor(0, 0)
@@ -354,7 +393,6 @@ func reqrxhandler(g *gocui.Gui, r request.Request, remoteAddr *net.UDPAddr) stri
 // Metadata handler for Server
 func metrxhandler(g *gocui.Gui, m metadata.MetaData, remoteAddr *net.UDPAddr) string {
 	// Handle the metadata
-	// sarwin.MsgPrintln(g,  "green_black", m.Print())
 	var t *transfer.STransfer
 	if t = transfer.SMatch(remoteAddr.IP.String(), m.Session); t != nil {
 		if err := t.SChange(g, m); err != nil { // Size of file has changed!!!
@@ -373,8 +411,6 @@ func metrxhandler(g *gocui.Gui, m metadata.MetaData, remoteAddr *net.UDPAddr) st
 // Data handler for server
 func datrxhandler(g *gocui.Gui, d data.Data, conn *net.UDPConn, remoteAddr *net.UDPAddr) string {
 	// Handle the data
-	// sarwin.MsgPrintln(g,  "green_black", m.Print())
-	sarwin.MsgPrintln(g, "white_black", "Received Data payload length", len(d.Payload))
 	var t *transfer.STransfer
 	if t = transfer.SMatch(remoteAddr.IP.String(), d.Session); t != nil {
 		// t.SData(g, d, conn, remoteAddr) // The data handler for the transfer
@@ -503,6 +539,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 					sarnet.UDPinfo(remoteAddr))
 				continue
 			}
+			sarwin.PacketPrintln(g, "green_black", rxb.ShortPrint())
 
 		case "request":
 			// Handle incoming request
@@ -514,6 +551,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 					sarnet.UDPinfo(remoteAddr))
 				continue
 			}
+			sarwin.PacketPrintln(g, "green_black", r.ShortPrint())
 
 			// Create a status to the client to tell it the error or that we have accepted the transfer
 			session := binary.BigEndian.Uint32(frame[4:8])
@@ -549,6 +587,8 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 					sarnet.UDPinfo(remoteAddr), " session ", session)
 				continue
 			}
+			sarwin.PacketPrintln(g, "green_black", d.ShortPrint())
+
 			// sarwin.MsgPrintln(g, "white_black", "Decoded data ", d.Print())
 			session := binary.BigEndian.Uint32(frame[4:8])
 			errcode := datrxhandler(g, d, conn, remoteAddr) // process the data
@@ -589,6 +629,8 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 					sarnet.UDPinfo(remoteAddr), " session ", session)
 				continue
 			}
+			sarwin.PacketPrintln(g, "green_black", m.ShortPrint())
+
 			session := binary.BigEndian.Uint32(frame[4:8])
 			errcode := metrxhandler(g, m, remoteAddr) // process the metadata
 			if errcode != "success" {                 // If we have a error send back a status with it
@@ -619,6 +661,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 					sarnet.UDPinfo(remoteAddr), " session ", session)
 				continue
 			} // Handle the status
+			sarwin.PacketPrintln(g, "green_black", s.ShortPrint())
 			errcode := starxhandler(g, s, conn, remoteAddr) // process the status
 			if errcode != "success" {                       // If we have a error send back a status with it
 				stheader := "descriptor=" + sarflags.GetStr(header, "descriptor") // echo the descriptor
@@ -788,16 +831,18 @@ func main() {
 	sarwin.MsgPrintf(g, "green_black", "Saratoga Directory is %s\n", Cmdptr.Sardir)
 	sarwin.MsgPrintf(g, "green_black", "Available space is %d MB\n",
 		(uint64(fs.Bsize)*fs.Bavail)/1024/1024)
+
 	/*
 		sarwin.MsgPrintln(g, "green_black", "MaxInt=", sarflags.MaxInt)
 		sarwin.MsgPrintln(g, "green_black", "MaxUint=", sarflags.MaxUint)
 		sarwin.MsgPrintln(g, "green_black", "MaxInt16=", sarflags.MaxInt16)
-		sarwin.MsgPrintln(g, "green_black", "MaxUint16=", sarflags.MaxUint16)
-		sarwin.MsgPrintln(g, "green_black", "MaxInt32=", sarflags.MaxInt32)
+		sarwin.MsgPrintln(g, "green_red", "MaxUint16=", sarflags.MaxUint16)
+		sarwin.MsgPrintln(g, "green_red", "MaxInt32=", sarflags.MaxInt32)
 		sarwin.MsgPrintln(g, "green_black", "MaxUint32=", sarflags.MaxUint32)
 		sarwin.MsgPrintln(g, "green_black", "MaxInt64=", sarflags.MaxInt64)
 		sarwin.MsgPrintln(g, "green_black", "MaxUint64=", sarflags.MaxUint64)
 	*/
+
 	sarwin.MsgPrintln(g, "green_black", "Maximum Descriptor is:", sarflags.MaxDescriptor)
 
 	// The Base calling functions for Saratoga live in cli.go so look there first!

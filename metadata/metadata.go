@@ -284,7 +284,7 @@ func (m MetaData) Print() string {
 	}
 	sflag += fmt.Sprintf("  session:%d\n", m.Session)
 	if cs := sarflags.GetStr(m.Header, "csumtype"); cs != "none" {
-		sflag += fmt.Sprintf("  Checksum [%s]:%x\n", cs, m.Checksum)
+		sflag += fmt.Sprintf("  Checksum [%s]:%x", cs, m.Checksum)
 	}
 	sflag += m.Dir.Print()
 	return sflag
@@ -292,7 +292,13 @@ func (m MetaData) Print() string {
 
 // ShortPrint - Print out details of MetaData struct
 func (m MetaData) ShortPrint() string {
-	return m.Print()
+	sflag := fmt.Sprintf("Metadata: 0x%x\n", m.Header)
+	sflag += fmt.Sprintf("  session:%d\n", m.Session)
+	if cs := sarflags.GetStr(m.Header, "csumtype"); cs != "none" {
+		sflag += fmt.Sprintf("  checksum [%s]:%x", cs, m.Checksum)
+	}
+	sflag += m.Dir.ShortPrint()
+	return sflag
 }
 
 // Send a metadata out the UDP connection

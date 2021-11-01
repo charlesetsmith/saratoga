@@ -242,3 +242,12 @@ func (d DirEnt) Print() string {
 	sflag += fmt.Sprintf("    Ctime:%s", d.Ctime.Print())
 	return sflag
 }
+
+func (d DirEnt) ShortPrint() string {
+	sflag := fmt.Sprintf("  Dir Entry: 0x%x\n", d.Header)
+	sflag += fmt.Sprintf("    Path:%s\n", d.Path)
+	sflag += fmt.Sprintf("    Size:%d\n", d.Size)
+	sflag += fmt.Sprintf("    Mtime:%s\n", d.Mtime.Print())
+	sflag += fmt.Sprintf("    Ctime:%s", d.Ctime.Print())
+	return sflag
+}

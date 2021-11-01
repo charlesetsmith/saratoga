@@ -264,30 +264,23 @@ func (d Data) Print() string {
 		sflag += fmt.Sprintf("  %s:%s\n", f, n)
 	}
 	if sarflags.GetStr(d.Header, "reqtstamp") == "yes" {
-		sflag += fmt.Sprintf("  timestamp:%s\n", d.Tstamp.Print())
+		sflag += fmt.Sprintf("  tstamp:%s\n", d.Tstamp.Print())
 	}
 	sflag += fmt.Sprintf("  session:%d", d.Session)
 	sflag += fmt.Sprintf("  offset:%d", d.Offset)
-	sflag += fmt.Sprintf("  Payload :<%d>\n", len(d.Payload))
+	sflag += fmt.Sprintf("  paylen : %d", len(d.Payload))
 	return sflag
 }
 
 // ShortPrint - Print out minimal details of Data struct
 func (d Data) ShortPrint() string {
-	sflag := fmt.Sprintf("Data: 0x%x ", d.Header)
-	dflags := sarflags.Values("data")
-	for _, f := range dflags {
-		n := sarflags.GetStr(d.Header, f)
-		sflag += fmt.Sprintf("%s:%s,", f, n)
-	}
+	sflag := fmt.Sprintf("Data: 0x%x\n", d.Header)
 	if sarflags.GetStr(d.Header, "reqtstamp") == "yes" {
-		sflag += fmt.Sprintf("\n  timestamp:%s,", d.Tstamp.Print())
-	} else {
-		sflag += "\n "
+		sflag += fmt.Sprintf("  tstamp:%s\n", d.Tstamp.Print())
 	}
-	sflag += fmt.Sprintf("session:%d,", d.Session)
-	sflag += fmt.Sprintf("offset:%d,", d.Offset)
-	sflag += fmt.Sprintf("Payloadlen:%d", len(d.Payload))
+	sflag += fmt.Sprintf("  session:%d,", d.Session)
+	sflag += fmt.Sprintf("  offset:%d,", d.Offset)
+	sflag += fmt.Sprintf("  paylen:%d", len(d.Payload))
 	return sflag
 }
 

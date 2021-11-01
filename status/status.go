@@ -283,7 +283,15 @@ func (s Status) Print() string {
 
 // ShortPrint - Quick print out of Status struct
 func (s Status) ShortPrint() string {
-	return s.Print()
+	sflag := fmt.Sprintf("Status: 0x%x\n", s.Header)
+	sflag += fmt.Sprintf("  session:%d\n", s.Session)
+	if sarflags.GetStr(s.Header, "reqtstamp") == "yes" {
+		sflag += fmt.Sprintf("  timestamp:%s\n", s.Tstamp.Print())
+	}
+	sflag += fmt.Sprintf("  progress:%d\n", s.Progress)
+	sflag += fmt.Sprintf("  inrespto:%d\n", s.Inrespto)
+	sflag += fmt.Sprintf(" numb holes:%d", len(s.Holes))
+	return sflag
 }
 
 // Send a status out the UDP connection

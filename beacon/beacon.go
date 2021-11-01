@@ -280,13 +280,18 @@ func (b Beacon) Print() string {
 	if sarflags.GetStr(b.Header, "freespace") == "yes" {
 		sflag += fmt.Sprintf("  free:%dkB\n", b.Freespace)
 	}
-	sflag += fmt.Sprintf("  EID:%s\n", b.Eid)
+	sflag += fmt.Sprintf("  EID:%s", b.Eid)
 	return sflag
 }
 
 // ShortPrint - Quick printout of Beacon struct
 func (b Beacon) ShortPrint() string {
-	return b.Print()
+	sflag := fmt.Sprintf("Beacon: 0x%x\n", b.Header)
+	if sarflags.GetStr(b.Header, "freespace") == "yes" {
+		sflag += fmt.Sprintf("  free:%dkB\n", b.Freespace)
+	}
+	sflag += fmt.Sprintf("  EID:%s", b.Eid)
+	return sflag
 }
 
 // Send - Send a IPv4 or IPv6 beacon to a server
