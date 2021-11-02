@@ -29,28 +29,52 @@ import (
 )
 
 // Cinfo - Information held on the cmd view
-var Cinfo sarwin.Viewinfo
+var Cinfo sarwin.Cmdinfo
+
+// Current active view
+// var activeView = 0
 
 // Minfo - Information held on the msg view
-var Minfo sarwin.Viewinfo
+// var Minfo sarwin.Viewinfo
 
 // Return the length of the prompt
-func promptlen(v sarwin.Viewinfo) int {
+func promptlen(v sarwin.Cmdinfo) int {
 	return len(v.Prompt) + len(strconv.Itoa(v.Curline)) + v.Ppad
 }
 
+func setCurrentViewOnTop(g *gocui.Gui, name string) (*gocui.View, error) {
+	if _, err := g.SetCurrentView(name); err != nil {
+		return nil, err
+	}
+	_, err := g.SetViewOnTop(name)
+	if showpacket {
+		g.SetViewOnTop("packet")
+	}
+	return nil, err
+}
+
+// Rotate through the views
 func switchView(g *gocui.Gui, v *gocui.View) error {
 	var err error
+	var view string
+	// var views = []string{"cmd", "msg", "packet"}
 
 	switch v.Name() {
 	case "cmd":
-		_, err = g.SetCurrentView("msg")
+		view = "msg"
 	case "msg":
-		_, err = g.SetCurrentView("cmd")
+		if showpacket {
+			view = "packet"
+		} else {
+			view = "cmd"
+		}
 	case "packet":
-		_, err = g.SetCurrentView("packet")
+		view = "cmd"
 	}
-	return err
+	if _, err = setCurrentViewOnTop(g, view); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Backspace or Delete
@@ -58,12 +82,17 @@ func backSpace(g *gocui.Gui, v *gocui.View) error {
 	if g == nil || v == nil {
 		log.Fatal("backSpace - g or v is nil")
 	}
-	cx, _ := v.Cursor()
-	if cx <= promptlen(Cinfo) { // Dont move we are at the prompt
+	switch v.Name() {
+	case "cmd":
+		cx, _ := v.Cursor()
+		if cx <= promptlen(Cinfo) { // Dont move we are at the prompt
+			return nil
+		}
+		// Delete rune backwards
+		v.EditDelete(true)
+	case "msg", "packet":
 		return nil
 	}
-	// Delete rune backwards
-	v.EditDelete(true)
 	return nil
 }
 
@@ -72,13 +101,18 @@ func cursorLeft(g *gocui.Gui, v *gocui.View) error {
 	if g == nil || v == nil {
 		log.Fatal("cursorLeft - g or v is nil")
 	}
-	cx, cy := v.Cursor()
-	if cx <= promptlen(Cinfo) { // Dont move
+	switch v.Name() {
+	case "cmd":
+		cx, cy := v.Cursor()
+		if cx <= promptlen(Cinfo) { // Dont move we are at the prompt
+			return nil
+		}
+		// Move back a character
+		if err := v.SetCursor(cx-1, cy); err != nil {
+			sarwin.MsgPrintln(g, "white_black", v.Name(), "LeftArrow:", "cx=", cx, "cy=", cy, "error=", err)
+		}
+	case "msg", "packet":
 		return nil
-	}
-	// Move back a character
-	if err := v.SetCursor(cx-1, cy); err != nil {
-		sarwin.MsgPrintln(g, "white_black", "LeftArrow:", "cx=", cx, "cy=", cy, "error=", err)
 	}
 	return nil
 }
@@ -88,15 +122,20 @@ func cursorRight(g *gocui.Gui, v *gocui.View) error {
 	if g == nil || v == nil {
 		log.Fatal("cursorRight - g or v is nil")
 	}
-	cx, cy := v.Cursor()
-	line, _ := v.Line(cy)
-	if cx >= len(line)-1 { // We are at the end of line do nothing
-		v.SetCursor(len(line), cy)
+	switch v.Name() {
+	case "cmd":
+		cx, cy := v.Cursor()
+		line, _ := v.Line(cy)
+		if cx >= len(line)-1 { // We are at the end of line do nothing
+			v.SetCursor(len(line), cy)
+			return nil
+		}
+		// Move forward a character
+		if err := v.SetCursor(cx+1, cy); err != nil {
+			sarwin.MsgPrintln(g, "white_red", "RightArrow:", "cx=", cx, "cy=", cy, "error=", err)
+		}
+	case "msg", "packet":
 		return nil
-	}
-	// Move forward a character
-	if err := v.SetCursor(cx+1, cy); err != nil {
-		sarwin.MsgPrintln(g, "white_red", "RightArrow:", "cx=", cx, "cy=", cy, "error=", err)
 	}
 	return nil
 }
@@ -117,7 +156,7 @@ func cursorDown(g *gocui.Gui, v *gocui.View) error {
 	err := v.SetCursor(cx, cy+1)
 	if err != nil { // Reset the origin
 		if err := v.SetOrigin(0, oy+1); err != nil { // changed ox to 0
-			sarwin.MsgPrintf(g, "white_red", "SetOrigin error=%s", err)
+			sarwin.MsgPrintf(g, "white_red", v.Name(), "SetOrigin error=%s", err)
 			return err
 		}
 
@@ -160,57 +199,62 @@ var Sarwg sync.WaitGroup
 
 // This is where we process command line inputs after a CR entered
 func getLine(g *gocui.Gui, v *gocui.View) error {
-	c := Cmdptr
 	if g == nil || v == nil {
 		log.Fatal("getLine - g or v is nil")
 	}
-	// Find out where we are
-	_, cy := v.Cursor()
-	// Get the line
-	line, _ := v.Line(cy)
-	// sarwin.MsgPrintf(g,  "red_black", "cx=%d cy=%d lines=%d line=%s\n",
-	//      len(v.BufferLines()), cx, cy, line)
-	command := strings.SplitN(line, ":", 2)
-	if command[1] == "" { // We have just hit enter - do nothing
-		return nil
-	}
-	// Save the command into history
-	Cinfo.Commands = append(Cinfo.Commands, command[1])
-
-	// Spawn a go and run the command
-	go func(*gocui.Gui, string) {
-		// defer Sarwg.Done()
-		cli.Docmd(g, command[1], c)
-	}(g, command[1])
-
-	if command[1] == "exit" || command[1] == "quit" {
-		// Sarwg.Wait()
-		err := quit(g, v)
-		// THIS IS A KLUDGE FIX IT WITH A CHANNEL
-		log.Fatal("\nGocui Exit. Bye!\n", err)
-	}
-
-	Cinfo.Curline++
-	xpos := promptlen(Cinfo)
-	// Have we scrolled past the length of v, if so reset the origin
-
-	if err := v.SetCursor(xpos, cy+1); err != nil {
-		sarwin.MsgPrintln(g, "red_black", "We Scrolled past length of v", err)
-		_, oy := v.Origin()
-		// sarwin.MsgPrintf(g,  "red_black", "Origin reset ox=%d oy=%d\n", ox, oy)
-		if err := v.SetOrigin(0, oy+1); err != nil { // changed xpos to 0
-			// sarwin.MsgPrintln(g,  "red_black", "SetOrigin Error:", err)
-			return err
+	switch v.Name() {
+	case "cmd":
+		c := Cmdptr
+		// Find out where we are
+		_, cy := v.Cursor()
+		// Get the line
+		line, _ := v.Line(cy)
+		// sarwin.MsgPrintf(g,  "red_black", "cx=%d cy=%d lines=%d line=%s\n",
+		//      len(v.BufferLines()), cx, cy, line)
+		command := strings.SplitN(line, ":", 2)
+		if command[1] == "" { // We have just hit enter - do nothing
+			return nil
 		}
-		// Set the cursor to last line in v
-		if verr := v.SetCursor(xpos, cy); verr != nil {
-			sarwin.MsgPrintln(g, "bwite_red", "Setcursor out of bounds:", verr)
+		// Save the command into history
+		Cinfo.Commands = append(Cinfo.Commands, command[1])
+
+		// Spawn a go and run the command
+		go func(*gocui.Gui, string) {
+			// defer Sarwg.Done()
+			cli.Docmd(g, command[1], c)
+		}(g, command[1])
+
+		if command[1] == "exit" || command[1] == "quit" {
+			// Sarwg.Wait()
+			err := quit(g, v)
+			// THIS IS A KLUDGE FIX IT WITH A CHANNEL
+			log.Fatal("\nGocui Exit. Bye!\n", err)
 		}
-		cx, cy := v.Cursor()
-		sarwin.MsgPrintf(g, "red_black", "cx=%d cy=%d line=%s\n", cx, cy, line)
+
+		Cinfo.Curline++
+		xpos := promptlen(Cinfo)
+		// Have we scrolled past the length of v, if so reset the origin
+
+		if err := v.SetCursor(xpos, cy+1); err != nil {
+			sarwin.MsgPrintln(g, "red_black", "We Scrolled past length of v", err)
+			_, oy := v.Origin()
+			// sarwin.MsgPrintf(g,  "red_black", "Origin reset ox=%d oy=%d\n", ox, oy)
+			if err := v.SetOrigin(0, oy+1); err != nil { // changed xpos to 0
+				// sarwin.MsgPrintln(g,  "red_black", "SetOrigin Error:", err)
+				return err
+			}
+			// Set the cursor to last line in v
+			if verr := v.SetCursor(xpos, cy); verr != nil {
+				sarwin.MsgPrintln(g, "bwite_red", "Setcursor out of bounds:", verr)
+			}
+			cx, cy := v.Cursor()
+			sarwin.MsgPrintf(g, "red_black", "cx=%d cy=%d line=%s\n", cx, cy, line)
+		}
+		// Put up the new prompt on the next line
+		sarwin.CmdPrintf(g, "yellow_black", "\n%s[%d]:", Cinfo.Prompt, Cinfo.Curline)
+	case "msg", "packet":
+		return cursorDown(g, v)
 	}
-	// Put up the new prompt on the next line
-	sarwin.CmdPrintf(g, "yellow_black", "\n%s[%d]:", Cinfo.Prompt, Cinfo.Curline)
 	return nil
 }
 
@@ -224,8 +268,8 @@ func showPacket(g *gocui.Gui, v *gocui.View) error {
 	if g == nil || v == nil {
 		log.Fatal("showPacket g is nil")
 	}
-	ShowPacket = !ShowPacket
-	if !ShowPacket {
+	showpacket = !showpacket
+	if showpacket {
 		_, err = g.SetViewOnTop("packet")
 	} else {
 		_, err = g.SetViewOnTop("msg")
@@ -234,40 +278,37 @@ func showPacket(g *gocui.Gui, v *gocui.View) error {
 }
 
 func keybindings(g *gocui.Gui) error {
-	if err := g.SetKeybinding("cmd", gocui.KeyCtrlSpace, gocui.ModNone, switchView); err != nil {
+	if err := g.SetKeybinding("", gocui.KeyCtrlSpace, gocui.ModNone, switchView); err != nil {
 		return err
 	}
-	if err := g.SetKeybinding("cmd", gocui.KeyArrowDown, gocui.ModNone, cursorDown); err != nil {
+	if err := g.SetKeybinding("", gocui.KeyArrowDown, gocui.ModNone, cursorDown); err != nil {
 		return err
 	}
-	if err := g.SetKeybinding("cmd", gocui.KeyArrowUp, gocui.ModNone, cursorUp); err != nil {
+	if err := g.SetKeybinding("", gocui.KeyArrowUp, gocui.ModNone, cursorUp); err != nil {
 		return err
 	}
-	if err := g.SetKeybinding("cmd", gocui.KeyArrowLeft, gocui.ModNone, cursorLeft); err != nil {
+	if err := g.SetKeybinding("", gocui.KeyArrowLeft, gocui.ModNone, cursorLeft); err != nil {
 		return nil
 	}
-	if err := g.SetKeybinding("cmd", gocui.KeyArrowRight, gocui.ModNone, cursorRight); err != nil {
+	if err := g.SetKeybinding("", gocui.KeyArrowRight, gocui.ModNone, cursorRight); err != nil {
 		return nil
 	}
-	if err := g.SetKeybinding("cmd", gocui.KeyCtrlP, gocui.ModNone, showPacket); err != nil {
+	if err := g.SetKeybinding("", gocui.KeyCtrlP, gocui.ModNone, showPacket); err != nil {
 		return nil
 	}
-	if err := g.SetKeybinding("cmd", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
+	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
 		return err
 	}
-	if err := g.SetKeybinding("cmd", gocui.KeyEnter, gocui.ModNone, getLine); err != nil {
+	if err := g.SetKeybinding("", gocui.KeyEnter, gocui.ModNone, getLine); err != nil {
 		return err
 	}
-	if err := g.SetKeybinding("msg", gocui.KeyEnter, gocui.ModNone, getLine); err != nil {
-		return err
-	}
-	if err := g.SetKeybinding("cmd", gocui.KeyBackspace, gocui.ModNone, backSpace); err != nil {
+	if err := g.SetKeybinding("", gocui.KeyBackspace, gocui.ModNone, backSpace); err != nil {
 		return nil
 	}
-	if err := g.SetKeybinding("cmd", gocui.KeyBackspace2, gocui.ModNone, backSpace); err != nil {
+	if err := g.SetKeybinding("", gocui.KeyBackspace2, gocui.ModNone, backSpace); err != nil {
 		return nil
 	}
-	if err := g.SetKeybinding("cmd", gocui.KeyDelete, gocui.ModNone, backSpace); err != nil {
+	if err := g.SetKeybinding("", gocui.KeyDelete, gocui.ModNone, backSpace); err != nil {
 		return nil
 	}
 	return nil
@@ -281,8 +322,8 @@ var FirstPass = true
 // CmdLines - Number of lines in Cmd View
 var CmdLines int
 
-// ShowPacket - Shohw Packet trace info
-var ShowPacket bool = false
+// ShowPacket - Show Packet trace info
+var showpacket bool = false
 
 func layout(g *gocui.Gui) error {
 
@@ -309,21 +350,6 @@ func layout(g *gocui.Gui) error {
 		cmd.Overwrite = true
 		cmd.Wrap = true
 	}
-	// This is the message view window - Status & error messages go here
-	if msg, err = g.SetView("msg", 0, 0, maxx-1, maxy-maxy/ratio); err != nil {
-		if err != gocui.ErrUnknownView {
-			return err
-		}
-		msg.Title = "Messages"
-		msg.Highlight = false
-		msg.BgColor = gocui.ColorBlack
-		msg.FgColor = gocui.ColorYellow
-		msg.Editable = false
-		msg.Wrap = true
-		msg.Overwrite = false
-		msg.Autoscroll = true
-	}
-
 	// This is the packet trace window - packet trace history goes here
 	// Toggles on/off with CtrlP
 	if packet, err = g.SetView("packet", maxx-maxx/4, 1, maxx-2, maxy-maxy/ratio-1); err != nil {
@@ -339,13 +365,28 @@ func layout(g *gocui.Gui) error {
 		packet.Overwrite = false
 		packet.Autoscroll = true
 	}
-	// All inputs happen via the cmd view
-	if cmd, err = g.SetCurrentView("cmd"); err != nil {
-		return err
+
+	// This is the message view window - Status & error messages go here
+	if msg, err = g.SetView("msg", 0, 0, maxx-1, maxy-maxy/ratio); err != nil {
+		if err != gocui.ErrUnknownView {
+			return err
+		}
+		msg.Title = "Messages"
+		msg.Highlight = false
+		msg.BgColor = gocui.ColorBlack
+		msg.FgColor = gocui.ColorYellow
+		msg.Editable = false
+		msg.Wrap = true
+		msg.Overwrite = false
+		msg.Autoscroll = true
 	}
 
 	// Display the prompt without the \n first time around
 	if FirstPass {
+		// All inputs happen via the cmd view
+		if cmd, err = g.SetCurrentView("cmd"); err != nil {
+			return err
+		}
 		cmd.SetCursor(0, 0)
 		Cinfo.Curline = 0
 		prompt := fmt.Sprintf("%s[%d]:", Cinfo.Prompt, Cinfo.Curline)
@@ -539,7 +580,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 					sarnet.UDPinfo(remoteAddr))
 				continue
 			}
-			sarwin.PacketPrintln(g, "green_black", rxb.ShortPrint())
+			sarwin.PacketPrintln(g, "green_black", "Rx", rxb.ShortPrint())
 
 		case "request":
 			// Handle incoming request
@@ -551,7 +592,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 					sarnet.UDPinfo(remoteAddr))
 				continue
 			}
-			sarwin.PacketPrintln(g, "green_black", r.ShortPrint())
+			sarwin.PacketPrintln(g, "green_black", "Rx", r.ShortPrint())
 
 			// Create a status to the client to tell it the error or that we have accepted the transfer
 			session := binary.BigEndian.Uint32(frame[4:8])
@@ -587,7 +628,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 					sarnet.UDPinfo(remoteAddr), " session ", session)
 				continue
 			}
-			sarwin.PacketPrintln(g, "green_black", d.ShortPrint())
+			sarwin.PacketPrintln(g, "green_black", "Rx", d.ShortPrint())
 
 			// sarwin.MsgPrintln(g, "white_black", "Decoded data ", d.Print())
 			session := binary.BigEndian.Uint32(frame[4:8])
@@ -629,7 +670,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 					sarnet.UDPinfo(remoteAddr), " session ", session)
 				continue
 			}
-			sarwin.PacketPrintln(g, "green_black", m.ShortPrint())
+			sarwin.PacketPrintln(g, "green_black", "Rx", m.ShortPrint())
 
 			session := binary.BigEndian.Uint32(frame[4:8])
 			errcode := metrxhandler(g, m, remoteAddr) // process the metadata
@@ -654,6 +695,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 				stheader += ",metadatarecvd=no,allholes=yes,reqholes=requested,"
 				stheader += "errcode=badpacket"
 				sinfo := status.Sinfo{Session: session, Progress: 0, Inrespto: 0, Holes: nil}
+				transfer.WriteErrStatus(g, stheader, s.Session, conn, remoteAddr)
 				if frames.New(&se, stheader, &sinfo) != nil {
 					sarwin.MsgPrintln(g, "red_black", "Cannot assemble status")
 				}
@@ -661,7 +703,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 					sarnet.UDPinfo(remoteAddr), " session ", session)
 				continue
 			} // Handle the status
-			sarwin.PacketPrintln(g, "green_black", s.ShortPrint())
+			sarwin.PacketPrintln(g, "green_black", "Rx", s.ShortPrint())
 			errcode := starxhandler(g, s, conn, remoteAddr) // process the status
 			if errcode != "success" {                       // If we have a error send back a status with it
 				stheader := "descriptor=" + sarflags.GetStr(header, "descriptor") // echo the descriptor
@@ -751,6 +793,8 @@ func main() {
 	defer g.Close()
 
 	g.Cursor = true
+	g.Highlight = true
+	g.SelFgColor = gocui.ColorRed
 	g.SetManagerFunc(layout)
 	if err := keybindings(g); err != nil {
 		log.Panicln(err)
@@ -844,6 +888,9 @@ func main() {
 	*/
 
 	sarwin.MsgPrintln(g, "green_black", "Maximum Descriptor is:", sarflags.MaxDescriptor)
+
+	sarwin.MsgPrintln(g, "white_black", "^P - Toggle Packet View")
+	sarwin.MsgPrintln(g, "white_black", "^Space - Rotate/Change View")
 
 	// The Base calling functions for Saratoga live in cli.go so look there first!
 	errflag := make(chan error, 1)

@@ -111,6 +111,7 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn, ad
 				errflag <- retcode
 				return
 			}
+			sarwin.PacketPrintln(g, "cyan_black", "Tx", m.ShortPrint())
 		}
 		// We have "success" so Decode into a Status
 		var st status.Status
@@ -170,6 +171,7 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn, ad
 					errflag <- retcode
 					return
 				}
+				sarwin.PacketPrintln(g, "cyan_black", "Tx", d.ShortPrint())
 			}
 		}
 		sarwin.MsgPrintln(g, "blue_black", "Client File",
@@ -233,6 +235,7 @@ func senddata(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn, addr
 		if retcode := frames.UDPWrite(d, conn, addr); retcode != "success" {
 			errflag <- retcode
 		}
+		sarwin.PacketPrintln(g, "cyan_black", "Tx", d.ShortPrint())
 		curpos += uint64(nread)
 		// sarwin.MsgPrintln(g,  "yellow_black", "Data Frame Written is:", d.Print(), "nread=", nread, "curpos=", curpos)
 		if eod { // All read and sent so we are done with the senddata loop
@@ -463,6 +466,7 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 		errflag <- retcode
 		return
 	}
+	sarwin.PacketPrintln(g, "cyan_black", "Tx", r.ShortPrint())
 
 	sarwin.MsgPrintln(g, "green_black", "Sent:", t.Print())
 	sarwin.MsgPrintln(g, "green_black", "Client CTransfer Request Sent to",
@@ -487,6 +491,7 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 		errflag <- retcode
 		return
 	}
+	sarwin.PacketPrintln(g, "cyan_black", "Tx", m.ShortPrint())
 
 	// Prime the data header flags for the transfer
 	// during the transfer we only play with "eod" after this
@@ -600,6 +605,7 @@ func cputblind(t *CTransfer, g *gocui.Gui, errflag chan string) {
 		errflag <- retcode
 		return
 	}
+	sarwin.PacketPrintln(g, "cyan_black", "Tx", m.ShortPrint())
 
 	sarwin.MsgPrintln(g, "green_black", "Client cputblind Sent:", t.Print())
 	sarwin.MsgPrintln(g, "green_black", "Client cputblind CTransfer Metadata Sent for blind put to",

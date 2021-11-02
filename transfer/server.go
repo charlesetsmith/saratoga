@@ -63,7 +63,9 @@ func WriteErrStatus(g *gocui.Gui, flags string, session uint32, conn *net.UDPCon
 		// if err := st.New(flags, session, 0, 0, nil); err != nil {
 		return "badstatus"
 	}
-	return frames.UDPWrite(&st, conn, remoteAddr)
+	err := frames.UDPWrite(&st, conn, remoteAddr)
+	sarwin.PacketPrintln(g, "cyan_black", "Tx", st.ShortPrint())
+	return err
 }
 
 // WriteStatus -- compose & send status frames
@@ -117,6 +119,7 @@ func WriteStatus(g *gocui.Gui, t *STransfer, sflags string, conn *net.UDPConn, r
 			//	"to", conn.RemoteAddr().String())
 			return e
 		} else {
+			sarwin.PacketPrintln(g, "cyan_black", "Tx", st.ShortPrint())
 			sarwin.MsgPrintln(g, "cyan_black", "Server Sent Status:", frames.Print(&st),
 				"to", conn.RemoteAddr().String())
 		}

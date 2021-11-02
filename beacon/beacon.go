@@ -339,6 +339,7 @@ func (b *Beacon) Send(g *gocui.Gui, addr string, port int, count uint, interval 
 		if _, err := conn.Write(frame); err != nil {
 			sarwin.MsgPrintln(g, "red_black", "error writing beacon to", addr)
 		}
+		sarwin.PacketPrintln(g, "cyan_black", "Tx", b.ShortPrint())
 
 		sarwin.MsgPrintln(g, "green_black", "Sent Beacon", i+1, "of", count, "to", addr, "every", interval, "seconds")
 		// select { // We may need to add some more channel i/o here so use select
