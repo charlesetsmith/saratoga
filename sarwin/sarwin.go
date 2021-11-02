@@ -70,7 +70,7 @@ var bg = map[string]string{
 }
 
 // Viewinfo -- Data and info on views (cmd & msg)
-type Viewinfo struct {
+type Cmdinfo struct {
 	Commands []string // History of commands
 	Prompt   string   // Command line prompt prefix
 	Curline  int      // What is my current line #
