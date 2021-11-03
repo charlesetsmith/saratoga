@@ -146,7 +146,29 @@ func cursorDown(g *gocui.Gui, v *gocui.View) error {
 	if g == nil || v == nil {
 		log.Fatal("cursorDown - g or v is nil")
 	}
-	_, oy := v.Origin()
+	ox, oy := v.Origin()
+	cx, cy := v.Cursor()
+	// Don't move down if we are at the last line in current views Bufferlines
+	if oy+cy == len(v.BufferLines())-1 {
+		sarwin.MsgPrintf(g, "white_red", "%s CursorDown oy=%d cy=%d lines=%d\n",
+			v.Name(), oy, cy, len(v.BufferLines()))
+		return nil
+	}
+	if err := v.SetCursor(cx, cy+1); err != nil {
+		// ox, oy = v.Origin()
+		if err := v.SetOrigin(ox, oy+1); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+/*
+func oldcursorDown(g *gocui.Gui, v *gocui.View) error {
+	if g == nil || v == nil {
+		log.Fatal("cursorDown - g or v is nil")
+	}
+	ox, oy := v.Origin()
 	cx, cy := v.Cursor()
 
 	// Don't move down if we are at the last line in current views Bufferlines
@@ -155,7 +177,7 @@ func cursorDown(g *gocui.Gui, v *gocui.View) error {
 	}
 	err := v.SetCursor(cx, cy+1)
 	if err != nil { // Reset the origin
-		if err := v.SetOrigin(0, oy+1); err != nil { // changed ox to 0
+		if err := v.SetOrigin(ox, oy+1); err != nil { // changed ox to 0
 			sarwin.MsgPrintf(g, "white_red", v.Name(), "SetOrigin error=%s", err)
 			return err
 		}
@@ -168,17 +190,33 @@ func cursorDown(g *gocui.Gui, v *gocui.View) error {
 	}
 	return nil
 }
+*/
 
-// Handle up cursor -- All good!
 func cursorUp(g *gocui.Gui, v *gocui.View) error {
 	if g == nil || v == nil {
 		log.Fatal("cursorUp - g or v is nil")
 	}
-	_, oy := v.Origin()
+	ox, oy := v.Origin()
+	cx, cy := v.Cursor()
+	if err := v.SetCursor(cx, cy-1); err != nil && oy > 0 {
+		if err := v.SetOrigin(ox, oy-1); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+/*
+// Handle up cursor -- All good!
+func oldcursorUp(g *gocui.Gui, v *gocui.View) error {
+	if g == nil || v == nil {
+		log.Fatal("cursorUp - g or v is nil")
+	}
+	ox, oy := v.Origin()
 	cx, cy := v.Cursor()
 	err := v.SetCursor(cx, cy-1)
 	if err != nil && oy > 0 { // Reset the origin
-		if err := v.SetOrigin(0, oy-1); err != nil { // changed ox to 0
+		if err := v.SetOrigin(ox, oy-1); err != nil { // changed ox to 0
 			sarwin.MsgPrintf(g, "white_red", "SetOrigin error=%s", err)
 			return err
 		}
@@ -189,6 +227,28 @@ func cursorUp(g *gocui.Gui, v *gocui.View) error {
 		v.SetCursor(len(line), cy)
 	}
 	return nil
+}
+*/
+
+// Display the prompt
+func prompt(g *gocui.Gui, v *gocui.View) {
+	if g == nil || v == nil || v.Name() != "cmd" {
+		log.Fatal("prompt must be in cmd view")
+	}
+	_, oy := v.Origin()
+	_, cy := v.Cursor()
+	// Only display it if it is on the next new line
+	if oy+cy == Cinfo.Curline {
+		Cinfo.Curline++
+		sarwin.CmdPrintf(g, "yellow_black", "\n%s[%d]:", Cinfo.Prompt, Cinfo.Curline)
+		_, cy := v.Cursor()
+		v.SetCursor(promptlen(Cinfo), cy)
+		if err := cursorDown(g, v); err != nil {
+			sarwin.MsgPrintln(g, "red_black", "Cannot move to next line")
+		}
+		_, cy = v.Cursor()
+		v.SetCursor(promptlen(Cinfo), cy+1)
+	}
 }
 
 // Commands - cli commands entered
@@ -230,28 +290,7 @@ func getLine(g *gocui.Gui, v *gocui.View) error {
 			// THIS IS A KLUDGE FIX IT WITH A CHANNEL
 			log.Fatal("\nGocui Exit. Bye!\n", err)
 		}
-
-		Cinfo.Curline++
-		xpos := promptlen(Cinfo)
-		// Have we scrolled past the length of v, if so reset the origin
-
-		if err := v.SetCursor(xpos, cy+1); err != nil {
-			sarwin.MsgPrintln(g, "red_black", "We Scrolled past length of v", err)
-			_, oy := v.Origin()
-			// sarwin.MsgPrintf(g,  "red_black", "Origin reset ox=%d oy=%d\n", ox, oy)
-			if err := v.SetOrigin(0, oy+1); err != nil { // changed xpos to 0
-				// sarwin.MsgPrintln(g,  "red_black", "SetOrigin Error:", err)
-				return err
-			}
-			// Set the cursor to last line in v
-			if verr := v.SetCursor(xpos, cy); verr != nil {
-				sarwin.MsgPrintln(g, "bwite_red", "Setcursor out of bounds:", verr)
-			}
-			cx, cy := v.Cursor()
-			sarwin.MsgPrintf(g, "red_black", "cx=%d cy=%d line=%s\n", cx, cy, line)
-		}
-		// Put up the new prompt on the next line
-		sarwin.CmdPrintf(g, "yellow_black", "\n%s[%d]:", Cinfo.Prompt, Cinfo.Curline)
+		prompt(g, v)
 	case "msg", "packet":
 		return cursorDown(g, v)
 	}
@@ -349,6 +388,7 @@ func layout(g *gocui.Gui) error {
 		cmd.Editable = true
 		cmd.Overwrite = true
 		cmd.Wrap = true
+		cmd.Autoscroll = true
 	}
 	// This is the packet trace window - packet trace history goes here
 	// Toggles on/off with CtrlP
@@ -795,6 +835,7 @@ func main() {
 	g.Cursor = true
 	g.Highlight = true
 	g.SelFgColor = gocui.ColorRed
+	g.SelBgColor = gocui.ColorWhite
 	g.SetManagerFunc(layout)
 	if err := keybindings(g); err != nil {
 		log.Panicln(err)
@@ -895,23 +936,19 @@ func main() {
 	// The Base calling functions for Saratoga live in cli.go so look there first!
 	errflag := make(chan error, 1)
 	go mainloop(g, errflag, Cmdptr)
-
 	select {
 	case v4err := <-v4listenquit:
-		fmt.Println("Saratoga v4 lisntener has quit:", v4err)
+		fmt.Println("Saratoga v4 listener has quit with error:", v4err)
 	case v6err := <-v6listenquit:
-		fmt.Println("Saratoga v6 lisntener has quit:", v6err)
+		fmt.Println("Saratoga v6 listener has quit with error:", v6err)
 	case err := <-errflag:
-		fmt.Println("Mainloop has quit:", err.Error())
+		fmt.Println("Mainloop has quit with error:", err.Error())
 	}
 }
 
 // Go routine for command line loop
 func mainloop(g *gocui.Gui, done chan error, c *sarflags.Cliflags) {
-	var err error
-
-	if err = g.MainLoop(); err != nil && err != gocui.ErrQuit {
-		fmt.Printf("%s", err.Error())
-	}
+	err := g.MainLoop()
+	// fmt.Println(err.Error())
 	done <- err
 }
