@@ -31,17 +31,6 @@ import (
 // Cinfo - Information held on the cmd view
 var Cinfo sarwin.Cmdinfo
 
-// Current active view
-// var activeView = 0
-
-// Minfo - Information held on the msg view
-// var Minfo sarwin.Viewinfo
-
-// Return the length of the prompt
-func promptlen(v sarwin.Cmdinfo) int {
-	return len(v.Prompt) + len(strconv.Itoa(v.Curline)) + v.Ppad
-}
-
 func setCurrentViewOnTop(g *gocui.Gui, name string) (*gocui.View, error) {
 	if _, err := g.SetCurrentView(name); err != nil {
 		return nil, err
@@ -53,11 +42,10 @@ func setCurrentViewOnTop(g *gocui.Gui, name string) (*gocui.View, error) {
 	return nil, err
 }
 
-// Rotate through the views
+// Rotate through the views - CtrlSpace
 func switchView(g *gocui.Gui, v *gocui.View) error {
 	var err error
 	var view string
-	// var views = []string{"cmd", "msg", "packet"}
 
 	switch v.Name() {
 	case "cmd":
@@ -66,10 +54,12 @@ func switchView(g *gocui.Gui, v *gocui.View) error {
 		if showpacket {
 			view = "packet"
 		} else {
-			view = "cmd"
+			view = "err"
 		}
-	case "packet":
+	case "err":
 		view = "cmd"
+	case "packet":
+		view = "err"
 	}
 	if _, err = setCurrentViewOnTop(g, view); err != nil {
 		return err
@@ -79,9 +69,6 @@ func switchView(g *gocui.Gui, v *gocui.View) error {
 
 // Backspace or Delete
 func backSpace(g *gocui.Gui, v *gocui.View) error {
-	if g == nil || v == nil {
-		log.Fatal("backSpace - g or v is nil")
-	}
 	switch v.Name() {
 	case "cmd":
 		cx, _ := v.Cursor()
@@ -98,9 +85,6 @@ func backSpace(g *gocui.Gui, v *gocui.View) error {
 
 // Handle Left Arrow Move -- All good
 func cursorLeft(g *gocui.Gui, v *gocui.View) error {
-	if g == nil || v == nil {
-		log.Fatal("cursorLeft - g or v is nil")
-	}
 	switch v.Name() {
 	case "cmd":
 		cx, cy := v.Cursor()
@@ -119,9 +103,6 @@ func cursorLeft(g *gocui.Gui, v *gocui.View) error {
 
 // Handle Right Arrow Move - All good
 func cursorRight(g *gocui.Gui, v *gocui.View) error {
-	if g == nil || v == nil {
-		log.Fatal("cursorRight - g or v is nil")
-	}
 	switch v.Name() {
 	case "cmd":
 		cx, cy := v.Cursor()
@@ -142,46 +123,49 @@ func cursorRight(g *gocui.Gui, v *gocui.View) error {
 
 // Handle down cursor -- All good!
 func cursorDown(g *gocui.Gui, v *gocui.View) error {
-	if g == nil || v == nil {
-		log.Fatal("cursorDown - g or v is nil")
-	}
 	ox, oy := v.Origin()
 	cx, cy := v.Cursor()
 	// Don't move down if we are at the last line in current views Bufferlines
 	if oy+cy == len(v.BufferLines())-1 {
-		// sarwin.MsgPrintf(g, "white_red", "%s CursorDown oy=%d cy=%d lines=%d\n",
-		//	v.Name(), oy, cy, len(v.BufferLines()))
+		sarwin.ErrPrintf(g, "white_black", "%s Down oy=%d cy=%d lines=%d\n",
+			v.Name(), oy, cy, len(v.BufferLines()))
 		return nil
 	}
 	if err := v.SetCursor(cx, cy+1); err != nil {
+		sarwin.ErrPrintf(g, "magenta_black", "%s Down oy=%d cy=%d lines=%d\n",
+			v.Name(), oy, cy, len(v.BufferLines()))
 		// ox, oy = v.Origin()
 		if err := v.SetOrigin(ox, oy+1); err != nil {
+			sarwin.ErrPrintf(g, "cyan_black", "%s Down oy=%d cy=%d lines=%d\n",
+				v.Name(), oy, cy, len(v.BufferLines()))
 			return err
 		}
 	}
+	sarwin.ErrPrintf(g, "green_black", "%s Down oy=%d cy=%d lines=%d\n",
+		v.Name(), oy, cy, len(v.BufferLines()))
 	return nil
 }
 
 func cursorUp(g *gocui.Gui, v *gocui.View) error {
-	if g == nil || v == nil {
-		log.Fatal("cursorUp - g or v is nil")
-	}
 	ox, oy := v.Origin()
 	cx, cy := v.Cursor()
 	if err := v.SetCursor(cx, cy-1); err != nil && oy > 0 {
+		sarwin.ErrPrintf(g, "magenta_black", "%s Up oy=%d cy=%d lines=%d\n",
+			v.Name(), oy, cy, len(v.BufferLines()))
 		if err := v.SetOrigin(ox, oy-1); err != nil {
+			sarwin.ErrPrintf(g, "cyan_black", "%s Up oy=%d cy=%d lines=%d\n",
+				v.Name(), oy, cy, len(v.BufferLines()))
 			return err
 		}
 	}
+	sarwin.ErrPrintf(g, "green_black", "%s Up oy=%d cy=%d lines=%d\n",
+		v.Name(), oy, cy, len(v.BufferLines()))
 	return nil
 }
 
 /*
-// Handle up cursor -- All good!
+// Handle up cursor
 func oldcursorUp(g *gocui.Gui, v *gocui.View) error {
-	if g == nil || v == nil {
-		log.Fatal("cursorUp - g or v is nil")
-	}
 	ox, oy := v.Origin()
 	cx, cy := v.Cursor()
 	err := v.SetCursor(cx, cy-1)
@@ -199,6 +183,11 @@ func oldcursorUp(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 */
+
+// Return the length of the prompt
+func promptlen(v sarwin.Cmdinfo) int {
+	return len(v.Prompt) + len(strconv.Itoa(v.Curline)) + v.Ppad
+}
 
 // Display the prompt
 func prompt(g *gocui.Gui, v *gocui.View) {
@@ -359,6 +348,20 @@ func layout(g *gocui.Gui) error {
 		cmd.Wrap = true
 		cmd.Autoscroll = true
 	}
+	// This is the error msg view -- mic errors go here
+	if cmd, err = g.SetView("err", maxx/2, maxy-(maxy/ratio)+1, maxx-1, maxy-1); err != nil {
+		if err != gocui.ErrUnknownView {
+			return err
+		}
+		cmd.Title = "Errors"
+		cmd.Highlight = false
+		cmd.BgColor = gocui.ColorBlack
+		cmd.FgColor = gocui.ColorGreen
+		cmd.Editable = false
+		cmd.Overwrite = false
+		cmd.Wrap = true
+		cmd.Autoscroll = true
+	}
 	// This is the packet trace window - packet trace history goes here
 	// Toggles on/off with CtrlP
 	if packet, err = g.SetView("packet", maxx-maxx/4, 1, maxx-2, maxy-maxy/ratio-1); err != nil {
@@ -400,9 +403,6 @@ func layout(g *gocui.Gui) error {
 		Cinfo.Curline = 0
 		cmdv, _ := g.View("cmd")
 		prompt(g, cmdv)
-		//prompt := fmt.Sprintf("%s[%d]:", Cinfo.Prompt, Cinfo.Curline)
-		//sarwin.CmdPrintf(g, "yellow_black", prompt)
-		//cmd.SetCursor(promptlen(Cinfo), 0)
 		FirstPass = false
 	}
 	return nil
@@ -755,14 +755,6 @@ func main() {
 		fmt.Println("Cannot open saratoga config file we have a Readconf error", os.Args[1], err)
 		return
 	}
-	/*
-		fmt.Println("Saratoga Commands are:")
-		for xx := range Commands {
-			fmt.Println(xx)
-		}
-		fmt.Println("List of commands completed")
-	*/
-	// panic("WE ARE DONE!!!!!")
 
 	// Grab my process ID
 	// Pid := os.Getpid()
@@ -892,8 +884,8 @@ func main() {
 		sarwin.MsgPrintln(g, "green_black", "MaxInt=", sarflags.MaxInt)
 		sarwin.MsgPrintln(g, "green_black", "MaxUint=", sarflags.MaxUint)
 		sarwin.MsgPrintln(g, "green_black", "MaxInt16=", sarflags.MaxInt16)
-		sarwin.MsgPrintln(g, "green_red", "MaxUint16=", sarflags.MaxUint16)
-		sarwin.MsgPrintln(g, "green_red", "MaxInt32=", sarflags.MaxInt32)
+		sarwin.MsgPrintln(g, "green_black", "MaxUint16=", sarflags.MaxUint16)
+		sarwin.MsgPrintln(g, "green_black", "MaxInt32=", sarflags.MaxInt32)
 		sarwin.MsgPrintln(g, "green_black", "MaxUint32=", sarflags.MaxUint32)
 		sarwin.MsgPrintln(g, "green_black", "MaxInt64=", sarflags.MaxInt64)
 		sarwin.MsgPrintln(g, "green_black", "MaxUint64=", sarflags.MaxUint64)
@@ -901,8 +893,8 @@ func main() {
 
 	sarwin.MsgPrintln(g, "green_black", "Maximum Descriptor is:", sarflags.MaxDescriptor)
 
-	sarwin.MsgPrintln(g, "white_black", "^P - Toggle Packet View")
-	sarwin.MsgPrintln(g, "white_black", "^Space - Rotate/Change View")
+	sarwin.ErrPrintln(g, "white_black", "^P - Toggle Packet View")
+	sarwin.ErrPrintln(g, "white_black", "^Space - Rotate/Change View")
 
 	// The Base calling functions for Saratoga live in cli.go so look there first!
 	errflag := make(chan error, 1)

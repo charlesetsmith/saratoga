@@ -164,6 +164,16 @@ func CmdPrintln(g *gocui.Gui, colour string, args ...interface{}) {
 	Fprintln(g, "cmd", colour, args...)
 }
 
+// Send formatted output to "err" window
+func ErrPrintf(g *gocui.Gui, colour string, format string, args ...interface{}) {
+	Fprintf(g, "err", colour, format, args...)
+}
+
+// Send unformatted output to "err" window
+func ErrPrintln(g *gocui.Gui, colour string, args ...interface{}) {
+	Fprintln(g, "err", colour, args...)
+}
+
 // Send formatted output to "cmd" window
 func PacketPrintf(g *gocui.Gui, colour string, format string, args ...interface{}) {
 	Fprintf(g, "packet", colour, format, args...)
