@@ -159,9 +159,9 @@ func cmdbeacon(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 			go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, c.V4Multicast, c.Port)
 			return
 		default: // beacon <count> or beacon <ipaddr>
-			u32, err := strconv.ParseUint(args[1], 10, 32)
-			if err == nil { // We have a number so it is a timer
-				clibeacon.count = uint(u32)
+			if n, err := strconv.ParseUint(args[1], 10, 32); err == nil {
+				// We have a number so it is a timer
+				clibeacon.count = uint(n)
 				sarwin.MsgPrintln(g, "green_black", "Beacons timer set to", clibeacon.count, "seconds")
 			} else {
 				sarwin.MsgPrintln(g, "green_black", "Sending", clibeacon.count, "beacons to", args[1])
@@ -1248,9 +1248,9 @@ func Docmd(g *gocui.Gui, s string, c *sarflags.Cliflags) {
 				fn(g, vals, c)
 				return
 			}
-			sarwin.MsgPrintln(g, "bwhite_red", "Cannot execute:", vals[0])
+			sarwin.MsgPrintln(g, "red_black", "Cannot execute:", vals[0])
 			return
 		}
 	}
-	sarwin.MsgPrintln(g, "bwhite_red", "Invalid command:", vals[0])
+	sarwin.MsgPrintln(g, "red_black", "Invalid command:", vals[0])
 }

@@ -141,7 +141,6 @@ func cursorRight(g *gocui.Gui, v *gocui.View) error {
 }
 
 // Handle down cursor -- All good!
-// well not quite, still issue if we scroll down before hitting return
 func cursorDown(g *gocui.Gui, v *gocui.View) error {
 	if g == nil || v == nil {
 		log.Fatal("cursorDown - g or v is nil")
@@ -150,8 +149,8 @@ func cursorDown(g *gocui.Gui, v *gocui.View) error {
 	cx, cy := v.Cursor()
 	// Don't move down if we are at the last line in current views Bufferlines
 	if oy+cy == len(v.BufferLines())-1 {
-		sarwin.MsgPrintf(g, "white_red", "%s CursorDown oy=%d cy=%d lines=%d\n",
-			v.Name(), oy, cy, len(v.BufferLines()))
+		// sarwin.MsgPrintf(g, "white_red", "%s CursorDown oy=%d cy=%d lines=%d\n",
+		//	v.Name(), oy, cy, len(v.BufferLines()))
 		return nil
 	}
 	if err := v.SetCursor(cx, cy+1); err != nil {
@@ -162,35 +161,6 @@ func cursorDown(g *gocui.Gui, v *gocui.View) error {
 	}
 	return nil
 }
-
-/*
-func oldcursorDown(g *gocui.Gui, v *gocui.View) error {
-	if g == nil || v == nil {
-		log.Fatal("cursorDown - g or v is nil")
-	}
-	ox, oy := v.Origin()
-	cx, cy := v.Cursor()
-
-	// Don't move down if we are at the last line in current views Bufferlines
-	if oy+cy >= len(v.BufferLines())-1 {
-		return nil
-	}
-	err := v.SetCursor(cx, cy+1)
-	if err != nil { // Reset the origin
-		if err := v.SetOrigin(ox, oy+1); err != nil { // changed ox to 0
-			sarwin.MsgPrintf(g, "white_red", v.Name(), "SetOrigin error=%s", err)
-			return err
-		}
-
-	}
-	// Move the cursor to the end of the current line
-	_, cy = v.Cursor()
-	if line, err := v.Line(cy); err == nil {
-		v.SetCursor(len(line), cy)
-	}
-	return nil
-}
-*/
 
 func cursorUp(g *gocui.Gui, v *gocui.View) error {
 	if g == nil || v == nil {
@@ -376,7 +346,7 @@ func layout(g *gocui.Gui) error {
 	// Maximum size of x and y
 	maxx, maxy := g.Size()
 	// This is the command line input view -- cli inputs and return messages go here
-	if cmd, err = g.SetView("cmd", 0, maxy-(maxy/ratio)+1, maxx-1, maxy-1); err != nil {
+	if cmd, err = g.SetView("cmd", 0, maxy-(maxy/ratio)+1, maxx/2-1, maxy-1); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
