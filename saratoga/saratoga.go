@@ -239,15 +239,20 @@ func prompt(g *gocui.Gui, v *gocui.View) {
 	_, cy := v.Cursor()
 	// Only display it if it is on the next new line
 	if oy+cy == Cinfo.Curline {
-		Cinfo.Curline++
-		sarwin.CmdPrintf(g, "yellow_black", "\n%s[%d]:", Cinfo.Prompt, Cinfo.Curline)
-		_, cy := v.Cursor()
-		v.SetCursor(promptlen(Cinfo), cy)
-		if err := cursorDown(g, v); err != nil {
-			sarwin.MsgPrintln(g, "red_black", "Cannot move to next line")
+		if FirstPass { // Just the prompt no precedin \n as we are the first line
+			sarwin.CmdPrintf(g, "yellow_black", "%s[%d]:", Cinfo.Prompt, Cinfo.Curline)
+			v.SetCursor(promptlen(Cinfo), cy)
+		} else { // End the last command by going to new lin \n then put up the new prompt
+			Cinfo.Curline++
+			sarwin.CmdPrintf(g, "yellow_black", "\n%s[%d]:", Cinfo.Prompt, Cinfo.Curline)
+			_, cy := v.Cursor()
+			v.SetCursor(promptlen(Cinfo), cy)
+			if err := cursorDown(g, v); err != nil {
+				sarwin.MsgPrintln(g, "red_black", "Cannot move to next line")
+			}
+			_, cy = v.Cursor()
+			v.SetCursor(promptlen(Cinfo), cy+1)
 		}
-		_, cy = v.Cursor()
-		v.SetCursor(promptlen(Cinfo), cy+1)
 	}
 }
 
@@ -269,8 +274,7 @@ func getLine(g *gocui.Gui, v *gocui.View) error {
 		_, cy := v.Cursor()
 		// Get the line
 		line, _ := v.Line(cy)
-		// sarwin.MsgPrintf(g,  "red_black", "cx=%d cy=%d lines=%d line=%s\n",
-		//      len(v.BufferLines()), cx, cy, line)
+
 		command := strings.SplitN(line, ":", 2)
 		if command[1] == "" { // We have just hit enter - do nothing
 			return nil
@@ -278,7 +282,7 @@ func getLine(g *gocui.Gui, v *gocui.View) error {
 		// Save the command into history
 		Cinfo.Commands = append(Cinfo.Commands, command[1])
 
-		// Spawn a go and run the command
+		// Spawn a go to run the command
 		go func(*gocui.Gui, string) {
 			// defer Sarwg.Done()
 			cli.Docmd(g, command[1], c)
@@ -301,6 +305,10 @@ func quit(g *gocui.Gui, v *gocui.View) error {
 	return gocui.ErrQuit
 }
 
+// ShowPacket - Show Packet trace info
+var showpacket bool = false
+
+// Turn on/off the Packet View
 func showPacket(g *gocui.Gui, v *gocui.View) error {
 	var err error
 
@@ -316,6 +324,7 @@ func showPacket(g *gocui.Gui, v *gocui.View) error {
 	return err
 }
 
+// Bind keys to function handlers
 func keybindings(g *gocui.Gui) error {
 	if err := g.SetKeybinding("", gocui.KeyCtrlSpace, gocui.ModNone, switchView); err != nil {
 		return err
@@ -356,16 +365,7 @@ func keybindings(g *gocui.Gui) error {
 // FirstPass -- First time around layout we don;t put \n at end of prompt
 var FirstPass = true
 
-// For working out screen positions in cli i/o
-
-// CmdLines - Number of lines in Cmd View
-var CmdLines int
-
-// ShowPacket - Show Packet trace info
-var showpacket bool = false
-
 func layout(g *gocui.Gui) error {
-
 	var err error
 	var cmd *gocui.View
 	var msg *gocui.View
@@ -377,7 +377,6 @@ func layout(g *gocui.Gui) error {
 	maxx, maxy := g.Size()
 	// This is the command line input view -- cli inputs and return messages go here
 	if cmd, err = g.SetView("cmd", 0, maxy-(maxy/ratio)+1, maxx-1, maxy-1); err != nil {
-		CmdLines = (maxx / ratio) - 3 // Number of input lines in cmd view
 		if err != gocui.ErrUnknownView {
 			return err
 		}
@@ -429,9 +428,11 @@ func layout(g *gocui.Gui) error {
 		}
 		cmd.SetCursor(0, 0)
 		Cinfo.Curline = 0
-		prompt := fmt.Sprintf("%s[%d]:", Cinfo.Prompt, Cinfo.Curline)
-		sarwin.CmdPrintf(g, "yellow_black", prompt)
-		cmd.SetCursor(promptlen(Cinfo), 0)
+		cmdv, _ := g.View("cmd")
+		prompt(g, cmdv)
+		//prompt := fmt.Sprintf("%s[%d]:", Cinfo.Prompt, Cinfo.Curline)
+		//sarwin.CmdPrintf(g, "yellow_black", prompt)
+		//cmd.SetCursor(promptlen(Cinfo), 0)
 		FirstPass = false
 	}
 	return nil
