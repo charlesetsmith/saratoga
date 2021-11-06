@@ -93,7 +93,7 @@ func cursorLeft(g *gocui.Gui, v *gocui.View) error {
 		}
 		// Move back a character
 		if err := v.SetCursor(cx-1, cy); err != nil {
-			sarwin.MsgPrintln(g, "white_black", v.Name(), "LeftArrow:", "cx=", cx, "cy=", cy, "error=", err)
+			sarwin.ErrPrintln(g, "white_black", v.Name(), "LeftArrow:", "cx=", cx, "cy=", cy, "error=", err)
 		}
 	case "msg", "packet":
 		return nil
@@ -113,7 +113,7 @@ func cursorRight(g *gocui.Gui, v *gocui.View) error {
 		}
 		// Move forward a character
 		if err := v.SetCursor(cx+1, cy); err != nil {
-			sarwin.MsgPrintln(g, "white_red", "RightArrow:", "cx=", cx, "cy=", cy, "error=", err)
+			sarwin.ErrPrintln(g, "white_red", "RightArrow:", "cx=", cx, "cy=", cy, "error=", err)
 		}
 	case "msg", "packet":
 		return nil
@@ -132,12 +132,12 @@ func cursorDown(g *gocui.Gui, v *gocui.View) error {
 		return nil
 	}
 	if err := v.SetCursor(cx, cy+1); err != nil {
-		sarwin.ErrPrintf(g, "magenta_black", "%s Down oy=%d cy=%d lines=%d\n",
-			v.Name(), oy, cy, len(v.BufferLines()))
+		sarwin.ErrPrintf(g, "magenta_black", "%s Down oy=%d cy=%d lines=%d err=%s\n",
+			v.Name(), oy, cy, len(v.BufferLines()), err.Error())
 		// ox, oy = v.Origin()
 		if err := v.SetOrigin(ox, oy+1); err != nil {
-			sarwin.ErrPrintf(g, "cyan_black", "%s Down oy=%d cy=%d lines=%d\n",
-				v.Name(), oy, cy, len(v.BufferLines()))
+			sarwin.ErrPrintf(g, "cyan_black", "%s Down oy=%d cy=%d lines=%d err=%s\n",
+				v.Name(), oy, cy, len(v.BufferLines()), err.Error())
 			return err
 		}
 	}
@@ -150,14 +150,15 @@ func cursorUp(g *gocui.Gui, v *gocui.View) error {
 	ox, oy := v.Origin()
 	cx, cy := v.Cursor()
 	if err := v.SetCursor(cx, cy-1); err != nil && oy > 0 {
-		sarwin.ErrPrintf(g, "magenta_black", "%s Up oy=%d cy=%d lines=%d\n",
-			v.Name(), oy, cy, len(v.BufferLines()))
+		sarwin.ErrPrintf(g, "magenta_black", "%s Up oy=%d cy=%d lines=%d err=%s\n",
+			v.Name(), oy, cy, len(v.BufferLines()), err.Error())
 		if err := v.SetOrigin(ox, oy-1); err != nil {
-			sarwin.ErrPrintf(g, "cyan_black", "%s Up oy=%d cy=%d lines=%d\n",
-				v.Name(), oy, cy, len(v.BufferLines()))
+			sarwin.ErrPrintf(g, "cyan_black", "%s Up oy=%d cy=%d lines=%d err=%s\n",
+				v.Name(), oy, cy, len(v.BufferLines()), err.Error())
 			return err
 		}
 	}
+	_, cy = v.Cursor()
 	sarwin.ErrPrintf(g, "green_black", "%s Up oy=%d cy=%d lines=%d\n",
 		v.Name(), oy, cy, len(v.BufferLines()))
 	return nil
@@ -254,7 +255,7 @@ func getLine(g *gocui.Gui, v *gocui.View) error {
 			log.Fatal("\nGocui Exit. Bye!\n", err)
 		}
 		prompt(g, v)
-	case "msg", "packet":
+	case "msg", "packet", "err":
 		return cursorDown(g, v)
 	}
 	return nil
