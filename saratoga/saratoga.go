@@ -77,7 +77,7 @@ func backSpace(g *gocui.Gui, v *gocui.View) error {
 		}
 		// Delete rune backwards
 		v.EditDelete(true)
-	case "msg", "packet":
+	case "msg", "err", "packet":
 		return nil
 	}
 	return nil
@@ -95,7 +95,7 @@ func cursorLeft(g *gocui.Gui, v *gocui.View) error {
 		if err := v.SetCursor(cx-1, cy); err != nil {
 			sarwin.ErrPrintln(g, "white_black", v.Name(), "LeftArrow:", "cx=", cx, "cy=", cy, "error=", err)
 		}
-	case "msg", "packet":
+	case "msg", "packet", "err":
 		return nil
 	}
 	return nil
@@ -115,7 +115,7 @@ func cursorRight(g *gocui.Gui, v *gocui.View) error {
 		if err := v.SetCursor(cx+1, cy); err != nil {
 			sarwin.ErrPrintln(g, "white_red", "RightArrow:", "cx=", cx, "cy=", cy, "error=", err)
 		}
-	case "msg", "packet":
+	case "msg", "packet", "err":
 		return nil
 	}
 	return nil
@@ -396,6 +396,10 @@ func layout(g *gocui.Gui) error {
 
 	// Display the prompt without the \n first time around
 	if FirstPass {
+		g.Cursor = true
+		g.Highlight = true
+		g.SelFgColor = gocui.ColorRed
+		g.SelBgColor = gocui.ColorWhite
 		// All inputs happen via the cmd view
 		if cmd, err = g.SetCurrentView("cmd"); err != nil {
 			return err
@@ -795,11 +799,6 @@ func main() {
 		log.Fatal(err)
 	}
 	defer g.Close()
-
-	g.Cursor = true
-	g.Highlight = true
-	g.SelFgColor = gocui.ColorRed
-	g.SelBgColor = gocui.ColorWhite
 	g.SetManagerFunc(layout)
 	if err := keybindings(g); err != nil {
 		log.Panicln(err)

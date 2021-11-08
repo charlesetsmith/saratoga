@@ -6,15 +6,16 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 
 	"github.com/jroimartin/gocui"
 )
 
 // Ansi Colour Escape Sequences
-const ansiprefix = "\033["
-const ansipostfix = "m"
-const ansiseparator = ";"
-const ansioff = "0" // "\033[0m"
+var ansiprefix = "\033["
+var ansipostfix = "m"
+var ansiseparator = ";"
+var ansioff = "\033[0m" // Turn ansii escapesequence off
 
 // Foreground colours (b=bright)
 var fg = map[string]string{
@@ -50,24 +51,27 @@ var fg = map[string]string{
 // Background Colours (b=bright)
 var bg = map[string]string{
 	// Normal background
-	"black":   "40",
-	"red":     "41",
-	"green":   "42",
-	"yellow":  "43",
-	"blue":    "44",
-	"magenta": "45",
-	"cyan":    "46",
-	"white":   "47",
+	"black":   "40;1",
+	"red":     "41;1",
+	"green":   "42;1",
+	"yellow":  "43;1",
+	"blue":    "44;1",
+	"magenta": "45;1",
+	"cyan":    "46;1",
+	"white":   "47;1",
 	// Bright background (this just makes foreground lighter)
-	"bblack":   "40;1",
-	"bred":     "41;1",
-	"bgreen":   "42;1",
-	"byellow":  "43;1",
-	"bblue":    "44;1",
-	"bmagenta": "45;1",
-	"bcyan":    "46;1",
-	"bwhite":   "47;1",
+	"bblack":   "40;4",
+	"bred":     "41;4",
+	"bgreen":   "42;4",
+	"byellow":  "43;4",
+	"bblue":    "44;4",
+	"bmagenta": "45;4",
+	"bcyan":    "46;4",
+	"bwhite":   "47;4",
 }
+
+// Ensure multiple prints to screen don't interfere with eachother
+var ViewMu sync.Mutex
 
 // Viewinfo -- Data and info on views (cmd & msg)
 type Cmdinfo struct {
@@ -79,107 +83,112 @@ type Cmdinfo struct {
 }
 
 // Create ansi sequence for colour change with c format of fg_bg (e.g. red_black)
-func setcolour(c string) string {
-
-	var fgok bool
-	var bgok bool
-
-	if c == "off" {
-		return ansiprefix + ansioff + ansipostfix
+func setcolour(colour string) string {
+	if colour == "none" || colour == "" {
+		return ""
 	}
-	sequence := strings.Split(c, "_")
-
-	// Check that the colors are OK
-	if len(sequence) == 2 {
-		for c := range fg {
-			if sequence[0] == c {
-				fgok = true
-				break
-			}
-		}
-		for c := range bg {
-			if sequence[1] == c {
-				bgok = true
-				break
-			}
-		}
+	if colour == "off" {
+		return ansioff
 	}
-	if fgok && bgok {
+	sequence := strings.Split(colour, "_")
+
+	switch len(sequence) {
+	case 2: // fg & bg
+		if fg[sequence[0]] != "" && bg[sequence[1]] != "" {
+			return ansiprefix + fg[sequence[0]] + ansiseparator + bg[sequence[1]] + ansipostfix
+		}
+		return ansiprefix + fg["white"] + ansiseparator + bg["red"] + ansipostfix
+	case 1: // fg and "black" bg
+		if fg[sequence[0]] != "" {
+			return ansiprefix + fg[sequence[0]] + ansiseparator + bg["black"] + ansipostfix
+		}
 		return ansiprefix + fg[sequence[0]] + ansiseparator + bg[sequence[1]] + ansipostfix
+	default: // Woops wrong fg or bg so scream at the screen
+		// Error so make it jump out at us
+		return ansiprefix + fg["white"] + ansiseparator + bg["bred"] + ansipostfix
 	}
-	// Error so make it jump out at us
-	return ansiprefix + fg["bwhite"] + ansiseparator + bg["red"] + ansipostfix
 }
 
-// Fprintf out in ANSII escape sequenace colour
+// fprintf out in ANSII escape sequence in colour to view
 // If colour is undefined then still print it out but in bright red to show there is an issue
-func Fprintf(g *gocui.Gui, vname string, colour string, format string, args ...interface{}) {
+func fprintf(g *gocui.Gui, vname string, colour string, format string, args ...interface{}) {
 
 	g.Update(func(g *gocui.Gui) error {
+		ViewMu.Lock()
+		defer ViewMu.Unlock()
 		v, err := g.View(vname)
 		if err != nil {
 			e := fmt.Sprintf("\nView Fprintf invalid view: %s", vname)
 			log.Fatal(e)
 		}
-		colfmt := setcolour(colour) + format + setcolour("off")
-		fmt.Fprintf(v, colfmt, args...)
+		s := setcolour(colour)
+		s += fmt.Sprintf(format, args...)
+		if colour != "" {
+			s += setcolour("off")
+		}
+		fmt.Fprint(v, s)
 		return nil
 	})
 }
 
-// Fprintln out in ANSII escape sequenace colour
+// Fprintln out in ANSII escape sequence in colour to view
 // If colour is undefined then still print it out but in bright red to show there is an issue
-func Fprintln(g *gocui.Gui, vname string, colour string, args ...interface{}) {
+func fprintln(g *gocui.Gui, vname string, colour string, args ...interface{}) {
 
 	g.Update(func(g *gocui.Gui) error {
+		ViewMu.Lock()
+		defer ViewMu.Unlock()
 		v, err := g.View(vname)
 		if err != nil {
 			e := fmt.Sprintf("\nView Fprintln invalid view: %s", vname)
 			log.Fatal(e)
 		}
-		fmt.Fprintf(v, "%s", setcolour(colour))
-		fmt.Fprintln(v, args...)
-		fmt.Fprintf(v, "%s", setcolour("off"))
+		s := setcolour(colour)
+		s += fmt.Sprint(args...)
+		if colour != "" {
+			s += setcolour("off")
+		}
+		fmt.Fprintln(v, s)
 		return nil
 	})
 }
 
 // Send formatted output to "msg"  window
 func MsgPrintf(g *gocui.Gui, colour string, format string, args ...interface{}) {
-	Fprintf(g, "msg", colour, format, args...)
+	fprintf(g, "msg", colour, format, args...)
 }
 
 // Send unformatted output to "msg" window
 func MsgPrintln(g *gocui.Gui, colour string, args ...interface{}) {
-	Fprintln(g, "msg", colour, args...)
+	fprintln(g, "msg", colour, args...)
 }
 
 // Send formatted output to "cmd" window
 func CmdPrintf(g *gocui.Gui, colour string, format string, args ...interface{}) {
-	Fprintf(g, "cmd", colour, format, args...)
+	fprintf(g, "cmd", colour, format, args...)
 }
 
 // Send unformatted output to "cmd" window
 func CmdPrintln(g *gocui.Gui, colour string, args ...interface{}) {
-	Fprintln(g, "cmd", colour, args...)
+	fprintln(g, "cmd", colour, args...)
 }
 
 // Send formatted output to "err" window
 func ErrPrintf(g *gocui.Gui, colour string, format string, args ...interface{}) {
-	Fprintf(g, "err", colour, format, args...)
+	fprintf(g, "err", colour, format, args...)
 }
 
 // Send unformatted output to "err" window
 func ErrPrintln(g *gocui.Gui, colour string, args ...interface{}) {
-	Fprintln(g, "err", colour, args...)
+	fprintln(g, "err", colour, args...)
 }
 
 // Send formatted output to "cmd" window
 func PacketPrintf(g *gocui.Gui, colour string, format string, args ...interface{}) {
-	Fprintf(g, "packet", colour, format, args...)
+	fprintf(g, "packet", colour, format, args...)
 }
 
 // Send unformatted output to "cmd" window
 func PacketPrintln(g *gocui.Gui, colour string, args ...interface{}) {
-	Fprintln(g, "packet", colour, args...)
+	fprintln(g, "packet", colour, args...)
 }
