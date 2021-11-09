@@ -157,6 +157,7 @@ func cursorUp(g *gocui.Gui, v *gocui.View) error {
 				v.Name(), oy, cy, len(v.BufferLines()), err.Error())
 			return err
 		}
+		// NOPE!!!! v.MoveCursor(cx, cy-1, true)
 	}
 	_, cy = v.Cursor()
 	sarwin.ErrPrintf(g, "green_black", "%s Up oy=%d cy=%d lines=%d\n",
@@ -347,7 +348,7 @@ func layout(g *gocui.Gui) error {
 		cmd.Editable = true
 		cmd.Overwrite = true
 		cmd.Wrap = true
-		cmd.Autoscroll = true
+		cmd.Autoscroll = false
 	}
 	// This is the error msg view -- mic errors go here
 	if cmd, err = g.SetView("err", maxx/2, maxy-(maxy/ratio)+1, maxx-1, maxy-1); err != nil {
@@ -361,7 +362,7 @@ func layout(g *gocui.Gui) error {
 		cmd.Editable = false
 		cmd.Overwrite = false
 		cmd.Wrap = true
-		cmd.Autoscroll = true
+		cmd.Autoscroll = false
 	}
 	// This is the packet trace window - packet trace history goes here
 	// Toggles on/off with CtrlP
@@ -376,7 +377,7 @@ func layout(g *gocui.Gui) error {
 		packet.Editable = false
 		packet.Wrap = true
 		packet.Overwrite = false
-		packet.Autoscroll = true
+		packet.Autoscroll = false
 	}
 
 	// This is the message view window - Status & error messages go here
@@ -391,7 +392,7 @@ func layout(g *gocui.Gui) error {
 		msg.Editable = false
 		msg.Wrap = true
 		msg.Overwrite = false
-		msg.Autoscroll = true
+		msg.Autoscroll = false
 	}
 
 	// Display the prompt without the \n first time around
