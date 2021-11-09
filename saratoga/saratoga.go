@@ -146,6 +146,7 @@ func cursorDown(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
+// Handle up cursor -- All good!
 func cursorUp(g *gocui.Gui, v *gocui.View) error {
 	ox, oy := v.Origin()
 	cx, cy := v.Cursor()
@@ -157,34 +158,12 @@ func cursorUp(g *gocui.Gui, v *gocui.View) error {
 				v.Name(), oy, cy, len(v.BufferLines()), err.Error())
 			return err
 		}
-		// NOPE!!!! v.MoveCursor(cx, cy-1, true)
 	}
 	_, cy = v.Cursor()
 	sarwin.ErrPrintf(g, "green_black", "%s Up oy=%d cy=%d lines=%d\n",
 		v.Name(), oy, cy, len(v.BufferLines()))
 	return nil
 }
-
-/*
-// Handle up cursor
-func oldcursorUp(g *gocui.Gui, v *gocui.View) error {
-	ox, oy := v.Origin()
-	cx, cy := v.Cursor()
-	err := v.SetCursor(cx, cy-1)
-	if err != nil && oy > 0 { // Reset the origin
-		if err := v.SetOrigin(ox, oy-1); err != nil { // changed ox to 0
-			sarwin.MsgPrintf(g, "white_red", "SetOrigin error=%s", err)
-			return err
-		}
-	}
-	// Move the cursor to the end of the current line
-	_, cy = v.Cursor()
-	if line, err := v.Line(cy); err == nil {
-		v.SetCursor(len(line), cy)
-	}
-	return nil
-}
-*/
 
 // Return the length of the prompt
 func promptlen(v sarwin.Cmdinfo) int {
@@ -425,25 +404,25 @@ func reqrxhandler(g *gocui.Gui, r request.Request, remoteAddr *net.UDPAddr) stri
 			// No matching request so add a new transfer
 			var err error
 			if err = transfer.SNew(g, reqtype, r, remoteAddr.IP.String(), r.Session); err == nil {
-				sarwin.MsgPrintln(g, "yellow_black", "Created Request", reqtype, "from",
+				sarwin.MsgPrintln(g, "yellow_black", "Created Request ", reqtype, " from ",
 					sarnet.UDPinfo(remoteAddr),
 					"session", r.Session)
 				return "success"
 			}
-			sarwin.MsgPrintln(g, "red_black", "Cannot create Request", reqtype, "from",
+			sarwin.MsgPrintln(g, "red_black", "Cannot create Request ", reqtype, " from ",
 				sarnet.UDPinfo(remoteAddr),
 				"session", r.Session, err)
 			return "badrequest"
 		}
 		// Request is currently in progress
-		sarwin.MsgPrintln(g, "red_black", "Request", reqtype, "from",
+		sarwin.MsgPrintln(g, "red_black", "Request ", reqtype, " from ",
 			sarnet.UDPinfo(remoteAddr),
-			"for session", r.Session, "already in progress")
+			" for session ", r.Session, " already in progress")
 		return "badrequest"
 	default:
-		sarwin.MsgPrintln(g, "red_black", "Invalid Request from",
+		sarwin.MsgPrintln(g, "red_black", "Invalid Request from ",
 			sarnet.UDPinfo(remoteAddr),
-			"session", r.Session)
+			" session ", r.Session)
 		return "badrequest"
 	}
 }
@@ -456,12 +435,12 @@ func metrxhandler(g *gocui.Gui, m metadata.MetaData, remoteAddr *net.UDPAddr) st
 		if err := t.SChange(g, m); err != nil { // Size of file has changed!!!
 			return "unspecified"
 		}
-		sarwin.MsgPrintln(g, "yellow_black", "Changed Transfer", m.Session, "from",
+		sarwin.MsgPrintln(g, "yellow_black", "Changed Transfer ", m.Session, " from ",
 			sarnet.UDPinfo(remoteAddr))
 		return "success"
 	}
 	// Request is currently in progress
-	sarwin.MsgPrintln(g, "red_black", "Metadata received for no such transfer as", m.Session, "from",
+	sarwin.MsgPrintln(g, "red_black", "Metadata received for no such transfer as ", m.Session, " from ",
 		sarnet.UDPinfo(remoteAddr))
 	return "badpacket"
 }
@@ -497,14 +476,14 @@ func datrxhandler(g *gocui.Gui, d data.Data, conn *net.UDPConn, remoteAddr *net.
 			// Send back a status to the client to tell it a success with creating the transfer
 			transfer.WriteStatus(g, t, stheader, conn, remoteAddr)
 		}
-		sarwin.MsgPrintln(g, "yellow_black", "Server Recieved Data Len:", len(d.Payload), "Pos:", d.Offset)
+		sarwin.MsgPrintln(g, "yellow_black", "Server Recieved Data Len:", len(d.Payload), " Pos:", d.Offset)
 		transfer.Strmu.Unlock()
-		sarwin.MsgPrintln(g, "yellow_black", "Changed Transfer", d.Session, "from",
+		sarwin.MsgPrintln(g, "yellow_black", "Changed Transfer ", d.Session, " from ",
 			sarnet.UDPinfo(remoteAddr))
 		return "success"
 	}
 	// No transfer is currently in progress
-	sarwin.MsgPrintln(g, "red_black", "Data received for no such transfer as", d.Session, "from",
+	sarwin.MsgPrintln(g, "red_black", "Data received for no such transfer as ", d.Session, " from ",
 		sarnet.UDPinfo(remoteAddr))
 	return "badpacket"
 }
@@ -543,7 +522,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 			quit <- err
 			return
 		}
-		sarwin.MsgPrintln(g, "green_black", "Listen read", framelen, "bytes from", remoteAddr.String())
+		sarwin.MsgPrintln(g, "green_black", "Listen read ", framelen, " bytes from ", remoteAddr.String())
 
 		// Very basic frame checks before we get into what it is
 		if framelen < 8 {
@@ -553,8 +532,8 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 			continue
 		}
 		if framelen > maxframesize {
-			sarwin.MsgPrintln(g, "red_black", "Rx Saratoga Frame too long", framelen,
-				"from", sarnet.UDPinfo(remoteAddr))
+			sarwin.MsgPrintln(g, "red_black", "Rx Saratoga Frame too long ", framelen,
+				" from ", sarnet.UDPinfo(remoteAddr))
 			continue
 		}
 
@@ -758,7 +737,7 @@ func main() {
 
 	// Read in JSON config file and parse it into the Config structure.
 	if err := sarflags.ReadConfig(os.Args[1], Cmdptr); err != nil {
-		fmt.Println("Cannot open saratoga config file we have a Readconf error", os.Args[1], err)
+		fmt.Println("Cannot open saratoga config file we have a Readconf error ", os.Args[1], " ", err)
 		return
 	}
 
@@ -812,11 +791,11 @@ func main() {
 	}
 	for _, ifi := range ifis {
 		if ifi.Name == os.Args[2] { // || ifi.Name == "lo0" {
-			sarwin.MsgPrintln(g, "green_black", ifi.Name, "MTU", ifi.MTU, ifi.Flags.String(), ":")
+			sarwin.MsgPrintln(g, "green_black", ifi.Name, "MTU ", ifi.MTU, " ", ifi.Flags.String(), ":")
 			adrs, _ := ifi.Addrs()
 			for _, adr := range adrs {
 				if strings.Contains(adr.Network(), "ip") {
-					sarwin.MsgPrintln(g, "green_black", "\t Unicast ", adr.String(), adr.Network())
+					sarwin.MsgPrintln(g, "green_black", "\t Unicast ", adr.String(), " ", adr.Network())
 
 				}
 			}
@@ -842,14 +821,14 @@ func main() {
 	// Listen to Multicast v6
 	v6mcastcon, err := net.ListenMulticastUDP("udp6", iface, &v6mcastaddr)
 	if err != nil {
-		log.Println("Saratoga Unable to Listen on IPv6 Multicast", v6mcastaddr.IP, v6mcastaddr.Port)
+		log.Println("Saratoga Unable to Listen on IPv6 Multicast ", v6mcastaddr.IP, " ", v6mcastaddr.Port)
 		log.Fatal(err)
 	} else {
 		if err := sarnet.SetMulticastLoop(v6mcastcon, "IPv6"); err != nil {
 			log.Fatal(err)
 		}
 		go listen(g, v6mcastcon, v6listenquit)
-		sarwin.MsgPrintln(g, "green_black", "Saratoga IPv6 Multicast Listener started on",
+		sarwin.MsgPrintln(g, "green_black", "Saratoga IPv6 Multicast Listener started on ",
 			sarnet.UDPinfo(&v6mcastaddr))
 	}
 
@@ -865,14 +844,14 @@ func main() {
 	// Listen to Multicast v4
 	v4mcastcon, err := net.ListenMulticastUDP("udp4", iface, &v4mcastaddr)
 	if err != nil {
-		log.Println("Saratoga Unable to Listen on IPv4 Multicast", v4mcastaddr.IP, v4mcastaddr.Port)
+		log.Println("Saratoga Unable to Listen on IPv4 Multicast ", v4mcastaddr.IP, " ", v4mcastaddr.Port)
 		log.Fatal(err)
 	} else {
 		if err := sarnet.SetMulticastLoop(v4mcastcon, "IPv4"); err != nil {
 			log.Fatal(err)
 		}
 		go listen(g, v4mcastcon, v4listenquit)
-		sarwin.MsgPrintln(g, "green_black", "Saratoga IPv4 Multicast Listener started on",
+		sarwin.MsgPrintln(g, "green_black", "Saratoga IPv4 Multicast Listener started on ",
 			sarnet.UDPinfo(&v4mcastaddr))
 	}
 

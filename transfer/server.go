@@ -64,7 +64,7 @@ func WriteErrStatus(g *gocui.Gui, flags string, session uint32, conn *net.UDPCon
 		return "badstatus"
 	}
 	err := frames.UDPWrite(&st, conn, remoteAddr)
-	sarwin.PacketPrintln(g, "cyan_black", "Tx", st.ShortPrint())
+	sarwin.PacketPrintln(g, "cyan_black", "Tx ", st.ShortPrint())
 	return err
 }
 
@@ -76,9 +76,9 @@ func WriteErrStatus(g *gocui.Gui, flags string, session uint32, conn *net.UDPCon
 func WriteStatus(g *gocui.Gui, t *STransfer, sflags string, conn *net.UDPConn, remoteAddr *net.UDPAddr) string {
 
 	if conn != nil {
-		sarwin.MsgPrintln(g, "cyan_black", "Server Connection from", remoteAddr.String())
+		sarwin.MsgPrintln(g, "cyan_black", "Server Connection from ", remoteAddr.String())
 	}
-	sarwin.MsgPrintln(g, "cyan_black", "Server Assemble & Send status to", remoteAddr.String())
+	sarwin.MsgPrintln(g, "cyan_black", "Server Assemble & Send status to ", remoteAddr.String())
 	var maxholes = stpaylen(sflags) // Work out maximum # holes we can put in a single status frame
 
 	errf := flagvalue(sflags, "errcode")
@@ -119,9 +119,9 @@ func WriteStatus(g *gocui.Gui, t *STransfer, sflags string, conn *net.UDPConn, r
 			//	"to", conn.RemoteAddr().String())
 			return e
 		} else {
-			sarwin.PacketPrintln(g, "cyan_black", "Tx", st.ShortPrint())
+			sarwin.PacketPrintln(g, "cyan_black", "Tx ", st.ShortPrint())
 			sarwin.MsgPrintln(g, "cyan_black", "Server Sent Status:", frames.Print(&st),
-				"to", conn.RemoteAddr().String())
+				" to ", conn.RemoteAddr().String())
 		}
 	}
 	return "success"
@@ -148,7 +148,7 @@ func SMatch(ip string, session uint32) *STransfer {
 func SNew(g *gocui.Gui, ttype string, r request.Request, ip string, session uint32) error {
 
 	var t STransfer
-	// screen.Fprintln(g,  "red_black", "Addtran for", ip, fname, flags)
+	// screen.Fprintln(g,  "red_black", "Addtran for ", ip, " ",, fname, " ", flags)
 	if addr := net.ParseIP(ip); addr != nil { // We have a valid IP Address
 		for _, i := range STransfers { // Don't add duplicates
 			if addr.Equal(i.Peer) && session == i.Session {
@@ -176,8 +176,8 @@ func SNew(g *gocui.Gui, ttype string, r request.Request, ip string, session uint
 		sarwin.MsgPrintln(g, "green_black", msg)
 		return nil
 	}
-	sarwin.MsgPrintln(g, "red_black", "CTransfer not added, invalid IP address", ip)
-	return errors.New("invalid IP Address")
+	sarwin.MsgPrintln(g, "red_black", "CTransfer not added, invalid IP address ", ip)
+	return errors.New(" invalid IP Address")
 }
 
 // SChange - Add metadata information to the STransfer in STransfers list upon receipt of a metadata
@@ -200,7 +200,7 @@ func (t *STransfer) SChange(g *gocui.Gui, m metadata.MetaData) error {
 		return errors.New(emsg)
 	}
 	t.Havemeta = true
-	sarwin.MsgPrintln(g, "yellow_black", "Added metadata to transfer and file buffer size", len(t.Data))
+	sarwin.MsgPrintln(g, "yellow_black", "Added metadata to transfer and file buffer size ", len(t.Data))
 	Strmu.Unlock()
 	return nil
 }

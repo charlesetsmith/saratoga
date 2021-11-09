@@ -337,11 +337,11 @@ func (b *Beacon) Send(g *gocui.Gui, addr string, port int, count uint, interval 
 	var i uint
 	for i = 0; i < count; i++ {
 		if _, err := conn.Write(frame); err != nil {
-			sarwin.MsgPrintln(g, "red_black", "error writing beacon to", addr)
+			sarwin.MsgPrintln(g, "red_black", "error writing beacon to ", addr)
 		}
-		sarwin.PacketPrintln(g, "cyan_black", "Tx", b.ShortPrint())
+		sarwin.PacketPrintln(g, "cyan_black", "Tx ", b.ShortPrint())
 
-		sarwin.MsgPrintln(g, "green_black", "Sent Beacon", i+1, "of", count, "to", addr, "every", interval, "seconds")
+		sarwin.MsgPrintln(g, "green_black", "Sent Beacon ", i+1, " of ", count, " to ", addr, " every ", interval, " sec")
 		// select { // We may need to add some more channel i/o here so use select
 		// default:
 		time.Sleep(time.Duration(interval) * time.Second)
@@ -353,12 +353,10 @@ func (b *Beacon) Send(g *gocui.Gui, addr string, port int, count uint, interval 
 
 // Handler We have an inbound beacon frame
 func (b *Beacon) Handler(g *gocui.Gui, from *net.UDPAddr) string {
-	// sarwin.MsgPrintln(g,  "yellow_black", b.Print())
-	// We add / alter the peer information
 	if b.NewPeer(from) {
-		sarwin.MsgPrintln(g, "yellow_black", "Beacon Received Added/Changed Peer", from.String())
+		sarwin.MsgPrintln(g, "yellow_black", "Beacon Received Added/Changed Peer ", from.String())
 	} else {
-		sarwin.MsgPrintln(g, "yellow_black", "Beacon Received peer", from.String(), "previously added")
+		sarwin.MsgPrintln(g, "yellow_black", "Beacon Received peer ", from.String(), " previously added")
 	}
 	return "success"
 }

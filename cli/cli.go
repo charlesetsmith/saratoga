@@ -58,7 +58,7 @@ func sendbeacons(g *gocui.Gui, flags string, count uint, interval uint, host str
 	errflag := make(chan string, 1) // The return channel holding the saratoga errflag
 
 	if addrs, err = net.LookupHost(host); err != nil {
-		sarwin.MsgPrintln(g, "red_black", "Cannot resolve hostname: ", err)
+		sarwin.MsgPrintln(g, "red_black", "Cannot resolve hostname:", err)
 		return
 	}
 	// Loop thru the address(s) for the host and send beacons to them
@@ -162,9 +162,9 @@ func cmdbeacon(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 			if n, err := strconv.ParseUint(args[1], 10, 32); err == nil {
 				// We have a number so it is a timer
 				clibeacon.count = uint(n)
-				sarwin.MsgPrintln(g, "green_black", "Beacons timer set to", clibeacon.count, "seconds")
+				sarwin.MsgPrintln(g, "green_black", "Beacons timer set to ", clibeacon.count, " seconds")
 			} else {
-				sarwin.MsgPrintln(g, "green_black", "Sending", clibeacon.count, "beacons to", args[1])
+				sarwin.MsgPrintln(g, "green_black", "Sending ", clibeacon.count, " beacons to ", args[1])
 				go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, args[1], c.Port)
 			}
 			return
@@ -194,11 +194,11 @@ func cmdbeacon(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	u32, err := strconv.ParseUint(args[1], 10, 32)
 	if err == nil { // We have a number so it is a timer
 		clibeacon.count = uint(u32)
-		sarwin.MsgPrintln(g, "green_black", "Beacon counter set to", clibeacon.count)
+		sarwin.MsgPrintln(g, "green_black", "Beacon counter set to ", clibeacon.count)
 		addrstart = 2
 	}
 	// beacon [count] <ipaddr> ...
-	sarwin.MsgPrintf(g, "green_black", "Sending %d beacons to: ",
+	sarwin.MsgPrintf(g, "green_black", "Sending %d beacons to:",
 		clibeacon.count)
 	for i := addrstart; i < len(args); i++ { // Add Address'es to lists
 		sarwin.MsgPrintf(g, "green_black", "%s ", args[i])
@@ -227,7 +227,7 @@ func checksum(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 
 	switch len(args) {
 	case 1:
-		sarwin.MsgPrintln(g, "green_black", "Checksum", c.Global["csumtype"])
+		sarwin.MsgPrintln(g, "green_black", "Checksum ", c.Global["csumtype"])
 		return
 	case 2:
 		switch args[1] {
@@ -257,7 +257,7 @@ func descriptor(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 
 	switch len(args) {
 	case 1:
-		sarwin.MsgPrintln(g, "green_black", "Descriptor", c.Global["descriptor"])
+		sarwin.MsgPrintln(g, "green_black", "Descriptor ", c.Global["descriptor"])
 		return
 	case 2:
 		switch args[1] {
@@ -297,17 +297,17 @@ func descriptor(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 			} else {
 				sarwin.MsgPrintln(g, "red_black", "64 bit descriptors are not supported on this platform")
 				sarwin.MsgPrintln(g, "red_black", "MaxUint=", sarflags.MaxUint,
-					"<= MaxUint64=", sarflags.MaxUint64)
+					" <= MaxUint64=", sarflags.MaxUint64)
 			}
 		case "d128":
 			sarwin.MsgPrintln(g, "red_black", "128 bit descriptors not supported on this platform")
 		default:
-			sarwin.MsgPrintln(g, "red_black", "usage: ", prusage("descriptor", c))
+			sarwin.MsgPrintln(g, "red_black", "usage:", prusage("descriptor", c))
 		}
-		sarwin.MsgPrintln(g, "green_black", "Descriptor size is", c.Global["descriptor"])
+		sarwin.MsgPrintln(g, "green_black", "Descriptor size is ", c.Global["descriptor"])
 		return
 	}
-	sarwin.MsgPrintln(g, "red_black", "usage: ", prusage("descriptor", c))
+	sarwin.MsgPrintln(g, "red_black", "usage:", prusage("descriptor", c))
 }
 
 // Cexit = Exit level to quit from saratoga
@@ -391,7 +391,7 @@ func freespace(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 			return
 		}
 	}
-	sarwin.MsgPrintln(g, "red_black", "usage: ", prusage("freespace", c))
+	sarwin.MsgPrintln(g, "red_black", "usage:", prusage("freespace", c))
 }
 
 func get(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
@@ -512,8 +512,8 @@ func interval(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 		if c.Timeout.Binterval == 0 {
 			sarwin.MsgPrintln(g, "green_black", "Single Beacon Interation")
 		} else {
-			sarwin.MsgPrintln(g, "green_black", "Beacons sent every",
-				c.Timeout.Binterval, "seconds")
+			sarwin.MsgPrintln(g, "green_black", "Beacons sent every ",
+				c.Timeout.Binterval, " seconds")
 		}
 		return
 	case 2:
@@ -643,7 +643,7 @@ func peers(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	sbuf += fmt.Sprintf(sfmt, "IP", "GB", "EID", "Des", "Date Created", "Date Modified")
 	sbuf += sborder
 	for key := 0; key < len(sslice); key++ {
-		sbuf += sslice[key]
+		sbuf += sslice[key] + " "
 	}
 	sbuf += sborder
 	sarwin.MsgPrintln(g, "magenta_black", sbuf)
@@ -674,15 +674,15 @@ func put(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 			errcode := <-errflag
 			if errcode != "success" {
 				sarwin.MsgPrintln(g, "red_black", "Error:", errcode,
-					"Unable to send file: ", t.Print())
+					" Unable to send file:", t.Print())
 				if derr := t.Remove(); derr != nil {
-					sarwin.MsgPrintln(g, "red_black", "Unable to remove transfer: ", t.Print())
+					sarwin.MsgPrintln(g, "red_black", "Unable to remove transfer:", t.Print())
 				}
 			}
 			sarwin.MsgPrintln(g, "green_black", "put completed closing channel")
 			close(errflag)
 		} else {
-			sarwin.MsgPrintln(g, "red_black", "Cannot add transfer: ", err.Error())
+			sarwin.MsgPrintln(g, "red_black", "Cannot add transfer:", err.Error())
 		}
 		return
 	}
@@ -712,7 +712,7 @@ func putblind(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 			errcode := <-errflag
 			if errcode != "success" {
 				sarwin.MsgPrintln(g, "red_black", "Error:", errcode,
-					"Unable to send file: ", t.Print())
+					"Unable to send file:", t.Print())
 			}
 		}
 		return
@@ -742,10 +742,10 @@ func putrm(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 			errcode := <-errflag
 			if errcode != "success" {
 				sarwin.MsgPrintln(g, "red_black", "Error:", errcode,
-					"Unable to send file: ", t.Print())
+					" Unable to send file:", t.Print())
 			} else {
 				sarwin.MsgPrintln(g, "red_black",
-					"Put and now removing (NOT) file: ", t.Print())
+					"Put and now removing (NOT) file:", t.Print())
 			}
 		}
 		return
@@ -778,9 +778,8 @@ func reqtstamp(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 			c.Global["reqtstamp"] = "no"
 			return
 		}
-		// screen.Fprintln(g,  "red_black", "usage: ", cmd["reqtstamp][0]"])
 	}
-	sarwin.MsgPrintln(g, "red_black", "usage: ", prusage("reqtstamp", c))
+	sarwin.MsgPrintln(g, "red_black", "usage:", prusage("reqtstamp", c))
 }
 
 // remove a file from a remote destination
@@ -853,7 +852,7 @@ func rmtran(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 				sarwin.MsgPrintln(g, "red_black", err.Error())
 			}
 		} else {
-			sarwin.MsgPrintln(g, "red_black", "No such transfer: ", ttype, addr, fname)
+			sarwin.MsgPrintln(g, "red_black", "No such transfer:", ttype, " ", addr, " ", fname)
 		}
 		return
 	}
@@ -867,7 +866,7 @@ func rxwilling(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 
 	switch len(args) {
 	case 1:
-		sarwin.MsgPrintln(g, "green_black", "Receive Files", c.Global["rxwilling"])
+		sarwin.MsgPrintln(g, "green_black", "Receive Files:", c.Global["rxwilling"])
 		return
 	case 2:
 		switch args[1] {
@@ -927,30 +926,30 @@ func timeout(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	switch len(args) {
 	case 1:
 		if c.Timeout.Metadata == 0 {
-			sarwin.MsgPrintln(g, "green_black", "metadata: No Timeout")
+			sarwin.MsgPrintln(g, "green_black", "metadata:No Timeout")
 		} else {
-			sarwin.MsgPrintln(g, "green_black", "metadata:", c.Timeout.Metadata, "seconds")
+			sarwin.MsgPrintln(g, "green_black", "metadata:", c.Timeout.Metadata, " sec")
 		}
 		if c.Timeout.Request == 0 {
-			sarwin.MsgPrintln(g, "green_black", "request: No Timeout")
+			sarwin.MsgPrintln(g, "green_black", "request:No Timeout")
 		} else {
-			sarwin.MsgPrintln(g, "green_black", "request:", c.Timeout.Request, "seconds")
+			sarwin.MsgPrintln(g, "green_black", "request:", c.Timeout.Request, " sec")
 		}
 		if c.Timeout.Status == 0 {
-			sarwin.MsgPrintln(g, "green_black", "status: No Timeout")
+			sarwin.MsgPrintln(g, "green_black", "status:No Timeout")
 		} else {
-			sarwin.MsgPrintln(g, "green_black", "status:", c.Timeout.Status, "seconds")
+			sarwin.MsgPrintln(g, "green_black", "status:", c.Timeout.Status, " sec")
 		}
 		if c.Datacnt == 0 {
 			c.Datacnt = 100
 			sarwin.MsgPrintln(g, "green_black", "Datacnt every 100 frames")
 		} else {
-			sarwin.MsgPrintln(g, "green_black", "Datacnt:", c.Datacnt, "frames")
+			sarwin.MsgPrintln(g, "green_black", "Datacnt:", c.Datacnt, " frames")
 		}
 		if c.Timeout.Transfer == 0 {
-			sarwin.MsgPrintln(g, "green_black", "transfer: No Timeout")
+			sarwin.MsgPrintln(g, "green_black", "transfer:No Timeout")
 		} else {
-			sarwin.MsgPrintln(g, "green_black", "transfer:", c.Timeout.Transfer, "seconds")
+			sarwin.MsgPrintln(g, "green_black", "transfer:", c.Timeout.Transfer, " sec")
 		}
 		return
 	case 2:
@@ -960,34 +959,34 @@ func timeout(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 			sarwin.MsgPrintln(g, "green_black", prhelp("timeout", c))
 		case "request":
 			if c.Timeout.Request == 0 {
-				sarwin.MsgPrintln(g, "green_black", "request: No Timeout")
+				sarwin.MsgPrintln(g, "green_black", "request:No Timeout")
 			} else {
-				sarwin.MsgPrintln(g, "green_black", "request:", c.Timeout.Request, "seconds")
+				sarwin.MsgPrintln(g, "green_black", "request:", c.Timeout.Request, " sec")
 			}
 		case "metadata":
 			if c.Timeout.Request == 0 {
-				sarwin.MsgPrintln(g, "green_black", "metadata: No Timeout")
+				sarwin.MsgPrintln(g, "green_black", "metadata:No Timeout")
 			} else {
-				sarwin.MsgPrintln(g, "green_black", "metadata:", c.Timeout.Metadata, "seconds")
+				sarwin.MsgPrintln(g, "green_black", "metadata:", c.Timeout.Metadata, " sec")
 			}
 		case "status":
 			if c.Timeout.Status == 0 {
-				sarwin.MsgPrintln(g, "green_black", "status: No Timeout")
+				sarwin.MsgPrintln(g, "green_black", "status:No Timeout")
 			} else {
-				sarwin.MsgPrintln(g, "green_black", "status:", c.Timeout.Status, "seconds")
+				sarwin.MsgPrintln(g, "green_black", "status:", c.Timeout.Status, " sec")
 			}
 		case "Datacnt":
 			if c.Datacnt == 0 {
 				c.Datacnt = 100
-				sarwin.MsgPrintln(g, "green_black", "Datacnt: Never")
+				sarwin.MsgPrintln(g, "green_black", "Datacnt:Never")
 			} else {
-				sarwin.MsgPrintln(g, "green_black", "Datacnt:", c.Datacnt, "frames")
+				sarwin.MsgPrintln(g, "green_black", "Datacnt:", c.Datacnt, " frames")
 			}
 		case "transfer":
 			if c.Timeout.Transfer == 0 {
-				sarwin.MsgPrintln(g, "green_black", "transfer: No Timeout")
+				sarwin.MsgPrintln(g, "green_black", "transfer:No Timeout")
 			} else {
-				sarwin.MsgPrintln(g, "green_black", "transfer:", c.Timeout.Transfer, "seconds")
+				sarwin.MsgPrintln(g, "green_black", "transfer:", c.Timeout.Transfer, " sec")
 			}
 		default:
 			sarwin.MsgPrintln(g, "red_black", prusage("stream", c))
@@ -1038,8 +1037,8 @@ func timestamp(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 
 	switch len(args) {
 	case 1:
-		sarwin.MsgPrintln(g, "green_black", "Timestamps are",
-			c.Global["reqtstamp"], "and", c.Timestamp)
+		sarwin.MsgPrintln(g, "green_black", "Timestamps  are",
+			c.Global["reqtstamp"], " and ", c.Timestamp)
 		return
 	case 2:
 		switch args[1] {
@@ -1082,7 +1081,7 @@ func timezone(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 
 	switch len(args) {
 	case 1:
-		sarwin.MsgPrintln(g, "green_black", "Timezone is", c.Timezone)
+		sarwin.MsgPrintln(g, "green_black", "Timezone:", c.Timezone)
 		return
 	case 2:
 		switch args[1] {
@@ -1133,7 +1132,7 @@ func txwilling(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 
 	switch len(args) {
 	case 1:
-		sarwin.MsgPrintln(g, "green_black", "Transmit Files", c.Global["txwilling"])
+		sarwin.MsgPrintln(g, "green_black", "Transmit Files:", c.Global["txwilling"])
 		return
 	case 2:
 		switch args[1] {
@@ -1158,7 +1157,7 @@ func txwilling(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 func prhelp(cf string, c *sarflags.Cliflags) string {
 	for key, val := range sarflags.Commands {
 		if key == cf {
-			return key + ": " + val.Help
+			return key + ":" + val.Help
 		}
 	}
 	return "Invalid Command"
@@ -1167,7 +1166,7 @@ func prhelp(cf string, c *sarflags.Cliflags) string {
 func prusage(cf string, c *sarflags.Cliflags) string {
 	for key, val := range sarflags.Commands {
 		if key == cf {
-			return "usage: " + val.Usage
+			return "usage:" + val.Usage
 		}
 	}
 	return "Invalid Command"
