@@ -341,7 +341,7 @@ func (b *Beacon) Send(g *gocui.Gui, addr string, port int, count uint, interval 
 		}
 		sarwin.PacketPrintln(g, "cyan_black", "Tx ", b.ShortPrint())
 
-		sarwin.MsgPrintln(g, "green_black", "Sent Beacon ", i+1, " of ", count, " to ", addr, " every ", interval, " sec")
+		sarwin.MsgPrintln(g, "yellow_black", "Sent Beacon ", i+1, " of ", count, " to ", addr, " every ", interval, " sec")
 		// select { // We may need to add some more channel i/o here so use select
 		// default:
 		time.Sleep(time.Duration(interval) * time.Second)

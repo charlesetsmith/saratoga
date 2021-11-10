@@ -71,9 +71,9 @@ func sendbeacons(g *gocui.Gui, flags string, count uint, interval uint, host str
 				sarwin.ErrPrintln(g, "red_black", "Error:", errcode,
 					"Unable to send beacon to ", addr)
 			}
-			sarwin.MsgPrintln(g, "green_black", "Sending beacon to ", addr)
+			sarwin.MsgPrintln(g, "cyan_black", "Sending beacon to ", addr)
 		} else {
-			sarwin.MsgPrintln(g, "red_black", "cannot create beacon in txb.New", err.Error())
+			sarwin.ErrPrintln(g, "red_black", "cannot create beacon in txb.New:", err.Error())
 		}
 	}
 }
@@ -107,26 +107,26 @@ func cmdbeacon(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	// Show current Cbeacon flags and lists - beacon
 	case 1:
 		if clibeacon.count != 0 {
-			sarwin.MsgPrintln(g, "green_black", clibeacon.count, "Beacons to be sent every %d secs",
+			sarwin.MsgPrintln(g, "yellow_black", clibeacon.count, "Beacons to be sent every %d secs",
 				clibeacon.interval)
 		} else {
-			sarwin.MsgPrintln(g, "green_black", "Single Beacon to be sent")
+			sarwin.MsgPrintln(g, "yellow_black", "Single Beacon to be sent")
 		}
 		if clibeacon.v4mcast {
-			sarwin.MsgPrintln(g, "green_black", "Sending IPv4 multicast beacons")
+			sarwin.MsgPrintln(g, "yellow_black", "Sending IPv4 multicast beacons")
 		}
 		if clibeacon.v6mcast {
-			sarwin.MsgPrintln(g, "green_black", "Sending IPv6 multicast beacons")
+			sarwin.MsgPrintln(g, "yellow_black", "Sending IPv6 multicast beacons")
 		}
 		if len(clibeacon.host) > 0 {
-			sarwin.MsgPrintln(g, "green_black", "Sending beacons to:")
+			sarwin.MsgPrintln(g, "cyan_black", "Sending beacons to:")
 			for _, i := range clibeacon.host {
-				sarwin.MsgPrintln(g, "green_black", "\t", i)
+				sarwin.MsgPrintln(g, "cyan_black", "\t", i)
 			}
 		}
 		if !clibeacon.v4mcast && !clibeacon.v6mcast &&
 			len(clibeacon.host) == 0 {
-			sarwin.MsgPrintln(g, "green_black", "No beacons currently being sent")
+			sarwin.MsgPrintln(g, "yellow_black", "No beacons currently being sent")
 		}
 		return
 	case 2:
@@ -143,7 +143,7 @@ func cmdbeacon(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 			sarwin.MsgPrintln(g, "green_black", "Beacons Disabled")
 			return
 		case "v4": // V4 Multicast
-			sarwin.MsgPrintln(g, "green_black", "Sending beacon to IPv4 Multicast")
+			sarwin.MsgPrintln(g, "cyan_black", "Sending beacon to IPv4 Multicast")
 			clibeacon.flags = sarflags.Setglobal("beacon", c)
 			clibeacon.v4mcast = true
 			clibeacon.count = 1
@@ -151,12 +151,12 @@ func cmdbeacon(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 			go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, c.V4Multicast, c.Port)
 			return
 		case "v6": // V6 Multicast
-			sarwin.MsgPrintln(g, "green_black", "Sending beacon to IPv6 Multicast")
+			sarwin.MsgPrintln(g, "cyan_black", "Sending beacon to IPv6 Multicast")
 			clibeacon.flags = sarflags.Setglobal("beacon", c)
 			clibeacon.v6mcast = true
 			clibeacon.count = 1
 			// Start up the beacon client sending count IPv6 beacons
-			go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, c.V4Multicast, c.Port)
+			go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, c.V6Multicast, c.Port)
 			return
 		default: // beacon <count> or beacon <ipaddr>
 			if n, err := strconv.ParseUint(args[1], 10, 32); err == nil {
@@ -164,7 +164,7 @@ func cmdbeacon(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 				clibeacon.count = uint(n)
 				sarwin.MsgPrintln(g, "green_black", "Beacons timer set to ", clibeacon.count, " seconds")
 			} else {
-				sarwin.MsgPrintln(g, "green_black", "Sending ", clibeacon.count, " beacons to ", args[1])
+				sarwin.MsgPrintln(g, "cyan_black", "Sending ", clibeacon.count, " beacons to ", args[1])
 				go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, args[1], c.Port)
 			}
 			return
@@ -198,10 +198,10 @@ func cmdbeacon(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 		addrstart = 2
 	}
 	// beacon [count] <ipaddr> ...
-	sarwin.MsgPrintf(g, "green_black", "Sending %d beacons to:",
+	sarwin.MsgPrintf(g, "cyan_black", "Sending %d beacons to:",
 		clibeacon.count)
 	for i := addrstart; i < len(args); i++ { // Add Address'es to lists
-		sarwin.MsgPrintf(g, "green_black", "%s ", args[i])
+		sarwin.MsgPrintf(g, "cyan_black", "%s ", args[i])
 		switch args[i] {
 		case "v4":
 			go sendbeacons(g, clibeacon.flags, clibeacon.count,
@@ -510,9 +510,9 @@ func interval(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	switch len(args) {
 	case 1:
 		if c.Timeout.Binterval == 0 {
-			sarwin.MsgPrintln(g, "green_black", "Single Beacon Interation")
+			sarwin.MsgPrintln(g, "yellow_black", "Single Beacon Interation")
 		} else {
-			sarwin.MsgPrintln(g, "green_black", "Beacons sent every ",
+			sarwin.MsgPrintln(g, "yellow_black", "Beacons sent every ",
 				c.Timeout.Binterval, " seconds")
 		}
 		return
@@ -643,7 +643,7 @@ func peers(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	sbuf += fmt.Sprintf(sfmt, "IP", "GB", "EID", "Des", "Date Created", "Date Modified")
 	sbuf += sborder
 	for key := 0; key < len(sslice); key++ {
-		sbuf += sslice[key] + " "
+		sbuf += sslice[key]
 	}
 	sbuf += sborder
 	sarwin.MsgPrintln(g, "magenta_black", sbuf)

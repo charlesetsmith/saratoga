@@ -468,8 +468,8 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	}
 	sarwin.PacketPrintln(g, "cyan_black", "Tx ", r.ShortPrint())
 
-	sarwin.MsgPrintln(g, "green_black", "Sent:", t.Print())
-	sarwin.MsgPrintln(g, "green_black", "Client CTransfer Request Sent to ",
+	sarwin.MsgPrintln(g, "cyan_black", "Sent:", t.Print())
+	sarwin.MsgPrintln(g, "cyan_black", "Client CTransfer Request Sent to ",
 		t.peer.String())
 
 	// Create the metadata & send
@@ -607,8 +607,8 @@ func cputblind(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	}
 	sarwin.PacketPrintln(g, "cyan_black", "Tx ", m.ShortPrint())
 
-	sarwin.MsgPrintln(g, "green_black", "Client cputblind Sent:", t.Print())
-	sarwin.MsgPrintln(g, "green_black", "Client cputblind CTransfer Metadata Sent for blind put to ",
+	sarwin.MsgPrintln(g, "cyan_black", "Client cputblind Sent:", t.Print())
+	sarwin.MsgPrintln(g, "cyan_black", "Client cputblind CTransfer Metadata Sent for blind put to ",
 		t.peer.String())
 	errflag <- "success"
 }
