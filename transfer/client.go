@@ -84,7 +84,7 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn, ad
 		copy(rframe, rbuf[:rlen])
 		header := binary.BigEndian.Uint32(rframe[:4])
 		if sarflags.GetStr(header, "version") != "v1" { // Make sure we are Version 1
-			sarwin.MsgPrintln(g, "red_black", "Client Not Saratoga Version 1 Frame from ",
+			sarwin.ErrPrintln(g, "red_black", "Client Not Saratoga Version 1 Frame from ",
 				t.peer.String())
 			errflag <- "badpacket"
 			return
@@ -116,7 +116,7 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn, ad
 		// We have "success" so Decode into a Status
 		var st status.Status
 		if err := frames.Decode(&st, rframe); err != nil {
-			sarwin.MsgPrintln(g, "red_black", "Client read Bad Status with error:", err)
+			sarwin.ErrPrintln(g, "red_black", "Client read Bad Status with error:", err)
 			errflag <- "badstatus"
 			return
 		} // else {
@@ -304,7 +304,7 @@ func (t *CTransfer) CNew(g *gocui.Gui, ttype string, ip string, fname string, c 
 			if addr.Equal(i.peer) && fname == i.filename {
 				emsg := fmt.Sprintf("Client CTransfer for %s to %s is currently in progress, cannnot add transfer",
 					fname, i.peer.String())
-				sarwin.MsgPrintln(g, "red_black", emsg)
+				sarwin.ErrPrintln(g, "red_black", emsg)
 				return errors.New(emsg)
 			}
 		}
@@ -331,7 +331,7 @@ func (t *CTransfer) CNew(g *gocui.Gui, ttype string, ip string, fname string, c 
 		sarwin.MsgPrintln(g, "green_black", msg)
 		return nil
 	}
-	sarwin.MsgPrintln(g, "red_black", "Client CTransfer not added, invalid IP address ", ip)
+	sarwin.ErrPrintln(g, "red_black", "Client CTransfer not added, invalid IP address ", ip)
 	return errors.New("invalid IP Address")
 }
 
@@ -411,7 +411,7 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 		strings.TrimLeft(t.filename, string(os.PathSeparator))
 	if t.fp, err = os.Open(fname); err != nil {
 		t.fp = fp
-		sarwin.MsgPrintln(g, "red_black", "Client Cannot open ", fname)
+		sarwin.ErrPrintln(g, "red_black", "Client Cannot open ", fname)
 		errflag <- "filenotfound"
 		return
 	}
@@ -419,7 +419,7 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	tdesc := filedescriptor(fname) // CTransfer descriptor to be used
 
 	if pos, err = t.fp.Seek(0, io.SeekStart); err != nil {
-		sarwin.MsgPrintln(g, "red_black", "Client Cannot seek to ", pos)
+		sarwin.ErrPrintln(g, "red_black", "Client Cannot seek to ", pos)
 		errflag <- "badoffset"
 		return
 	}
@@ -441,7 +441,7 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	conn, err := net.DialUDP("udp", nil, udpaddr)
 	if err != nil {
 		s := "Could not Dial " + udpaddr.String() + ":" + err.Error()
-		sarwin.MsgPrintln(g, "red_black", s)
+		sarwin.ErrPrintln(g, "red_black", s)
 		conn.Close()
 		errflag <- "cantsend"
 		return
@@ -456,7 +456,7 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	sarwin.MsgPrintln(g, "magenta_black", "Client Request Flags <", rflags, ">")
 	rinfo := request.Rinfo{Session: t.session, Fname: t.filename, Auth: nil}
 	if err := frames.New(r, rflags, &rinfo); err != nil {
-		sarwin.MsgPrintln(g, "red_black", "Client Cannot create request ", err.Error())
+		sarwin.ErrPrintln(g, "red_black", "Client Cannot create request ", err.Error())
 		conn.Close()
 		errflag <- "badrequest"
 		return
@@ -481,7 +481,7 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	sarwin.MsgPrintln(g, "magenta_black", "Client Metadata Flags <", mflags, ">")
 	minfo := metadata.Minfo{Session: t.session, Fname: t.filename}
 	if err = frames.New(m, mflags, &minfo); err != nil {
-		sarwin.MsgPrintln(g, "red_black", "Client Cannot create metadata ", err.Error())
+		sarwin.ErrPrintln(g, "red_black", "Client Cannot create metadata ", err.Error())
 		conn.Close()
 		errflag <- "badrequest"
 		return
@@ -524,7 +524,7 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 				dpos[1] = inrespto
 				datapos <- dpos
 			} else if serr != "success" {
-				sarwin.MsgPrintln(g, "red_black", "Client Status Error in go senddata:", serr)
+				sarwin.ErrPrintln(g, "red_black", "Client Status Error in go senddata:", serr)
 				conn.Close()
 				errflag <- serr
 				return
@@ -533,7 +533,7 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 			if derr != "success" {
 				// Close the connection
 				conn.Close()
-				sarwin.MsgPrintln(g, "red_black", "Client Data Error in go senddata:", derr)
+				sarwin.ErrPrintln(g, "red_black", "Client Data Error in go senddata:", derr)
 				errflag <- derr
 				return
 			}
@@ -557,7 +557,7 @@ func cputblind(t *CTransfer, g *gocui.Gui, errflag chan string) {
 		string(os.PathSeparator) +
 		strings.TrimLeft(t.filename, string(os.PathSeparator))
 	if t.fp, err = os.Open(fname); err != nil {
-		sarwin.MsgPrintln(g, "red_black", "Client cputblind Cannot open ", fname)
+		sarwin.ErrPrintln(g, "red_black", "Client cputblind Cannot open ", fname)
 		errflag <- "filenotfound"
 		return
 	}
@@ -565,7 +565,7 @@ func cputblind(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	tdesc := filedescriptor(fname) // CTransfer descriptor to be used
 
 	if pos, err = t.fp.Seek(0, io.SeekStart); err != nil {
-		sarwin.MsgPrintln(g, "red_black", "Client cputblind Cannot seek to ", pos)
+		sarwin.ErrPrintln(g, "red_black", "Client cputblind Cannot seek to ", pos)
 		errflag <- "badoffset"
 		return
 	}
@@ -597,7 +597,7 @@ func cputblind(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	mflags = replaceflag(mflags, tdesc)
 	minfo := metadata.Minfo{Session: t.session, Fname: t.filename}
 	if err = frames.New(m, mflags, &minfo); err != nil {
-		sarwin.MsgPrintln(g, "red_black", "Client cputblind Cannot create metadata ", err.Error())
+		sarwin.ErrPrintln(g, "red_black", "Client cputblind Cannot create metadata ", err.Error())
 		errflag <- "badrequest"
 		return
 	}
@@ -625,11 +625,11 @@ func cputrm(t *CTransfer, g *gocui.Gui, errflag chan string) {
 		sarwin.MsgPrintln(g, "green_black", "Client cputrm Successfully put file", fname)
 		// All good so remove the local file
 		if os.Remove(fname) != nil {
-			sarwin.MsgPrintln(g, "red_black", "Client cputrm Cannot remove local file ", fname)
+			sarwin.ErrPrintln(g, "red_black", "Client cputrm Cannot remove local file ", fname)
 			errflag <- "didnotdelete"
 			return
 		}
-		sarwin.MsgPrintln(g, "red_black", "Client cputrm Local file ", fname, " removed")
+		sarwin.ErrPrintln(g, "red_black", "Client cputrm Local file ", fname, " removed")
 	}
 	errflag <- errcode
 }

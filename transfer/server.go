@@ -148,13 +148,12 @@ func SMatch(ip string, session uint32) *STransfer {
 func SNew(g *gocui.Gui, ttype string, r request.Request, ip string, session uint32) error {
 
 	var t STransfer
-	// screen.Fprintln(g,  "red_black", "Addtran for ", ip, " ",, fname, " ", flags)
 	if addr := net.ParseIP(ip); addr != nil { // We have a valid IP Address
 		for _, i := range STransfers { // Don't add duplicates
 			if addr.Equal(i.Peer) && session == i.Session {
 				emsg := fmt.Sprintf("STransfer for session %d to %s is currently in progress, cannnot add transfer",
 					session, i.Peer.String())
-				sarwin.MsgPrintln(g, "red_black", emsg)
+				sarwin.ErrPrintln(g, "red_black", emsg)
 				return errors.New(emsg)
 			}
 		}
@@ -176,7 +175,7 @@ func SNew(g *gocui.Gui, ttype string, r request.Request, ip string, session uint
 		sarwin.MsgPrintln(g, "green_black", msg)
 		return nil
 	}
-	sarwin.MsgPrintln(g, "red_black", "CTransfer not added, invalid IP address ", ip)
+	sarwin.ErrPrintln(g, "red_black", "CTransfer not added, invalid IP address ", ip)
 	return errors.New(" invalid IP Address")
 }
 

@@ -68,10 +68,10 @@ func sendbeacons(g *gocui.Gui, flags string, count uint, interval uint, host str
 			go txb.Send(g, addr, port, count, interval, errflag)
 			errcode := <-errflag
 			if errcode != "success" {
-				sarwin.MsgPrintln(g, "red_black", "Error:", errcode,
+				sarwin.ErrPrintln(g, "red_black", "Error:", errcode,
 					"Unable to send beacon to ", addr)
 			}
-			sarwin.MsgPrintln(g, "green_black", "Sending beacon to", addr)
+			sarwin.MsgPrintln(g, "green_black", "Sending beacon to ", addr)
 		} else {
 			sarwin.MsgPrintln(g, "red_black", "cannot create beacon in txb.New", err.Error())
 		}
@@ -673,7 +673,7 @@ func put(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 			go transfer.Doclient(t, g, errflag) // Actually do the transfer
 			errcode := <-errflag
 			if errcode != "success" {
-				sarwin.MsgPrintln(g, "red_black", "Error:", errcode,
+				sarwin.ErrPrintln(g, "red_black", "Error:", errcode,
 					" Unable to send file:", t.Print())
 				if derr := t.Remove(); derr != nil {
 					sarwin.MsgPrintln(g, "red_black", "Unable to remove transfer:", t.Print())
@@ -711,7 +711,7 @@ func putblind(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 			go transfer.Doclient(t, g, errflag)
 			errcode := <-errflag
 			if errcode != "success" {
-				sarwin.MsgPrintln(g, "red_black", "Error:", errcode,
+				sarwin.ErrPrintln(g, "red_black", "Error:", errcode,
 					"Unable to send file:", t.Print())
 			}
 		}
@@ -741,7 +741,7 @@ func putrm(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 			go transfer.Doclient(t, g, errflag)
 			errcode := <-errflag
 			if errcode != "success" {
-				sarwin.MsgPrintln(g, "red_black", "Error:", errcode,
+				sarwin.ErrPrintln(g, "red_black", "Error:", errcode,
 					" Unable to send file:", t.Print())
 			} else {
 				sarwin.MsgPrintln(g, "red_black",
