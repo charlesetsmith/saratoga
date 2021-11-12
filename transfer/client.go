@@ -78,10 +78,10 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn, ad
 			errflag <- "cantreceive"
 			return
 		}
-		// We have a status so grab it
-		sarwin.MsgPrintln(g, "blue_black", "Client Read a Frame len ", rlen, " bytes")
+		// Do We have a status so grab it
 		rframe := make([]byte, rlen)
 		copy(rframe, rbuf[:rlen])
+
 		header := binary.BigEndian.Uint32(rframe[:4])
 		if sarflags.GetStr(header, "version") != "v1" { // Make sure we are Version 1
 			sarwin.ErrPrintln(g, "red_black", "Client Not Saratoga Version 1 Frame from ",
@@ -89,8 +89,17 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn, ad
 			errflag <- "badpacket"
 			return
 		}
+		frametype := sarflags.GetStr(header, "frametype")
+		sarwin.MsgPrintln(g, "blue_black", "Client Read a ", frametype, " Frame len ", rlen, " bytes")
 		// Process the received frame and make sure it is a status
 		if sarflags.GetStr(header, "frametype") == "status" {
+			var st status.Status
+			if rxerr := frames.Decode(&st, rframe); rxerr != nil {
+				sarwin.ErrPrintln(g, "red_black", "Could not decode status frame")
+				errflag <- "badpacket"
+				return
+			}
+			sarwin.PacketPrintln(g, "yellow_black", "Rx ", st.ShortPrint())
 			errf := sarflags.GetStr(header, "errcode")
 			if errf != "success" { // We have a error from the server
 				errflag <- errf

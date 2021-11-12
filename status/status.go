@@ -288,9 +288,10 @@ func (s Status) ShortPrint() string {
 	if sarflags.GetStr(s.Header, "reqtstamp") == "yes" {
 		sflag += fmt.Sprintf("  timestamp:%s\n", s.Tstamp.Print())
 	}
+	sflag += fmt.Sprintf("  errcode:%s\n", sarflags.GetStr(s.Header, "errcode"))
 	sflag += fmt.Sprintf("  progress:%d\n", s.Progress)
 	sflag += fmt.Sprintf("  inrespto:%d\n", s.Inrespto)
-	sflag += fmt.Sprintf(" numb holes:%d", len(s.Holes))
+	sflag += fmt.Sprintf("  numb holes:%d", len(s.Holes))
 	return sflag
 }
 

@@ -13,7 +13,7 @@ type Frame interface {
 	Decode([]byte) error                        // Decode from []bytes into frame struct (beacon, request, data, metadata, status)
 	Print() string                              // Print out contents of some type of frame
 	ShortPrint() string                         // Quick summary print out of some type of frame
-	UDPWrite(*net.UDPConn, *net.UDPAddr) string // "success" is OK any other string is sent back to callier on channel
+	UDPWrite(*net.UDPConn, *net.UDPAddr) string // "success" is OK any other string is sent back to caller on channel
 	New(string, interface{}) error              // Create New Frame with flags & info via interface
 	Make(uint32, interface{}) error             //Make New Frame with header & info voa interface
 }

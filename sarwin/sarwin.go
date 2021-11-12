@@ -121,6 +121,8 @@ func fprintf(g *gocui.Gui, vname string, colour string, format string, args ...i
 			e := fmt.Sprintf("\nView Fprintf invalid view: %s", vname)
 			log.Fatal(e)
 		}
+		// movetolastrow(g, v)
+
 		s := setcolour(colour)
 		s += fmt.Sprintf(format, args...)
 		if colour != "" {
@@ -143,6 +145,8 @@ func fprintln(g *gocui.Gui, vname string, colour string, args ...interface{}) {
 			e := fmt.Sprintf("\nView Fprintln invalid view: %s", vname)
 			log.Fatal(e)
 		}
+		// movetolastrow(g, v)
+
 		s := setcolour(colour)
 		s += fmt.Sprint(args...)
 		if colour != "" {
