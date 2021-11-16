@@ -38,11 +38,11 @@ func setCurrentViewOnTop(g *gocui.Gui, name string) (*gocui.View, error) {
 	if v, err = g.SetCurrentView(name); err != nil {
 		return v, err
 	}
-	v, err = g.SetViewOnTop(name)
 	if showpacket {
-		v, err = g.SetViewOnTop("packet")
+		return g.SetViewOnTop("packet")
+	} else {
+		return g.SetViewOnTop(name)
 	}
-	return v, err
 }
 
 // Jump to the last row in a view
@@ -886,16 +886,14 @@ func main() {
 	sarwin.MsgPrintf(g, "green_black", "Available space is %d MB\n",
 		(uint64(fs.Bsize)*fs.Bavail)/1024/1024)
 
-	/*
-		sarwin.MsgPrintln(g, "green_black", "MaxInt=", sarflags.MaxInt)
-		sarwin.MsgPrintln(g, "green_black", "MaxUint=", sarflags.MaxUint)
-		sarwin.MsgPrintln(g, "green_black", "MaxInt16=", sarflags.MaxInt16)
-		sarwin.MsgPrintln(g, "green_black", "MaxUint16=", sarflags.MaxUint16)
-		sarwin.MsgPrintln(g, "green_black", "MaxInt32=", sarflags.MaxInt32)
-		sarwin.MsgPrintln(g, "green_black", "MaxUint32=", sarflags.MaxUint32)
-		sarwin.MsgPrintln(g, "green_black", "MaxInt64=", sarflags.MaxInt64)
-		sarwin.MsgPrintln(g, "green_black", "MaxUint64=", sarflags.MaxUint64)
-	*/
+	sarwin.ErrPrintln(g, "green_black", "MaxInt=", sarflags.MaxInt)
+	sarwin.ErrPrintln(g, "green_black", "MaxUint=", sarflags.MaxUint)
+	sarwin.ErrPrintln(g, "green_black", "MaxInt16=", sarflags.MaxInt16)
+	sarwin.ErrPrintln(g, "green_black", "MaxUint16=", sarflags.MaxUint16)
+	sarwin.ErrPrintln(g, "green_black", "MaxInt32=", sarflags.MaxInt32)
+	sarwin.ErrPrintln(g, "green_black", "MaxUint32=", sarflags.MaxUint32)
+	sarwin.ErrPrintln(g, "green_black", "MaxInt64=", sarflags.MaxInt64)
+	sarwin.ErrPrintln(g, "green_black", "MaxUint64=", sarflags.MaxUint64)
 
 	sarwin.MsgPrintln(g, "green_black", "Maximum Descriptor is:", sarflags.MaxDescriptor)
 
