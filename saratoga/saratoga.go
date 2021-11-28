@@ -602,7 +602,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 					sarnet.UDPinfo(remoteAddr))
 				continue
 			}
-			sarwin.PacketPrintln(g, "green_black", "Rx ", rxb.ShortPrint())
+			sarwin.PacketPrintln(g, "green_black", "Listen Rx ", rxb.ShortPrint())
 
 		case "request":
 			// Handle incoming request
@@ -614,7 +614,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 					sarnet.UDPinfo(remoteAddr))
 				continue
 			}
-			sarwin.PacketPrintln(g, "green_black", "Rx ", r.ShortPrint())
+			sarwin.PacketPrintln(g, "green_black", "Listen Rx ", r.ShortPrint())
 
 			// Create a status to the client to tell it the error or that we have accepted the transfer
 			session := binary.BigEndian.Uint32(frame[4:8])
@@ -650,7 +650,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 					sarnet.UDPinfo(remoteAddr), " session ", session)
 				continue
 			}
-			sarwin.PacketPrintln(g, "green_black", "Rx ", d.ShortPrint())
+			sarwin.PacketPrintln(g, "green_black", "Listen Rx ", d.ShortPrint())
 
 			// sarwin.MsgPrintln(g, "white_black", "Decoded data ", d.Print())
 			session := binary.BigEndian.Uint32(frame[4:8])
@@ -692,7 +692,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 					sarnet.UDPinfo(remoteAddr), " session ", session)
 				continue
 			}
-			sarwin.PacketPrintln(g, "green_black", "Rx ", m.ShortPrint())
+			sarwin.PacketPrintln(g, "green_black", "Listen Rx ", m.ShortPrint())
 
 			session := binary.BigEndian.Uint32(frame[4:8])
 			errcode := metrxhandler(g, m, remoteAddr) // process the metadata
@@ -725,7 +725,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 					sarnet.UDPinfo(remoteAddr), " session ", session)
 				continue
 			} // Handle the status
-			sarwin.PacketPrintln(g, "green_black", "Rx ", s.ShortPrint())
+			sarwin.PacketPrintln(g, "green_black", "Listen Rx ", s.ShortPrint())
 			errcode := starxhandler(g, s, conn, remoteAddr) // process the status
 			if errcode != "success" {                       // If we have a error send back a status with it
 				stheader := "descriptor=" + sarflags.GetStr(header, "descriptor") // echo the descriptor
@@ -739,7 +739,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 
 		default:
 			// Bad Packet drop it
-			sarwin.ErrPrintln(g, "red_black", "Invalid Saratoga Frame Recieved from ",
+			sarwin.ErrPrintln(g, "red_black", "Listen Invalid Saratoga Frame Recieved from ",
 				sarnet.UDPinfo(remoteAddr))
 		}
 	}

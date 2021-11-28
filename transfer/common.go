@@ -17,6 +17,12 @@ import (
 // Ttypes - Transfer types
 var Ttypes = []string{"get", "getrm", "getdir", "put", "putblind", "putrm", "rm", "rmdir"}
 
+// Direction of Transfer
+const (
+	Send    bool = true
+	Receive bool = false
+)
+
 // current protected session number
 var smu sync.Mutex
 var sessionid uint32
@@ -69,7 +75,6 @@ func Info(g *gocui.Gui, ttype string) {
 
 // Create new Session number
 func newsession() uint32 {
-
 	smu.Lock()
 	defer smu.Unlock()
 

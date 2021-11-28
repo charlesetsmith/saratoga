@@ -109,6 +109,27 @@ func setcolour(colour string) string {
 	}
 }
 
+/*
+// Jump to the last row in a view
+func gotolastrow(g *gocui.Gui, v *gocui.View) {
+	ox, oy := v.Origin()
+	cx, cy := v.Cursor()
+
+	lines := len(v.BufferLines())
+	// ErrPrintf(g, "white_black", "gotolastrow ox=%d oy=%d cx=%d cy=%d blines=%d\n",
+	//	oy, oy, cx, cy, lines)
+	// Don't move down if we already are at the last line in current views Bufferlines
+	if oy+cy == lines-1 {
+		return
+	}
+	if err := v.SetCursor(cx, lines-1); err != nil {
+		_, sy := v.Size()
+		v.SetOrigin(ox, lines-sy-1)
+		v.SetCursor(cx, sy-1)
+	}
+}
+*/
+
 // fprintf out in ANSII escape sequence in colour to view
 // If colour is undefined then still print it out but in bright red to show there is an issue
 func fprintf(g *gocui.Gui, vname string, colour string, format string, args ...interface{}) {
@@ -121,7 +142,7 @@ func fprintf(g *gocui.Gui, vname string, colour string, format string, args ...i
 			e := fmt.Sprintf("\nView Fprintf invalid view: %s", vname)
 			log.Fatal(e)
 		}
-		// movetolastrow(g, v)
+		// gotolastrow(g, v)
 
 		s := setcolour(colour)
 		s += fmt.Sprintf(format, args...)
@@ -145,7 +166,7 @@ func fprintln(g *gocui.Gui, vname string, colour string, args ...interface{}) {
 			e := fmt.Sprintf("\nView Fprintln invalid view: %s", vname)
 			log.Fatal(e)
 		}
-		// movetolastrow(g, v)
+		// gotolastrow(g, v)
 
 		s := setcolour(colour)
 		s += fmt.Sprint(args...)
@@ -187,12 +208,12 @@ func ErrPrintln(g *gocui.Gui, colour string, args ...interface{}) {
 	fprintln(g, "err", colour, args...)
 }
 
-// Send formatted output to "cmd" window
+// Send formatted output to "packet" window
 func PacketPrintf(g *gocui.Gui, colour string, format string, args ...interface{}) {
 	fprintf(g, "packet", colour, format, args...)
 }
 
-// Send unformatted output to "cmd" window
+// Send unformatted output to "packet" window
 func PacketPrintln(g *gocui.Gui, colour string, args ...interface{}) {
 	fprintln(g, "packet", colour, args...)
 }
