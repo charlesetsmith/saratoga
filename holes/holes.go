@@ -39,7 +39,7 @@ func (fills Holes) remove(i int) Holes {
 
 // Optimises the Holes slice
 // Please note it is not exported for good reason - you NEVER call this yourself
-// it is only called by Add
+// it is only called by itself and Add
 func (fills Holes) optimise() Holes {
 	if len(fills) <= 1 { // Pretty hard to optimise a single fill slice
 		return fills

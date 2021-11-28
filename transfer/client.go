@@ -26,13 +26,12 @@ import (
 
 // CTransfer Information
 type CTransfer struct {
-	direction string // "client|server"
-	ttype     string // CTransfer type "get,getrm,put,putrm,blindput,rm"
-	tstamp    string // Timestamp type "localinterp,posix32,posix64,posix32_32,posix64_32,epoch2000_32"
-	session   uint32 // Session ID - This is the unique key
-	peer      net.IP // Remote Host
-	filename  string // File name to get from remote host
-	fp        *os.File
+	session  uint32   // Session ID - This is the unique key
+	ttype    string   // CTransfer type "get,getrm,put,putrm,blindput,rm"
+	tstamp   string   // Timestamp type "localinterp,posix32,posix64,posix32_32,posix64_32,epoch2000_32"
+	peer     net.IP   // Remote Host
+	filename string   // File name to receive or remove from remote host or send from local host
+	fp       *os.File // File pointer for transfer
 	// frames    [][]byte           // Frame queue
 	// holes     holes.Holes        // Holes
 	cliflags *sarflags.Cliflags // Global flags for this transfer
@@ -321,7 +320,6 @@ func (t *CTransfer) CNew(g *gocui.Gui, ttype string, ip string, fname string, c 
 		// Lock it as we are going to add a new transfer slice
 		ctrmu.Lock()
 		defer ctrmu.Unlock()
-		t.direction = "client"
 		t.ttype = ttype
 		t.tstamp = c.Timestamp
 		t.session = newsession()
@@ -361,7 +359,7 @@ func (t *CTransfer) Remove() error {
 
 // FmtPrint - String of relevant transfer info
 func (t *CTransfer) FmtPrint(sfmt string) string {
-	return fmt.Sprintf(sfmt, t.direction,
+	return fmt.Sprintf(sfmt, "Client",
 		t.ttype,
 		t.peer.String(),
 		t.filename)
@@ -369,7 +367,7 @@ func (t *CTransfer) FmtPrint(sfmt string) string {
 
 // Print - String of relevant transfer info
 func (t *CTransfer) Print() string {
-	return fmt.Sprintf("%s|%s|%s|%s", t.direction,
+	return fmt.Sprintf("%s|%s|%s|%s", "Client",
 		t.ttype,
 		t.peer.String(),
 		t.filename)

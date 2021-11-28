@@ -23,23 +23,22 @@ import (
 
 // STransfer Server Transfer Info
 type STransfer struct {
-	Direction string              // "client|server"
-	Ttype     string              // STransfer type "get,getrm,put,putrm,blindput,rm"
-	Tstamp    timestamp.Timestamp // Timestamp type used in transfer
-	Peer      net.IP              // Remote Host
-	Session   uint32              // Session + peer is the unique key
-	Stflags   string              // Status Flags currently set WORK ON THIS!!!!!
-	Filename  string              // Remote File name to get/put
-	Csumtype  string              // What type of checksum are we using
-	Havemeta  bool                // Have we recieved a metadata yet
-	Checksum  []byte              // Checksum of the remote file to be get/put if requested
-	Dir       dirent.DirEnt       // Directory entry info of the remote file to be get/put
-	Fp        *os.File            // Local File to write to/read from
-	Data      []byte              // Buffered data
-	Dcount    int                 // Count of Data frames so we can schedule status
-	Progress  uint64              // Current Progress indicator
-	Inrespto  uint64              // In respose to indicator
-	CurFills  holes.Holes         // What has been received
+	Session  uint32              // Session + peer is the unique key
+	Ttype    string              // STransfer type "get,getrm,put,putrm,blindput,rm"
+	Tstamp   timestamp.Timestamp // Timestamp type used in transfer
+	Peer     net.IP              // Remote Host
+	Stflags  string              // Status Flags currently set WORK ON THIS!!!!!
+	Filename string              // Remote File name to get/put
+	Csumtype string              // What type of checksum are we using
+	Havemeta bool                // Have we recieved a metadata yet
+	Checksum []byte              // Checksum of the remote file to be get/put if requested
+	Dir      dirent.DirEnt       // Directory entry info of the remote file to be get/put
+	Fp       *os.File            // Local File to write to/read from
+	Data     []byte              // Buffered data
+	Dcount   int                 // Count of Data frames so we can schedule status
+	Progress uint64              // Current Progress indicator
+	Inrespto uint64              // In respose to indicator
+	CurFills holes.Holes         // What has been received
 }
 
 // Strmu - Protect transfer
@@ -161,7 +160,6 @@ func SNew(g *gocui.Gui, ttype string, r request.Request, ip string, session uint
 		// Lock it as we are going to add a new transfer slice
 		Strmu.Lock()
 		defer Strmu.Unlock()
-		t.Direction = "server"
 		t.Ttype = ttype
 		t.Session = session
 		t.Peer = addr
@@ -221,7 +219,7 @@ func (t *STransfer) Remove() error {
 
 // FmtPrint - String of relevant STransfer info
 func (t *STransfer) FmtPrint(sfmt string) string {
-	return fmt.Sprintf(sfmt, t.Direction,
+	return fmt.Sprintf(sfmt, "Server",
 		t.Ttype,
 		t.Peer.String(),
 		t.Session)
@@ -229,7 +227,7 @@ func (t *STransfer) FmtPrint(sfmt string) string {
 
 // Print - String of relevant STransfer info
 func (t *STransfer) Print() string {
-	return fmt.Sprintf("%s|%s|%s|%d|%s\n\t%s", t.Direction,
+	return fmt.Sprintf("%s|%s|%s|%d|%s\n\t%s", "Server",
 		t.Ttype,
 		t.Peer.String(),
 		t.Session,

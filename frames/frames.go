@@ -4,6 +4,7 @@ package frames
 
 import (
 	"net"
+	// "github.com/jroimartin/gocui"
 )
 
 // Frame - Handler for different frames
@@ -16,6 +17,7 @@ type Frame interface {
 	UDPWrite(*net.UDPConn, *net.UDPAddr) string // "success" is OK any other string is sent back to caller on channel
 	New(string, interface{}) error              // Create New Frame with flags & info via interface
 	Make(uint32, interface{}) error             //Make New Frame with header & info voa interface
+	// RxHandler(*gocui.Gui, *net.UDPConn, *net.UDPAddr, interface{}) string // Receive Handler
 }
 
 // Decode a frame into its structure via Frame interface
@@ -59,3 +61,9 @@ func New(f Frame, header string, info interface{}) error {
 func Make(f Frame, header uint32, info interface{}) error {
 	return f.Make(header, info)
 }
+
+/*
+func Rxhandler(f Frame, g *gocui.Gui, conn *net.UDPConn, addr *net.UDPAddr, info interface{}) string {
+	return f.RxHandler(g, conn, addr, info)
+}
+*/
