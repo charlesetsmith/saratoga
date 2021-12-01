@@ -850,7 +850,7 @@ func main() {
 		log.Println("Saratoga Unable to Listen on IPv6 Multicast ", v6mcastaddr.IP, " ", v6mcastaddr.Port)
 		log.Fatal(err)
 	} else {
-		if err := sarnet.SetMulticastLoop(v6mcastcon, "IPv6"); err != nil {
+		if err := sarnet.SetMulticastLoop(v6mcastcon); err != nil {
 			log.Fatal(err)
 		}
 		go listen(g, v6mcastcon, v6listenquit)
@@ -873,7 +873,7 @@ func main() {
 		log.Println("Saratoga Unable to Listen on IPv4 Multicast ", v4mcastaddr.IP, " ", v4mcastaddr.Port)
 		log.Fatal(err)
 	} else {
-		if err := sarnet.SetMulticastLoop(v4mcastcon, "IPv4"); err != nil {
+		if err := sarnet.SetMulticastLoop(v4mcastcon); err != nil {
 			log.Fatal(err)
 		}
 		go listen(g, v4mcastcon, v4listenquit)

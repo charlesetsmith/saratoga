@@ -22,6 +22,16 @@ import (
 // Move this to Network Section & Calculate it
 // const MaxFrameSize = 1500 - 60 // After MTU & IPv6 Header
 
+// Return if address type is IPv4
+func isIPv4(address string) bool {
+	return strings.Count(address, ":") < 2
+}
+
+// Return if address type is IPv6
+func isIPv6(address string) bool {
+	return strings.Count(address, ":") >= 2
+}
+
 // UDPinfo - Return string of IP Address and Port #
 func UDPinfo(addr *net.UDPAddr) string {
 	if strings.Contains(addr.IP.String(), ":") { // IPv6
@@ -36,7 +46,6 @@ func UDPinfo(addr *net.UDPAddr) string {
 // OutboundIP - Get preferred outbound ip of this host
 // typ is "IPv4" or "IPv6"
 func OutboundIP(typ string) net.IP {
-
 	host, _ := os.Hostname()
 	addrs, _ := net.LookupIP(host)
 	for _, addr := range addrs {
@@ -52,20 +61,20 @@ func OutboundIP(typ string) net.IP {
 }
 
 // SetMulticastLoop - Set the Multicast Loopback address OK for Rx Multicasts
-func SetMulticastLoop(conn net.PacketConn, v4orv6 string) error {
+func SetMulticastLoop(conn net.PacketConn) error {
 	file, _ := conn.(*net.UDPConn).File()
 	fd := int(file.Fd())
-	switch v4orv6 {
-	case "IPv4":
+	addr := conn.LocalAddr().String()
+	if isIPv4(addr) {
 		if err := syscall.SetsockoptInt(fd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_LOOP, 1); err != nil {
 			return err
 		}
-	case "IPv6":
+	} else if isIPv6(addr) {
 		if err := syscall.SetsockoptInt(fd, syscall.IPPROTO_IPV6, syscall.IPV6_MULTICAST_LOOP, 1); err != nil {
 			return err
 		}
-	default:
-		err := "invalid - should be IPv4 or IPv6:" + v4orv6
+	} else {
+		err := "invalid - should be IPv4 or IPv6 address"
 		return errors.New(err)
 	}
 	if err := syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1); err != nil {
