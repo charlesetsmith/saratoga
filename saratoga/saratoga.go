@@ -9,13 +9,10 @@ import (
 	"log"
 	"net"
 	"os"
-	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 
 	"github.com/charlesetsmith/saratoga/beacon"
-	"github.com/charlesetsmith/saratoga/cli"
 	"github.com/charlesetsmith/saratoga/data"
 	"github.com/charlesetsmith/saratoga/frames"
 	"github.com/charlesetsmith/saratoga/metadata"
@@ -28,414 +25,24 @@ import (
 	"github.com/jroimartin/gocui"
 )
 
-// Cinfo - Information held on the cmd view
-var Cinfo sarwin.Cmdinfo
-
-func setCurrentViewOnTop(g *gocui.Gui, name string) (*gocui.View, error) {
-	var err error
-	var v *gocui.View
-
-	if v, err = g.SetCurrentView(name); err != nil {
-		return v, err
-	}
-	if showpacket {
-		return g.SetViewOnTop("packet")
-	} else {
-		return g.SetViewOnTop(name)
-	}
-}
-
-// Jump to the last row in a view
-func gotolastrow(g *gocui.Gui, v *gocui.View) {
-	ox, oy := v.Origin()
-	cx, cy := v.Cursor()
-
-	lines := len(v.BufferLines())
-	sarwin.ErrPrintf(g, "white_black", "gotolastrow ox=%d oy=%d cx=%d cy=%d blines=%d\n",
-		oy, oy, cx, cy, lines)
-	// Don't move down if we already are at the last line in current views Bufferlines
-	if oy+cy == lines-1 {
-		return
-	}
-	if err := v.SetCursor(cx, lines-1); err != nil {
-		_, sy := v.Size()
-		v.SetOrigin(ox, lines-sy-1)
-		v.SetCursor(cx, sy-1)
-	}
-}
-
-// Rotate through the views - CtrlSpace
-func switchView(g *gocui.Gui, v *gocui.View) error {
-	var err error
-	var view string
-	var newv *gocui.View
-
-	switch v.Name() {
-	case "cmd":
-		view = "msg"
-	case "msg":
-		if showpacket {
-			view = "packet"
-		} else {
-			view = "err"
-		}
-	case "err":
-		view = "cmd"
-	case "packet":
-		view = "err"
-	}
-	if newv, err = setCurrentViewOnTop(g, view); err != nil {
-		return err
-	}
-	gotolastrow(g, newv)
-	return nil
-}
-
-// Backspace or Delete
-func backSpace(g *gocui.Gui, v *gocui.View) error {
-	switch v.Name() {
-	case "cmd":
-		cx, _ := v.Cursor()
-		if cx <= promptlen(Cinfo) { // Dont move we are at the prompt
-			return nil
-		}
-		// Delete rune backwards
-		v.EditDelete(true)
-	case "msg", "err", "packet":
-		return nil
-	}
-	return nil
-}
-
-// Handle Left Arrow Move -- All good
-func cursorLeft(g *gocui.Gui, v *gocui.View) error {
-	switch v.Name() {
-	case "cmd":
-		cx, cy := v.Cursor()
-		if cx <= promptlen(Cinfo) { // Dont move we are at the prompt
-			return nil
-		}
-		// Move back a character
-		if err := v.SetCursor(cx-1, cy); err != nil {
-			return nil
-			// sarwin.ErrPrintln(g, "white_black", v.Name(), "LeftArrow:", "cx=", cx, "cy=", cy, "error=", err)
-		}
-	case "msg", "packet", "err":
-		return nil
-	}
-	return nil
-}
-
-// Handle Right Arrow Move - All good
-func cursorRight(g *gocui.Gui, v *gocui.View) error {
-	switch v.Name() {
-	case "cmd":
-		cx, cy := v.Cursor()
-		line, _ := v.Line(cy)
-		if cx >= len(line)-1 { // We are at the end of line do nothing
-			v.SetCursor(len(line), cy)
-			return nil
-		}
-		// Move forward a character
-		if err := v.SetCursor(cx+1, cy); err != nil {
-			return nil
-			// sarwin.ErrPrintln(g, "white_red", "RightArrow:", "cx=", cx, "cy=", cy, "error=", err)
-		}
-	case "msg", "packet", "err":
-		return nil
-	}
-	return nil
-}
-
-// Handle down cursor -- All good!
-func cursorDown(g *gocui.Gui, v *gocui.View) error {
-	ox, oy := v.Origin()
-	cx, cy := v.Cursor()
-	// Don't move down if we are at the last line in current views Bufferlines
-	if oy+cy == len(v.BufferLines())-1 {
-		//sarwin.ErrPrintf(g, "white_black", "%s Down oy=%d cy=%d lines=%d\n",
-		//	v.Name(), oy, cy, len(v.BufferLines()))
-		return nil
-	}
-	if err := v.SetCursor(cx, cy+1); err != nil {
-		// sarwin.ErrPrintf(g, "magenta_black", "%s Down oy=%d cy=%d lines=%d err=%s\n",
-		//	v.Name(), oy, cy, len(v.BufferLines()), err.Error())
-		// ox, oy = v.Origin()
-		if err := v.SetOrigin(ox, oy+1); err != nil {
-			// sarwin.ErrPrintf(g, "cyan_black", "%s Down oy=%d cy=%d lines=%d err=%s\n",
-			//	v.Name(), oy, cy, len(v.BufferLines()), err.Error())
-			return err
-		}
-	}
-	// sarwin.ErrPrintf(g, "green_black", "%s Down oy=%d cy=%d lines=%d\n",
-	//	v.Name(), oy, cy, len(v.BufferLines()))
-	return nil
-}
-
-// Handle up cursor -- All good!
-func cursorUp(g *gocui.Gui, v *gocui.View) error {
-	ox, oy := v.Origin()
-	cx, cy := v.Cursor()
-	if err := v.SetCursor(cx, cy-1); err != nil && oy > 0 {
-		// sarwin.ErrPrintf(g, "magenta_black", "%s Up oy=%d cy=%d lines=%d err=%s\n",
-		// v.Name(), oy, cy, len(v.BufferLines()), err.Error())
-		if err := v.SetOrigin(ox, oy-1); err != nil {
-			// sarwin.ErrPrintf(g, "cyan_black", "%s Up oy=%d cy=%d lines=%d err=%s\n",
-			// v.Name(), oy, cy, len(v.BufferLines()), err.Error())
-			return err
-		}
-	}
-	//_, cy = v.Cursor()
-	// sarwin.ErrPrintf(g, "green_black", "%s Up oy=%d cy=%d lines=%d\n",
-	//	v.Name(), oy, cy, len(v.BufferLines()))
-	return nil
-}
-
-// Return the length of the prompt
-func promptlen(v sarwin.Cmdinfo) int {
-	return len(v.Prompt) + len(strconv.Itoa(v.Curline)) + v.Ppad
-}
-
-// Display the prompt
-func prompt(g *gocui.Gui, v *gocui.View) {
-	if g == nil || v == nil || v.Name() != "cmd" {
-		log.Fatal("prompt must be in cmd view")
-	}
-	_, oy := v.Origin()
-	_, cy := v.Cursor()
-	// Only display it if it is on the next new line
-	if oy+cy == Cinfo.Curline {
-		if FirstPass { // Just the prompt no precedin \n as we are the first line
-			sarwin.CmdPrintf(g, "yellow_black", "%s[%d]:", Cinfo.Prompt, Cinfo.Curline)
-			v.SetCursor(promptlen(Cinfo), cy)
-		} else { // End the last command by going to new lin \n then put up the new prompt
-			Cinfo.Curline++
-			sarwin.CmdPrintf(g, "yellow_black", "\n%s[%d]:", Cinfo.Prompt, Cinfo.Curline)
-			_, cy := v.Cursor()
-			v.SetCursor(promptlen(Cinfo), cy)
-			if err := cursorDown(g, v); err != nil {
-				sarwin.ErrPrintln(g, "red_black", "Cannot move to next line")
-			}
-			_, cy = v.Cursor()
-			v.SetCursor(promptlen(Cinfo), cy+1)
-		}
-	}
-}
-
-// Commands - cli commands entered
-var Commands []string
-
-// Sarwg - Wait group for commands to run/finish - We dont quit till this is 0
-var Sarwg sync.WaitGroup
-
-// This is where we process command line inputs after a CR entered
-func getLine(g *gocui.Gui, v *gocui.View) error {
-	if g == nil || v == nil {
-		log.Fatal("getLine - g or v is nil")
-	}
-	switch v.Name() {
-	case "cmd":
-		c := Cmdptr
-		// Find out where we are
-		_, cy := v.Cursor()
-		// Get the line
-		line, _ := v.Line(cy)
-
-		command := strings.SplitN(line, ":", 2)
-		if command[1] == "" { // We have just hit enter - do nothing
-			return nil
-		}
-		// Save the command into history
-		Cinfo.Commands = append(Cinfo.Commands, command[1])
-
-		// Spawn a go to run the command
-		go func(*gocui.Gui, string) {
-			// defer Sarwg.Done()
-			cli.Docmd(g, command[1], c)
-		}(g, command[1])
-
-		if command[1] == "exit" || command[1] == "quit" {
-			// Sarwg.Wait()
-			err := quit(g, v)
-			// THIS IS A KLUDGE FIX IT WITH A CHANNEL
-			log.Fatal("\nGocui Exit. Bye!\n", err)
-		}
-		prompt(g, v)
-	case "msg", "packet", "err":
-		return cursorDown(g, v)
-	}
-	return nil
-}
-
-func quit(g *gocui.Gui, v *gocui.View) error {
-	return gocui.ErrQuit
-}
-
-// ShowPacket - Show Packet trace info
-var showpacket bool = false
-
-// Turn on/off the Packet View
-func showPacket(g *gocui.Gui, v *gocui.View) error {
-	var err error
-
-	if g == nil || v == nil {
-		log.Fatal("showPacket g is nil")
-	}
-	showpacket = !showpacket
-	if showpacket {
-		_, err = g.SetViewOnTop("packet")
-	} else {
-		_, err = g.SetViewOnTop("msg")
-	}
-	return err
-}
-
-// Bind keys to function handlers
-func keybindings(g *gocui.Gui) error {
-	if err := g.SetKeybinding("", gocui.KeyCtrlSpace, gocui.ModNone, switchView); err != nil {
-		return err
-	}
-	if err := g.SetKeybinding("", gocui.KeyArrowDown, gocui.ModNone, cursorDown); err != nil {
-		return err
-	}
-	if err := g.SetKeybinding("", gocui.KeyArrowUp, gocui.ModNone, cursorUp); err != nil {
-		return err
-	}
-	if err := g.SetKeybinding("", gocui.KeyArrowLeft, gocui.ModNone, cursorLeft); err != nil {
-		return nil
-	}
-	if err := g.SetKeybinding("", gocui.KeyArrowRight, gocui.ModNone, cursorRight); err != nil {
-		return nil
-	}
-	if err := g.SetKeybinding("", gocui.KeyCtrlP, gocui.ModNone, showPacket); err != nil {
-		return nil
-	}
-	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
-		return err
-	}
-	if err := g.SetKeybinding("", gocui.KeyEnter, gocui.ModNone, getLine); err != nil {
-		return err
-	}
-	if err := g.SetKeybinding("", gocui.KeyBackspace, gocui.ModNone, backSpace); err != nil {
-		return nil
-	}
-	if err := g.SetKeybinding("", gocui.KeyBackspace2, gocui.ModNone, backSpace); err != nil {
-		return nil
-	}
-	if err := g.SetKeybinding("", gocui.KeyDelete, gocui.ModNone, backSpace); err != nil {
-		return nil
-	}
-	return nil
-}
-
-// FirstPass -- First time around layout we don;t put \n at end of prompt
-var FirstPass = true
-
-func layout(g *gocui.Gui) error {
-	var err error
-	var cmd *gocui.View
-	var msg *gocui.View
-	var packet *gocui.View
-
-	ratio := 4 // Ratio of cmd to msg views
-
-	// Maximum size of x and y
-	maxx, maxy := g.Size()
-	// This is the command line input view -- cli inputs and return messages go here
-	if cmd, err = g.SetView("cmd", 0, maxy-(maxy/ratio)+1, maxx/2-1, maxy-1); err != nil {
-		if err != gocui.ErrUnknownView {
-			return err
-		}
-		cmd.Title = "Command Line"
-		cmd.Highlight = false
-		cmd.BgColor = gocui.ColorBlack
-		cmd.FgColor = gocui.ColorGreen
-		cmd.Editable = true
-		cmd.Overwrite = true
-		cmd.Wrap = true
-		cmd.Autoscroll = false
-	}
-	// This is the error msg view -- mic errors go here
-	if cmd, err = g.SetView("err", maxx/2, maxy-(maxy/ratio)+1, maxx-1, maxy-1); err != nil {
-		if err != gocui.ErrUnknownView {
-			return err
-		}
-		cmd.Title = "Errors"
-		cmd.Highlight = false
-		cmd.BgColor = gocui.ColorBlack
-		cmd.FgColor = gocui.ColorGreen
-		cmd.Editable = false
-		cmd.Overwrite = false
-		cmd.Wrap = true
-		cmd.Autoscroll = false
-	}
-	// This is the packet trace window - packet trace history goes here
-	// Toggles on/off with CtrlP
-	if packet, err = g.SetView("packet", maxx-maxx/4, 1, maxx-2, maxy-maxy/ratio-1); err != nil {
-		if err != gocui.ErrUnknownView {
-			return err
-		}
-		packet.Title = "Packets"
-		packet.Highlight = false
-		packet.BgColor = gocui.ColorBlack
-		packet.FgColor = gocui.ColorMagenta
-		packet.Editable = false
-		packet.Wrap = true
-		packet.Overwrite = false
-		packet.Autoscroll = false
-	}
-
-	// This is the message view window - Status & error messages go here
-	if msg, err = g.SetView("msg", 0, 0, maxx-1, maxy-maxy/ratio); err != nil {
-		if err != gocui.ErrUnknownView {
-			return err
-		}
-		msg.Title = "Messages"
-		msg.Highlight = false
-		msg.BgColor = gocui.ColorBlack
-		msg.FgColor = gocui.ColorYellow
-		msg.Editable = false
-		msg.Wrap = true
-		msg.Overwrite = false
-		msg.Autoscroll = false
-	}
-
-	// Display the prompt without the \n first time around
-	if FirstPass {
-		g.Cursor = true
-		g.Highlight = true
-		g.SelFgColor = gocui.ColorRed
-		g.SelBgColor = gocui.ColorWhite
-		// All inputs happen via the cmd view
-		if cmd, err = g.SetCurrentView("cmd"); err != nil {
-			return err
-		}
-		cmd.SetCursor(0, 0)
-		Cinfo.Curline = 0
-		cmdv, _ := g.View("cmd")
-		prompt(g, cmdv)
-		FirstPass = false
-	}
-	return nil
-}
-
 // Request Handler for Server
 func reqrxhandler(g *gocui.Gui, r request.Request, remoteAddr *net.UDPAddr) string {
 	// Handle the request
+
 	reqtype := sarflags.GetStr(r.Header, "reqtype")
 	switch reqtype {
 	case "noaction", "get", "put", "getdelete", "delete", "getdir":
-		var t *transfer.STransfer
-		if t = transfer.SMatch(remoteAddr.IP.String(), r.Session); t == nil {
+		var t *transfer.Transfer
+		if t = transfer.Lookup(transfer.Server, r.Session, remoteAddr.IP.String()); t == nil {
 			// No matching request so add a new transfer
 			var err error
-			if err = transfer.SNew(g, reqtype, r, remoteAddr.IP.String(), r.Session); err == nil {
-				sarwin.MsgPrintln(g, "yellow_black", "Created Request ", reqtype, " from ",
-					sarnet.UDPinfo(remoteAddr),
-					" session", r.Session)
+			a := remoteAddr.String()
+			if err = transfer.NewServer(g, r, a); err == nil {
+				sarwin.MsgPrintln(g, "yellow_black", "Created Transfer ", reqtype, " from ",
+					sarnet.UDPinfo(remoteAddr))
 				return "success"
 			}
-			sarwin.ErrPrintln(g, "red_black", "Cannot create Request ", reqtype, " from ",
+			sarwin.ErrPrintln(g, "red_black", "Cannot create Transfer ", reqtype, " from ",
 				sarnet.UDPinfo(remoteAddr),
 				"session", r.Session, err)
 			return "badrequest"
@@ -456,9 +63,9 @@ func reqrxhandler(g *gocui.Gui, r request.Request, remoteAddr *net.UDPAddr) stri
 // Metadata handler for Server
 func metrxhandler(g *gocui.Gui, m metadata.MetaData, remoteAddr *net.UDPAddr) string {
 	// Handle the metadata
-	var t *transfer.STransfer
-	if t = transfer.SMatch(remoteAddr.IP.String(), m.Session); t != nil {
-		if err := t.SChange(g, m); err != nil { // Size of file has changed!!!
+	var t *transfer.Transfer
+	if t = transfer.Lookup(transfer.Server, m.Session, remoteAddr.IP.String()); t != nil {
+		if err := t.Change(g, m); err != nil { // Size of file has changed!!!
 			return "unspecified"
 		}
 		sarwin.MsgPrintln(g, "yellow_black", "Changed Transfer ", m.Session, " from ",
@@ -474,10 +81,10 @@ func metrxhandler(g *gocui.Gui, m metadata.MetaData, remoteAddr *net.UDPAddr) st
 // Data handler for server
 func datrxhandler(g *gocui.Gui, d data.Data, conn *net.UDPConn, remoteAddr *net.UDPAddr) string {
 	// Handle the data
-	var t *transfer.STransfer
-	if t = transfer.SMatch(remoteAddr.IP.String(), d.Session); t != nil {
+	var t *transfer.Transfer
+	if t = transfer.Lookup(transfer.Server, d.Session, remoteAddr.IP.String()); t != nil {
 		// t.SData(g, d, conn, remoteAddr) // The data handler for the transfer
-		transfer.Strmu.Lock()
+		transfer.Trmu.Lock()
 		if sarflags.GetStr(d.Header, "reqtstamp") == "yes" { // Grab the timestamp from data
 			t.Tstamp = d.Tstamp
 		}
@@ -500,7 +107,7 @@ func datrxhandler(g *gocui.Gui, d data.Data, conn *net.UDPConn, remoteAddr *net.
 				stheader += "metadatarecvd=yes"
 			}
 			// Send back a status to the client to tell it a success with creating the transfer
-			transfer.WriteStatus(g, t, stheader, conn, remoteAddr)
+			transfer.WriteStatus(g, t, stheader)
 		}
 		sarwin.MsgPrintln(g, "yellow_black", "Server Received Data Len:", len(d.Payload), " Pos:", d.Offset)
 		transfer.Strmu.Unlock()
@@ -573,9 +180,9 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 			sarwin.ErrPrintln(g, "red_black", "Header is not Saratoga v1")
 			if _, err = sarflags.Set(0, "errno", "badpacket"); err != nil {
 				// Bad Packet send back a Status to the client
-				var se status.Status
+				var st status.Status
 				sinfo := status.Sinfo{Session: 0, Progress: 0, Inrespto: 0, Holes: nil}
-				if frames.New(&se, "errcode=badpacket", &sinfo) != nil {
+				if frames.New(&st, "errcode=badpacket", &sinfo) != nil {
 					sarwin.ErrPrintln(g, "red_black", "Cannot create badpacket status")
 				}
 				sarwin.ErrPrintln(g, "red_black", "Not Saratoga Version 1 Frame from ",
@@ -597,10 +204,9 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 				continue
 			}
 			// Handle the beacon
-			if errcode := rxb.Handler(g, remoteAddr); errcode != "success" {
-				sarwin.ErrPrintln(g, "red_black", "Bad Beacon:", errcode, " from ",
+			if errcode := frames.RxHandler(&rxb, g, conn); errcode != "success" {
+				sarwin.ErrPrintln(g, "red_black", "Bad Beacon:", errcode, "  from ",
 					sarnet.UDPinfo(remoteAddr))
-				continue
 			}
 			sarwin.PacketPrintln(g, "green_black", "Listen Rx ", rxb.ShortPrint())
 
@@ -618,19 +224,24 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 
 			// Create a status to the client to tell it the error or that we have accepted the transfer
 			session := binary.BigEndian.Uint32(frame[4:8])
+			// t := transfer.Lookup(transfer.Client, session, remoteAddr.String())
+			if errcode := frames.RxHandler(&r, g, conn); errcode != "success" {
+				sarwin.ErrPrintln(g, "red_black", "Bad Request:", errcode, "  from ",
+					sarnet.UDPinfo(remoteAddr))
+			}
 			errcode := reqrxhandler(g, r, remoteAddr)                         // process the request
 			stheader := "descriptor=" + sarflags.GetStr(header, "descriptor") // echo the descriptor
 			stheader += ",metadatarecvd=no,allholes=yes,reqholes=requested,"
-			stheader += "errcode=" + errcode
+			stheader += "errcode=" + errcode // and the handler result
 
 			if errcode != "success" {
 				transfer.WriteErrStatus(g, stheader, session, conn, remoteAddr)
 				sarwin.ErrPrintln(g, "red_black", "Bad Status:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr), " session ", session)
 			} else {
-				var t *transfer.STransfer
-				if t = transfer.SMatch(remoteAddr.IP.String(), session); t != nil {
-					transfer.WriteStatus(g, t, stheader, conn, remoteAddr)
+				var t *transfer.Transfer
+				if t = transfer.Lookup(transfer.Client, session, remoteAddr.String()); t != nil {
+					transfer.WriteStatus(g, t, stheader)
 				}
 			}
 			continue
@@ -654,6 +265,10 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 
 			// sarwin.MsgPrintln(g, "white_black", "Decoded data ", d.Print())
 			session := binary.BigEndian.Uint32(frame[4:8])
+			if errcode := frames.RxHandler(&d, g, conn); errcode != "success" {
+				sarwin.ErrPrintln(g, "red_black", "Bad Data:", errcode, "  from ",
+					sarnet.UDPinfo(remoteAddr))
+			}
 			errcode := datrxhandler(g, d, conn, remoteAddr) // process the data
 			if errcode != "success" {                       // If we have a error send back a status with it
 				stheader := "descriptor=" + sarflags.GetStr(header, "descriptor") // echo the descriptor
@@ -695,6 +310,10 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 			sarwin.PacketPrintln(g, "green_black", "Listen Rx ", m.ShortPrint())
 
 			session := binary.BigEndian.Uint32(frame[4:8])
+			if errcode := frames.RxHandler(&m, g, conn); errcode != "success" {
+				sarwin.ErrPrintln(g, "red_black", "Bad Metadata:", errcode, "  from ",
+					sarnet.UDPinfo(remoteAddr))
+			}
 			errcode := metrxhandler(g, m, remoteAddr) // process the metadata
 			if errcode != "success" {                 // If we have a error send back a status with it
 				stheader := "descriptor=" + sarflags.GetStr(header, "descriptor") // echo the descriptor
@@ -726,6 +345,10 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 				continue
 			} // Handle the status
 			sarwin.PacketPrintln(g, "green_black", "Listen Rx ", s.ShortPrint())
+			if errcode := frames.RxHandler(&s, g, conn); errcode != "success" {
+				sarwin.ErrPrintln(g, "red_black", "Bad Status:", errcode, "  from ",
+					sarnet.UDPinfo(remoteAddr))
+			}
 			errcode := starxhandler(g, s, conn, remoteAddr) // process the status
 			if errcode != "success" {                       // If we have a error send back a status with it
 				stheader := "descriptor=" + sarflags.GetStr(header, "descriptor") // echo the descriptor
@@ -750,20 +373,21 @@ var Cmdptr *sarflags.Cliflags
 // Main
 func main() {
 
-	// var c *sarflags.Cliflags
-
 	if len(os.Args) != 3 {
 		fmt.Println("usage:saratoga <config> <iface>")
-		fmt.Println("Eg. go run saratoga.go saratoga.json en0 (Interface says where to listen for multicast joins")
+		fmt.Println("e.g.: go run saratoga.go saratoga.json en0 (Interface says where to listen for multicast joins")
 		return
 	}
+
+	argnumb := 1
 
 	// The Command line interface commands, help & usage to be read from saratoga.json
 	Cmdptr = new(sarflags.Cliflags)
 
+	var err error
 	// Read in JSON config file and parse it into the Config structure.
-	if err := sarflags.ReadConfig(os.Args[1], Cmdptr); err != nil {
-		fmt.Println("Cannot open saratoga config file we have a Readconf error ", os.Args[1], " ", err)
+	if Cmdptr, err = sarflags.ReadConfig(os.Args[argnumb]); err != nil {
+		fmt.Println("Cannot open saratoga config file we have a Readconf error ", os.Args[argnumb], " ", err)
 		return
 	}
 
@@ -773,40 +397,40 @@ func main() {
 	// Set global variable pointing to sarflags.Cliflags structure
 	// We have to have a global pointer as we cannot pass c directly into gocui
 
-	Cinfo.Prompt = Cmdptr.Prompt
-	Cinfo.Ppad = Cmdptr.Ppad
+	sarwin.Cinfo.Prompt = Cmdptr.Prompt
+	sarwin.Cinfo.Ppad = Cmdptr.Ppad
 
 	// Move to saratoga working directory
-	if err := os.Chdir(Cmdptr.Sardir); err != nil {
+	if err = os.Chdir(Cmdptr.Sardir); err != nil {
 		log.Fatal(fmt.Errorf("no such directory SARDIR=%s", Cmdptr.Sardir))
 	}
 
 	var fs syscall.Statfs_t
-	if err := syscall.Statfs(Cmdptr.Sardir, &fs); err != nil {
+	if err = syscall.Statfs(Cmdptr.Sardir, &fs); err != nil {
 		log.Fatal(errors.New("cannot stat saratoga working directory"))
 	}
 
 	// What Interface are we receiving Multicasts on
 	var iface *net.Interface
-	var err error
 
-	iface, err = net.InterfaceByName(os.Args[2])
+	argnumb++
+	iface, err = net.InterfaceByName(os.Args[argnumb])
 	if err != nil {
-		fmt.Println("Saratoga Unable to lookup interfacebyname:", os.Args[1])
+		fmt.Println("Saratoga Unable to lookup interfacebyname:", os.Args[argnumb-1])
 		log.Fatal(err)
 	}
 	// Set the Mtu to Interface we are using
 	sarflags.MtuSet(iface.MTU)
 
 	// Set up the gocui interface and start the mainloop
-	g, err := gocui.NewGui(gocui.OutputNormal)
-	if err != nil {
+	g, gerr := gocui.NewGui(gocui.OutputNormal)
+	if gerr != nil {
 		fmt.Printf("Cannot run gocui user interface")
 		log.Fatal(err)
 	}
 	defer g.Close()
-	g.SetManagerFunc(layout)
-	if err := keybindings(g); err != nil {
+	g.SetManagerFunc(sarwin.Layout)
+	if err := sarwin.Keybindings(g); err != nil {
 		log.Panicln(err)
 	}
 
@@ -815,8 +439,9 @@ func main() {
 	if ierr != nil {
 		sarwin.MsgPrintln(g, "green_black", ierr.Error())
 	}
+	argnumb++
 	for _, ifi := range ifis {
-		if ifi.Name == os.Args[2] { // || ifi.Name == "lo0" {
+		if ifi.Name == os.Args[argnumb] { // || ifi.Name == "lo0" {
 			sarwin.MsgPrintln(g, "green_black", ifi.Name, " MTU ", ifi.MTU, " ", ifi.Flags.String(), ":")
 			adrs, _ := ifi.Addrs()
 			for _, adr := range adrs {
@@ -829,7 +454,7 @@ func main() {
 				madrs, _ := ifi.MulticastAddrs()
 				for _, madr := range madrs {
 					if strings.Contains(madr.Network(), "ip") {
-						sarwin.MsgPrintln(g, "green_black", "\t Multicast ", madr.String(),
+						sarwin.ErrPrintln(g, "green_black", "\t Multicast ", madr.String(),
 						 "Net:", madr.Network())
 					}
 				}

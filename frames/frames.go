@@ -4,20 +4,21 @@ package frames
 
 import (
 	"net"
-	// "github.com/jroimartin/gocui"
+
+	"github.com/jroimartin/gocui"
 )
 
 // Frame - Handler for different frames
 // 	beacon, data, metadata, request, status
 type Frame interface {
-	Encode() ([]byte, error)                    // Encode from frame struct into []bytes
-	Decode([]byte) error                        // Decode from []bytes into frame struct (beacon, request, data, metadata, status)
-	Print() string                              // Print out contents of some type of frame
-	ShortPrint() string                         // Quick summary print out of some type of frame
-	UDPWrite(*net.UDPConn, *net.UDPAddr) string // "success" is OK any other string is sent back to caller on channel
-	New(string, interface{}) error              // Create New Frame with flags & info via interface
-	Make(uint32, interface{}) error             //Make New Frame with header & info voa interface
-	// RxHandler(*gocui.Gui, *net.UDPConn, *net.UDPAddr, interface{}) string // Receive Handler
+	Encode() ([]byte, error)                   // Encode from frame struct into []bytes
+	Decode([]byte) error                       // Decode from []bytes into frame struct (beacon, request, data, metadata, status)
+	Print() string                             // Print out contents of some type of frame
+	ShortPrint() string                        // Quick summary print out of some type of frame
+	UDPWrite(*net.UDPConn) string              // "success" is OK any other string is sent back to caller on channel
+	New(string, interface{}) error             // Create New Frame with flags & info via interface
+	Make(uint32, interface{}) error            // Make New Frame with header & info voa interface
+	RxHandler(*gocui.Gui, *net.UDPConn) string // Receive Handler
 }
 
 // Decode a frame into its structure via Frame interface
@@ -41,7 +42,7 @@ func ShortPrint(f Frame) string {
 }
 
 // Encode and Send a Frame to UDP Connection
-func UDPWrite(f Frame, conn *net.UDPConn, addr *net.UDPAddr) string {
+func UDPWrite(f Frame, conn *net.UDPConn) string {
 	var wframe []byte
 	var err error
 	if wframe, err = Encode(f); err != nil {
@@ -62,8 +63,9 @@ func Make(f Frame, header uint32, info interface{}) error {
 	return f.Make(header, info)
 }
 
-/*
-func Rxhandler(f Frame, g *gocui.Gui, conn *net.UDPConn, addr *net.UDPAddr, info interface{}) string {
-	return f.RxHandler(g, conn, addr, info)
+func RxHandler(f Frame, g *gocui.Gui, conn *net.UDPConn) string {
+	if conn == nil {
+		return "cantreceive"
+	}
+	return f.RxHandler(g, conn)
 }
-*/

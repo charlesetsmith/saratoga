@@ -57,7 +57,6 @@ func (fills Holes) optimise() Holes {
 				fills[i].End = fills[i+1].End
 				fills = fills.remove(i + 1)
 			}
-			// fmt.Println("E", Fills)
 			// And here is the secret sauce to optimise - the beuty of recursion
 			fills = fills.optimise()
 		}
