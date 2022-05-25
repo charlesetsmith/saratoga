@@ -17,7 +17,6 @@ import (
 
 	"github.com/charlesetsmith/saratoga/frames"
 	"github.com/charlesetsmith/saratoga/sarflags"
-	"github.com/charlesetsmith/saratoga/sarwin"
 	"github.com/charlesetsmith/saratoga/timestamp"
 	"github.com/jroimartin/gocui"
 )
@@ -337,11 +336,9 @@ func (b *Beacon) Send(g *gocui.Gui, addr string, port int, count uint, interval 
 	var i uint
 	for i = 0; i < count; i++ {
 		if _, err := conn.Write(frame); err != nil {
-			sarwin.MsgPrintln(g, "red_black", "error writing beacon to ", addr)
+			errflag <- "cantsend"
 		}
-		sarwin.PacketPrintln(g, "cyan_black", "Tx ", b.ShortPrint())
 
-		sarwin.MsgPrintln(g, "yellow_black", "Sent Beacon ", i+1, " of ", count, " to ", addr, " every ", interval, " sec")
 		// select { // We may need to add some more channel i/o here so use select
 		// default:
 		time.Sleep(time.Duration(interval) * time.Second)
@@ -349,16 +346,6 @@ func (b *Beacon) Send(g *gocui.Gui, addr string, port int, count uint, interval 
 	}
 	errflag <- "success"
 	conn.Close()
-}
-
-// Handler We have an inbound beacon frame
-func (b *Beacon) Handler(g *gocui.Gui, from *net.UDPAddr) string {
-	if b.NewPeer(from) {
-		sarwin.MsgPrintln(g, "yellow_black", "Beacon Received Added/Changed Peer ", from.String())
-	} else {
-		sarwin.MsgPrintln(g, "yellow_black", "Beacon Received peer ", from.String(), " previously added")
-	}
-	return "success"
 }
 
 // Peer - beacon peer
@@ -376,10 +363,10 @@ var pmu sync.Mutex // Protect Peers
 var Peers []Peer
 
 // NewPeer - Add/Change peer info from received beacon
-func (b *Beacon) NewPeer(from *net.UDPAddr) bool {
+func (b *Beacon) NewPeer(from *net.UDPConn) bool {
 	// Scan through existing Peers and change if the peer exists
 	for p := range Peers {
-		if Peers[p].Addr == from.IP.String() { // Source IP address matches
+		if Peers[p].Addr == from.RemoteAddr().String() { // Source IP address matches
 			pmu.Lock()
 			defer pmu.Unlock()
 			// Has anything changed since the last beacon for this peer ?
@@ -395,7 +382,7 @@ func (b *Beacon) NewPeer(from *net.UDPAddr) bool {
 	}
 	// We have a new Peer - add it
 	var newp Peer
-	newp.Addr = from.IP.String()
+	newp.Addr = from.RemoteAddr().String()
 	newp.Freespace = b.Freespace
 	newp.Eid = b.Eid
 	newp.Maxdesc = sarflags.GetStr(b.Header, "descriptor")
@@ -408,6 +395,18 @@ func (b *Beacon) NewPeer(from *net.UDPAddr) bool {
 }
 
 // Send a beacon out the UDP connection
-func (b *Beacon) UDPWrite(conn *net.UDPConn, addr *net.UDPAddr) string {
-	return frames.UDPWrite(b, conn, addr)
+func (b *Beacon) UDPWrite(conn *net.UDPConn) string {
+	return frames.UDPWrite(b, conn)
+}
+
+// Handle the received beacon
+func (b *Beacon) RxHandler(g *gocui.Gui, conn *net.UDPConn) string {
+	/*
+		if b.NewPeer(conn) {
+			sarwin.MsgPrintln(g, "yellow_black", "Beacon Received Added/Changed Peer ", conn.RemoteAddr().String())
+		} else {
+			sarwin.MsgPrintln(g, "yellow_black", "Beacon Received from peer ", conn.RemoteAddr().String(), " previously added")
+		}
+	*/
+	return "success"
 }

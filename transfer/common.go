@@ -3,75 +3,11 @@
 package transfer
 
 import (
-	"fmt"
 	"os"
-	"sort"
 	"strings"
-	"sync"
 
 	"github.com/charlesetsmith/saratoga/sarflags"
-	"github.com/charlesetsmith/saratoga/sarwin"
-	"github.com/jroimartin/gocui"
 )
-
-// Ttypes - Transfer types
-var Ttypes = []string{"get", "getrm", "getdir", "put", "putblind", "putrm", "rm", "rmdir"}
-
-// Direction of Transfer
-const (
-	Send    bool = true
-	Receive bool = false
-)
-
-// current protected session number
-var smu sync.Mutex
-var sessionid uint32
-
-// Info - List client & server transfers in progress to msg window matching ttype or all if ""
-func Info(g *gocui.Gui, ttype string) {
-	var tinfo []CTransfer
-
-	for i := range CTransfers {
-		if ttype == "" {
-			tinfo = append(tinfo, CTransfers[i])
-		} else if CTransfers[i].ttype == ttype {
-			tinfo = append(tinfo, CTransfers[i])
-		}
-	}
-	if len(tinfo) > 0 {
-		var maxaddrlen, maxfname int // Work out the width for the table
-		for key := range tinfo {
-			if len(tinfo[key].peer.String()) > maxaddrlen {
-				maxaddrlen = len(tinfo[key].peer.String())
-			}
-			if len(tinfo[key].filename) > maxfname {
-				maxfname = len(tinfo[key].peer.String())
-			}
-		}
-		// Table format
-		sfmt := fmt.Sprintf("|%%6s|%%8s|%%%ds|%%%ds|\n", maxaddrlen, maxfname)
-		sborder := fmt.Sprintf(sfmt, strings.Repeat("-", 6), strings.Repeat("-", 8),
-			strings.Repeat("-", maxaddrlen), strings.Repeat("-", maxfname))
-
-		var sslice sort.StringSlice
-		for key := range tinfo {
-			sslice = append(sslice, tinfo[key].FmtPrint(sfmt))
-		}
-		sort.Sort(sslice)
-
-		sbuf := sborder
-		sbuf += fmt.Sprintf(sfmt, "Direct", "Tran Typ", "IP", "Fname")
-		sbuf += sborder
-		for key := 0; key < len(sslice); key++ {
-			sbuf += sslice[key]
-		}
-		sbuf += sborder
-		sarwin.MsgPrintln(g, "magenta_black", sbuf)
-	} else {
-		msg := fmt.Sprintf("No %s transfers currently in progress", ttype)
-		sarwin.MsgPrintln(g, "green_black", msg)
-	}
-}
 
 // Create new Session number
 func newsession() uint32 {
@@ -108,40 +44,6 @@ func filedescriptor(fname string) string {
 		return "descriptor=d32"
 	}
 	return "descriptor=d64"
-}
-
-// Replace an existing flag or add it
-func replaceflag(curflags string, newflag string) string {
-	var fs string
-	var replaced bool
-
-	for _, curflag := range strings.Split(curflags, ",") {
-		if strings.Split(curflag, "=")[0] == strings.Split(newflag, "=")[0] {
-			replaced = true
-			fs += newflag + ","
-		} else {
-			fs += curflag + ","
-		}
-	}
-	if !replaced {
-		fs += newflag
-	}
-	return strings.TrimRight(fs, ",")
-}
-
-// Look for and return value of a particular flag in flags
-// e.g flags:descriptor=d32,timestamp=off flag:timestamp return:off
-func flagvalue(flags, flag string) string {
-	flags = strings.Replace(flags, " ", "", -1) // Get rid of extra spaces in flags
-	// Grab the flags and set the frame header
-	flagslice := strings.Split(flags, ",") // The name=val of the flag
-	for fl := range flagslice {
-		f := strings.Split(flagslice[fl], "=") // f[0]=name f[1]=val
-		if f[0] == flag {
-			return f[1]
-		}
-	}
-	return ""
 }
 
 // Work out the maximum payload in data.Data frame given flags

@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 // For Linux systems
@@ -64,4 +65,16 @@ func (ft *FileTime) NewTime(fi os.FileInfo) {
 	// ft.Mtime = time.Unix(int64(stat.Mtim.Sec), int64(stat_t.Mtim.Nsec))
 	ft.Ctime = time.Unix(int64(stat.Ctim.Sec), int64(stat.Ctim.Nsec))
 	return
+}
+
+// We have a dummy version of this call in posix.go.
+// Windows does not implement the syscall.Stat_t type we
+// need, but the *nixes do. We use this
+// to get owner/group on file
+func GetOwnerAndGroup(finfo os.FileInfo) (int, int) {
+	systat := finfo.Sys().(*syscall.Stat_t)
+	if systat != nil {
+		return int(systat.Uid), int(systat.Gid)
+	}
+	return 0, 0
 }

@@ -12,6 +12,7 @@ import (
 
 	"github.com/charlesetsmith/saratoga/frames"
 	"github.com/charlesetsmith/saratoga/sarflags"
+	"github.com/jroimartin/gocui"
 )
 
 // Request -- Holds Request frame information
@@ -158,6 +159,10 @@ func (r *Request) ShortPrint() string {
 }
 
 // Send a request out the UDP connection
-func (r *Request) UDPWrite(conn *net.UDPConn, addr *net.UDPAddr) string {
-	return frames.UDPWrite(r, conn, addr)
+func (r *Request) UDPWrite(conn *net.UDPConn) string {
+	return frames.UDPWrite(r, conn)
+}
+
+func (r Request) RxHandler(g *gocui.Gui, conn *net.UDPConn) string {
+	return "success"
 }

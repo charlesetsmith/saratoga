@@ -13,10 +13,13 @@ import (
 )
 
 // SaratogaPort - IANA allocated Saratoga UDP & TCP Port is 7542
+const Port int = 7542
 
 // IPv4Multicast -- IANA allocated Saratoga IPV4 all-hosts Multicast Address is "224.0.0.108"
+const IPv4Multicast string = "224.0.0.108"
 
 // IPv6Multicast -- IANA allocated Saratoga IPV6 link-local Multicast Address is "FF02:0:0:0:0:0:0:6c" or "FF02::6c"
+const IPv6Multicast string = "FF02::6c"
 
 // MaxFrameSize -- Maximum Saratoga Frame Size
 // Move this to Network Section & Calculate it

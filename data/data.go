@@ -13,22 +13,8 @@ import (
 	"github.com/charlesetsmith/saratoga/frames"
 	"github.com/charlesetsmith/saratoga/sarflags"
 	"github.com/charlesetsmith/saratoga/timestamp"
+	"github.com/jroimartin/gocui"
 )
-
-/*
-import (
-	"encoding/binary"
-	"errors"
-	"fmt"
-	"net"
-	"reflect"
-	"strings"
-
-	"github.com/charlesetsmith/saratoga/frames"
-	"github.com/charlesetsmith/saratoga/sarflags"
-	"github.com/charlesetsmith/saratoga/timestamp"
-)
-*/
 
 // Data -- Holds Data frame information
 type Data struct {
@@ -300,51 +286,11 @@ func (d Data) ShortPrint() string {
 }
 
 // Send a data out the UDP connection
-func (d *Data) UDPWrite(conn *net.UDPConn, addr *net.UDPAddr) string {
-	return frames.UDPWrite(d, conn, addr)
+func (d *Data) UDPWrite(conn *net.UDPConn) string {
+	return frames.UDPWrite(d, conn)
 }
 
-/*
-// Data handler for server
-func RxHandler(g *gocui.Gui, conn *net.UDPConn, remoteAddr *net.UDPAddr, info interface{}) string {
-	// Handle the data
-	var t *transfer.STransfer
-	if t = transfer.SMatch(remoteAddr.IP.String(), d.Session); t != nil {
-		// t.SData(g, d, conn, remoteAddr) // The data handler for the transfer
-		transfer.Strmu.Lock()
-		if sarflags.GetStr(d.Header, "reqtstamp") == "yes" { // Grab the timestamp from data
-			t.Tstamp = d.Tstamp
-		}
-		// Copy the data in this frame to the transfer buffer
-		// THIS IS BAD WE HAVE AN int NOT A uint64!!!
-		if (d.Offset)+(uint64)(len(d.Payload)) > (uint64)(len(t.Data)) {
-			return "badoffset"
-		}
-		copy(t.Data[d.Offset:], d.Payload)
-		t.Dcount++
-		if t.Dcount%100 == 0 { // Send back a status every 100 data frames recieved
-			t.Dcount = 0
-		}
-		if t.Dcount == 0 || sarflags.GetStr(d.Header, "reqstatus") == "yes" || !t.Havemeta { // Send a status back
-			stheader := "descriptor=" + sarflags.GetStr(d.Header, "descriptor") // echo the descriptor
-			stheader += ",allholes=yes,reqholes=requested,errcode=success,"
-			if !t.Havemeta {
-				stheader += "metadatarecvd=no"
-			} else {
-				stheader += "metadatarecvd=yes"
-			}
-			// Send back a status to the client to tell it a success with creating the transfer
-			transfer.WriteStatus(g, t, stheader, conn, remoteAddr)
-		}
-		sarwin.MsgPrintln(g, "yellow_black", "Server Received Data Len:", len(d.Payload), " Pos:", d.Offset)
-		transfer.Strmu.Unlock()
-		sarwin.MsgPrintln(g, "yellow_black", "Changed Transfer ", d.Session, " from ",
-			sarnet.UDPinfo(remoteAddr))
-		return "success"
-	}
-	// No transfer is currently in progress
-	sarwin.ErrPrintln(g, "red_black", "Data received for no such transfer as ", d.Session, " from ",
-		sarnet.UDPinfo(remoteAddr))
-	return "badpacket"
+// Data Reciever handler
+func (d Data) RxHandler(g *gocui.Gui, conn *net.UDPConn) string {
+	return "success"
 }
-*/

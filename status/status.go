@@ -14,6 +14,7 @@ import (
 	"github.com/charlesetsmith/saratoga/holes"
 	"github.com/charlesetsmith/saratoga/sarflags"
 	"github.com/charlesetsmith/saratoga/timestamp"
+	"github.com/jroimartin/gocui"
 )
 
 // Status -- Status of the transfer and holes
@@ -40,7 +41,7 @@ type Sinfo struct {
 // Flags is of format "flagname1=flagval1,flagname2=flagval2...
 // The timestamp type to use is also in the flags as "timestamp=flagval"
 // func (s *Status) New(flags string, session uint32, progress uint64, inrespto uint64, holes holes.Holes) error {
-func (s *Status) New(flags string, info interface{}) error {
+func (s Status) New(flags string, info interface{}) error {
 
 	var err error
 
@@ -91,7 +92,7 @@ func (s *Status) New(flags string, info interface{}) error {
 
 // Make - Construct a status frame with a given header
 // func (s *Status) Make(header uint32, session uint32, progress uint64, inrespto uint64, holes holes.Holes) error {
-func (s *Status) Make(header uint32, info interface{}) error {
+func (s Status) Make(header uint32, info interface{}) error {
 
 	var err error
 
@@ -192,7 +193,7 @@ func (s Status) Encode() ([]byte, error) {
 }
 
 // Get -- Decode Status byte slice frame into Status struct
-func (s *Status) Decode(frame []byte) error {
+func (s Status) Decode(frame []byte) error {
 
 	if len(frame) < 12 {
 		return errors.New("Status Frame too short")
@@ -296,6 +297,11 @@ func (s Status) ShortPrint() string {
 }
 
 // Send a status out the UDP connection
-func (s *Status) UDPWrite(conn *net.UDPConn, addr *net.UDPAddr) string {
-	return frames.UDPWrite(s, conn, addr)
+func (s *Status) UDPWrite(conn *net.UDPConn) string {
+	return frames.UDPWrite(s, conn)
+}
+
+// Data Reciever handler
+func (s Status) RxHandler(g *gocui.Gui, conn *net.UDPConn) string {
+	return "success"
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/charlesetsmith/saratoga/dirent"
 	"github.com/charlesetsmith/saratoga/frames"
 	"github.com/charlesetsmith/saratoga/sarflags"
+	"github.com/jroimartin/gocui"
 )
 
 // MetaData -- Holds MetaData frame information
@@ -21,7 +22,7 @@ type MetaData struct {
 	Header   uint32
 	Session  uint32
 	Checksum []byte
-	Dir      dirent.DirEnt
+	Dir      *dirent.DirEnt
 }
 
 type Minfo struct {
@@ -37,7 +38,7 @@ func statfile(fname string, header uint32) (string, error) {
 	var direntflags string
 	var err error
 
-	direntflags = "reliability=yes," // This saratoga only supports reliable file types
+	direntflags = sarflags.AddFlag("", "reliability", "yes,") // This saratoga only supports reliable file types
 	fi, err := os.Lstat(fname)
 	if err != nil {
 		return direntflags, err
@@ -45,13 +46,13 @@ func statfile(fname string, header uint32) (string, error) {
 	switch mode := fi.Mode(); {
 	case mode.IsRegular():
 		file = true
-		direntflags += "property=normalfile,"
+		direntflags = sarflags.AddFlagD(direntflags, "property", "normalfile")
 	case mode.IsDir():
 		dir = true
-		direntflags += "property=normaldirectory,"
+		direntflags = sarflags.AddFlagD(direntflags, "property", "normaldirectory")
 	case mode&os.ModeNamedPipe != 0:
 		stream = true
-		direntflags += "property=specialfile,"
+		direntflags = sarflags.AddFlagD(direntflags, "property", "specialfile")
 	default:
 		e := fmt.Sprintf("Unsupported file, directory or stream type %o for %s", mode, fname)
 		return direntflags, errors.New(e)
@@ -60,14 +61,14 @@ func statfile(fname string, header uint32) (string, error) {
 	// Work out the descriptor to use for directory entry
 	fsize := uint64(fi.Size()) // Size of file carefull this is on 64 bit int (not uint!!!)
 	if fsize < sarflags.MaxUint16 {
-		direntflags += "descriptor=d16,"
+		direntflags = sarflags.AddFlagD(direntflags, "descriptor", "d16")
 	} else if fsize < sarflags.MaxUint32 {
-		direntflags += "descriptor=d32,"
+		direntflags = sarflags.AddFlagD(direntflags, "descriptor", "d32")
+	} else if fsize < sarflags.MaxUint64 {
+		direntflags = sarflags.AddFlagD(direntflags, "descriptor", "d64")
 	} else {
-		direntflags += "descriptor=d64,"
+		direntflags = sarflags.AddFlagD(direntflags, "descriptor", "d128")
 	}
-
-	direntflags = strings.TrimSuffix(direntflags, ",") // Get rid of trailing comma
 
 	switch sarflags.GetStr(header, "transfer") {
 	case "stream":
@@ -118,11 +119,7 @@ func (m *MetaData) New(flags string, info interface{}) error {
 	for fl := range flag {
 		f := strings.Split(flag[fl], "=") // f[0]=name f[1]=val
 		switch f[0] {
-		case "descriptor":
-			if m.Header, err = sarflags.Set(m.Header, f[0], f[1]); err != nil {
-				return err
-			}
-		case "progress", "udptype", "transfer":
+		case "descriptor", "progress", "udptype", "transfer", "reliability":
 			if m.Header, err = sarflags.Set(m.Header, f[0], f[1]); err != nil {
 				return err
 			}
@@ -135,10 +132,6 @@ func (m *MetaData) New(flags string, info interface{}) error {
 				return err
 			}
 			csumtype = f[1]
-		case "reliability": // Reliable transfer
-			if m.Header, err = sarflags.Set(m.Header, f[0], f[1]); err != nil {
-				return err
-			}
 		default:
 			e := "Invalid Flag " + f[0] + " for MetaData Frame"
 			return errors.New(e)
@@ -156,7 +149,7 @@ func (m *MetaData) New(flags string, info interface{}) error {
 		return err
 	}
 	// Create Directory Entry
-	if err = m.Dir.New(direntflags, fname); err != nil {
+	if m.Dir, err = dirent.New(direntflags, fname); err != nil {
 		return err
 	}
 
@@ -202,7 +195,7 @@ func (m *MetaData) Make(header uint32, info interface{}) error {
 		return err
 	}
 	// Directory Entry
-	if err = m.Dir.New(direntflags, fname); err != nil {
+	if m.Dir, err = dirent.New(direntflags, fname); err != nil {
 		return err
 	}
 
@@ -230,7 +223,7 @@ func (m MetaData) Encode() ([]byte, error) {
 	// Create the frame slice
 	framelen := 4 + 4 // Header + Session
 	framelen += len(m.Checksum)
-	de, _ := m.Dir.Put()
+	de, _ := m.Dir.Encode()
 	framelen += len(de)
 
 	frame := make([]byte, framelen)
@@ -267,7 +260,7 @@ func (m *MetaData) Decode(frame []byte) (err error) {
 	copy(m.Checksum, frame[pos:pos+csuml])
 	pos += csuml
 	// Directory Entry
-	if err = m.Dir.Get(frame[pos:]); err != nil {
+	if err = m.Dir.Decode(frame[pos:]); err != nil {
 		return err
 	}
 	return nil
@@ -302,6 +295,11 @@ func (m MetaData) ShortPrint() string {
 }
 
 // Send a metadata out the UDP connection
-func (m *MetaData) UDPWrite(conn *net.UDPConn, addr *net.UDPAddr) string {
-	return frames.UDPWrite(m, conn, addr)
+func (m *MetaData) UDPWrite(conn *net.UDPConn) string {
+	return frames.UDPWrite(m, conn)
+}
+
+// Data Reciever handler
+func (m MetaData) RxHandler(g *gocui.Gui, conn *net.UDPConn) string {
+	return "success"
 }

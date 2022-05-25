@@ -4,14 +4,12 @@ package transfer
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 	"net"
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/charlesetsmith/saratoga/data"
@@ -24,31 +22,13 @@ import (
 	"github.com/jroimartin/gocui"
 )
 
-// CTransfer Information
-type CTransfer struct {
-	session  uint32   // Session ID - This is the unique key
-	ttype    string   // CTransfer type "get,getrm,put,putrm,blindput,rm"
-	tstamp   string   // Timestamp type "localinterp,posix32,posix64,posix32_32,posix64_32,epoch2000_32"
-	peer     net.IP   // Remote Host
-	filename string   // File name to receive or remove from remote host or send from local host
-	fp       *os.File // File pointer for transfer
-	// frames    [][]byte           // Frame queue
-	// holes     holes.Holes        // Holes
-	cliflags *sarflags.Cliflags // Global flags for this transfer
-}
-
-var ctrmu sync.Mutex
-
-// CTransfers - Client transfers in progress
-var CTransfers = []CTransfer{}
-
 // read and process status frames
 // We read from and seek within fp
 // Our connection to the server is conn
 // We assemble Data using dflags
 // We transmit metadata as required
 // We send back a string holding the status error code "success" keeps transfer alive
-func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn, addr *net.UDPAddr,
+func readstatus(g *gocui.Gui, t *Transfer, dflags string, conn *net.UDPConn, addr *net.UDPAddr,
 	m *metadata.MetaData, pos chan [2]uint64, errflag chan string) {
 
 	var filelen uint64
@@ -84,7 +64,7 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn, ad
 		header := binary.BigEndian.Uint32(rframe[:4])
 		if sarflags.GetStr(header, "version") != "v1" { // Make sure we are Version 1
 			sarwin.ErrPrintln(g, "red_black", "Client Not Saratoga Version 1 Frame from ",
-				t.peer.String())
+				t.conn.RemoteAddr().String())
 			errflag <- "badpacket"
 			return
 		}
@@ -192,7 +172,7 @@ func readstatus(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn, ad
 // senddata - Read from fp and send the data to the server
 // Handle datapos as recieved from the channel - THIS NOT DONE IN THIS SIMPLE VERSION YET!!!
 // Send out errflag on its channel if failure or success (done)
-func senddata(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn, addr *net.UDPAddr,
+func senddata(g *gocui.Gui, t *Transfer, dflags string, conn *net.UDPConn, addr *net.UDPAddr,
 	datapos chan [2]uint64, errflag chan string) {
 
 	var curpos uint64
@@ -253,39 +233,10 @@ func senddata(g *gocui.Gui, t *CTransfer, dflags string, conn *net.UDPConn, addr
 	errflag <- "success"
 }
 
-// CMatch - Return a pointer to the transfer if we find it, nil otherwise
-func CMatch(ttype string, ip string, fname string) *CTransfer {
-	ttypeok := false
-	addrok := false
-
-	// Check that transfer type is valid
-	for _, tt := range Ttypes {
-		if tt == ttype {
-			ttypeok = true
-			break
-		}
-	}
-	// Check that ip address is valid
-	var addr net.IP
-	if addr = net.ParseIP(ip); addr != nil { // We have a valid IP Address
-		addrok = true
-	}
-	if !ttypeok || !addrok {
-		return nil
-	}
-
-	for _, i := range CTransfers {
-		if ttype == i.ttype && addr.Equal(i.peer) && fname == i.filename {
-			return &i
-		}
-	}
-	return nil
-}
-
 // Doclient -- Execute the command entered
 // Function pointer to the go routine for the transaction type
 // Spawns a go thread for the command to execute
-func Doclient(t *CTransfer, g *gocui.Gui, errstr chan string) {
+func Doclient(t *Transfer, g *gocui.Gui, errstr chan string) {
 	for _, i := range Ttypes {
 		if i == t.ttype {
 			fn, ok := clienthandler[i]
@@ -303,83 +254,13 @@ func Doclient(t *CTransfer, g *gocui.Gui, errstr chan string) {
 	errstr <- "undefined"
 }
 
-// CNew - Add a new transfer to the CTransfers list
-func (t *CTransfer) CNew(g *gocui.Gui, ttype string, ip string, fname string, c *sarflags.Cliflags) error {
-
-	// screen.Fprintln(g,  "red_black", "Addtran for ", ip, " ", fname, " ", flags)
-	if addr := net.ParseIP(ip); addr != nil { // We have a valid IP Address
-		for _, i := range CTransfers { // Don't add duplicates
-			if addr.Equal(i.peer) && fname == i.filename {
-				emsg := fmt.Sprintf("Client CTransfer for %s to %s is currently in progress, cannnot add transfer",
-					fname, i.peer.String())
-				sarwin.ErrPrintln(g, "red_black", emsg)
-				return errors.New(emsg)
-			}
-		}
-
-		// Lock it as we are going to add a new transfer slice
-		ctrmu.Lock()
-		defer ctrmu.Unlock()
-		t.ttype = ttype
-		t.tstamp = c.Timestamp
-		t.session = newsession()
-		t.peer = addr
-		t.filename = fname
-
-		// NOW COPY THE FLAGS to t.cliflags
-		t.cliflags = new(sarflags.Cliflags)
-		if err := sarflags.CopyCliflags(t.cliflags, c); err != nil {
-			panic(err)
-		}
-
-		msg := fmt.Sprintf("Client Added %s CTransfer to %s %s",
-			t.ttype, t.peer.String(), t.filename)
-		CTransfers = append(CTransfers, *t)
-		sarwin.MsgPrintln(g, "green_black", msg)
-		return nil
-	}
-	sarwin.ErrPrintln(g, "red_black", "Client CTransfer not added, invalid IP address ", ip)
-	return errors.New("invalid IP Address")
-}
-
-// Remove - Remove a CTransfer from the CTransfers
-func (t *CTransfer) Remove() error {
-	ctrmu.Lock()
-	defer ctrmu.Unlock()
-	for i := len(CTransfers) - 1; i >= 0; i-- {
-		if t.peer.Equal(CTransfers[i].peer) && t.filename == CTransfers[i].filename {
-			CTransfers = append(CTransfers[:i], CTransfers[i+1:]...)
-			return nil
-		}
-	}
-	emsg := fmt.Sprintf("Client Cannot remove %s CTransfer for %s to %s",
-		t.ttype, t.filename, t.peer.String())
-	return errors.New(emsg)
-}
-
-// FmtPrint - String of relevant transfer info
-func (t *CTransfer) FmtPrint(sfmt string) string {
-	return fmt.Sprintf(sfmt, "Client",
-		t.ttype,
-		t.peer.String(),
-		t.filename)
-}
-
-// Print - String of relevant transfer info
-func (t *CTransfer) Print() string {
-	return fmt.Sprintf("%s|%s|%s|%s", "Client",
-		t.ttype,
-		t.peer.String(),
-		t.filename)
-}
-
 /*
  *************************************************************************************************
  * CLIENT TRANSFER HANDLERS
  *************************************************************************************************
  */
 
-type clientfunc func(*CTransfer, *gocui.Gui, chan string)
+type clientfunc func(*Transfer, *gocui.Gui, chan string)
 
 // Client Commands and function pointers to handle them
 var clienthandler = map[string]clientfunc{
@@ -407,7 +288,7 @@ var clienthandler = map[string]clientfunc{
 //		or Datacnt Data frames sent, whichever comes first
 //		Abort with error if Rx Status errcode != "success"
 //
-func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
+func cput(t *Transfer, g *gocui.Gui, errflag chan string) {
 	var err error
 	var fp *os.File
 	var pos int64
@@ -423,7 +304,7 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 		return
 	}
 	defer t.fp.Close()
-	tdesc := filedescriptor(fname) // CTransfer descriptor to be used
+	tdesc := filedescriptor(fname) // Transfer descriptor to be used
 
 	if pos, err = t.fp.Seek(0, io.SeekStart); err != nil {
 		sarwin.ErrPrintln(g, "red_black", "Client Cannot seek to ", pos)
@@ -434,11 +315,12 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	// Set up the connection
 	var udpad string
 	var udpaddr *net.UDPAddr
+	remaddr := net.ParseIP(t.conn.RemoteAddr().String())
 
-	if t.peer.To4() == nil { // IPv6
-		udpad = "[" + t.peer.String() + "]" + ":" + strconv.Itoa(t.cliflags.Port)
+	if remaddr.To4() == nil { // IPv6
+		udpad = "[" + t.conn.RemoteAddr().String() + "]" + ":" + strconv.Itoa(t.cliflags.Port)
 	} else { // IPv4
-		udpad = t.peer.String() + ":" + strconv.Itoa(t.cliflags.Port)
+		udpad = t.conn.RemoteAddr().String() + ":" + strconv.Itoa(t.cliflags.Port)
 	}
 	if udpaddr, err = net.ResolveUDPAddr("udp", udpad); err != nil {
 		errflag <- "cantsend"
@@ -476,8 +358,8 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	sarwin.PacketPrintln(g, "cyan_black", "Tx ", r.ShortPrint())
 
 	sarwin.MsgPrintln(g, "cyan_black", "Sent:", t.Print())
-	sarwin.MsgPrintln(g, "cyan_black", "Client CTransfer Request Sent to ",
-		t.peer.String())
+	sarwin.MsgPrintln(g, "cyan_black", "Client Transfer Request Sent to ",
+		t.conn.RemoteAddr().String())
 
 	// Create the metadata & send
 	var met metadata.MetaData
@@ -555,7 +437,7 @@ func cput(t *CTransfer, g *gocui.Gui, errflag chan string) {
 }
 
 // client blind put a file
-func cputblind(t *CTransfer, g *gocui.Gui, errflag chan string) {
+func cputblind(t *Transfer, g *gocui.Gui, errflag chan string) {
 	var err error
 	var pos int64
 
@@ -569,7 +451,7 @@ func cputblind(t *CTransfer, g *gocui.Gui, errflag chan string) {
 		return
 	}
 	defer t.fp.Close()
-	tdesc := filedescriptor(fname) // CTransfer descriptor to be used
+	tdesc := filedescriptor(fname) // Transfer descriptor to be used
 
 	if pos, err = t.fp.Seek(0, io.SeekStart); err != nil {
 		sarwin.ErrPrintln(g, "red_black", "Client cputblind Cannot seek to ", pos)
@@ -579,10 +461,11 @@ func cputblind(t *CTransfer, g *gocui.Gui, errflag chan string) {
 
 	// Set up the connection
 	var udpad string
-	if t.peer.To4() == nil { // IPv6
-		udpad = "[" + t.peer.String() + "]" + ":" + strconv.Itoa(t.cliflags.Port)
+	remaddr := net.ParseIP(t.conn.RemoteAddr().String())
+	if remaddr.To4() == nil { // IPv6
+		udpad = "[" + t.conn.RemoteAddr().String() + "]" + ":" + strconv.Itoa(t.cliflags.Port)
 	} else { // IPv4
-		udpad = t.peer.String() + ":" + strconv.Itoa(t.cliflags.Port)
+		udpad = t.conn.RemoteAddr().String() + ":" + strconv.Itoa(t.cliflags.Port)
 	}
 	var udpaddr *net.UDPAddr
 	if udpaddr, err = net.ResolveUDPAddr("udp", udpad); err != nil {
@@ -615,13 +498,13 @@ func cputblind(t *CTransfer, g *gocui.Gui, errflag chan string) {
 	sarwin.PacketPrintln(g, "cyan_black", "Tx ", m.ShortPrint())
 
 	sarwin.MsgPrintln(g, "cyan_black", "Client cputblind Sent:", t.Print())
-	sarwin.MsgPrintln(g, "cyan_black", "Client cputblind CTransfer Metadata Sent for blind put to ",
-		t.peer.String())
+	sarwin.MsgPrintln(g, "cyan_black", "Client cputblind Transfer Metadata Sent for blind put to ",
+		t.conn.RemoteAddr().String())
 	errflag <- "success"
 }
 
 // client put a file then remove the local copy of that file
-func cputrm(t *CTransfer, g *gocui.Gui, errflag chan string) {
+func cputrm(t *Transfer, g *gocui.Gui, errflag chan string) {
 	rmerrflag := make(chan string, 1) // The return channel holding the saratoga errflag
 	defer close(rmerrflag)
 

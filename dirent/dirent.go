@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/charlesetsmith/saratoga/sarflags"
 	"github.com/charlesetsmith/saratoga/sarsys"
@@ -23,43 +24,113 @@ type DirEnt struct {
 	Path   string
 }
 
+// Copy Directory Entry information
+func (from *DirEnt) Copy() (to *DirEnt) {
+	to = new(DirEnt)
+	to.Header = from.Header
+	to.Size = from.Size
+	to.Mtime = from.Mtime
+	to.Ctime = from.Ctime
+	to.Path = from.Path
+	return to
+}
+
+// File Information Summary
+type FileMetaData struct {
+	Path        string      // File Name
+	Origin      string      // Origin File NName for Symymbolic Links
+	Mode        os.FileMode // Mode rwx etc.
+	Info        os.FileInfo // Summary of Info in case you want to use this
+	Size        int64       // Size of the File
+	ModTime     time.Time   // Modification Time
+	IsDir       bool        // Are we a directory or
+	IsRegular   bool        // are we a regular file or
+	IsNamedPipe bool        // are we a named pipe or
+	IsSymLink   bool        // are we a symbolic link
+	Uid         int         // Uid (0 for Windows)
+	Gid         int         // Gid (0 for Windows)
+}
+
+// FileMeta - Get file metadata information
+func FileMeta(filePath string) (*FileMetaData, error) {
+	fs := new(FileMetaData)
+	var err error
+	var info os.FileInfo
+	if info, err = os.Lstat(filePath); os.IsNotExist(err) {
+		fmt.Println("File Does not exist:", filePath)
+		return nil, err
+	}
+	// Symbolic Links and Named Pipes are treated as "special files"
+	if info.Mode()&os.ModeSymlink == os.ModeSymlink {
+		fs.IsSymLink = true
+		fs.Origin, _ = os.Readlink(fs.Path)
+		var patherr error
+		if fs.Origin, patherr = os.Readlink(filePath); patherr != nil {
+			return nil, patherr
+		}
+		origstat, _ := os.Lstat(fs.Origin)
+		// Yes we can be a symbolic link to a directory so both are true
+		fs.IsDir = origstat.IsDir()
+	} else {
+		fs.IsDir = info.IsDir()
+	}
+	if info.Mode()&os.ModeNamedPipe == os.ModeNamedPipe {
+		fs.IsNamedPipe = true
+	}
+	fs.Info = info
+	fs.Mode = info.Mode()
+	fs.Path = info.Name()
+	fs.Size = info.Size()
+	fs.Uid, fs.Gid = sarsys.GetOwnerAndGroup(info) // 0, 0 for Windows of course...
+	fs.ModTime = info.ModTime()
+	fs.IsRegular = info.Mode().IsRegular()
+	return fs, nil
+}
+
 // StatFile -- Get file information - size, mtime, ctime
 // The mtime & ctime values are y2k epoch formats
-func (d *DirEnt) StatFile(name string) (err error) {
+func Statfile(name string) (d *DirEnt, err error) {
 
 	// Stat the file/directory name
-	fi, err := os.Stat(name)
+
+	fi, err := FileMeta(name)
+	// fi, err := os.Stat(name)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	d.Size = uint64(fi.Size())
+	d.Size = uint64(fi.Size)
 
 	var ft sarsys.FileTime
-	ft.NewTime(fi)
+	ft.NewTime(fi.Info)
 
 	// Mtime
 	if err := d.Mtime.New("epoch2000_32", ft.Mtime); err != nil {
-		return err
+		return nil, err
 	}
 	// Ctime
 	if err := d.Ctime.New("epoch2000_32", ft.Ctime); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return d, nil
 }
 
 // New - Construct a directory entry return byte slice of dirent
 // Flags is of format "flagname1=flagval1,flagname2=flagval2...
+// property - normalfile, normaldirectory, specialfile, specialdirectory
+// descriptor - d16, d32, d64, d128
+// reliability - yes, no
 // It looks up the local file systems path to get mtime & ctime
-func (d *DirEnt) New(flags string, path string) error {
+func New(flags string, path string) (*DirEnt, error) {
 
 	var err error
+
+	d := new(DirEnt)
 
 	flags = strings.Replace(flags, " ", "", -1) // Get rid of extra spaces in flags
 
 	if d.Header, err = sarflags.SetD(d.Header, "sod", "sod"); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Grab the flags and set the frame header
@@ -69,44 +140,44 @@ func (d *DirEnt) New(flags string, path string) error {
 		switch f[0] {
 		case "descriptor", "property", "reliability":
 			if d.Header, err = sarflags.SetD(d.Header, f[0], f[1]); err != nil {
-				return err
+				return d, err
 			}
 		default:
 			e := "Invalid Flag " + f[0] + " for Directory Entry"
-			return errors.New(e)
+			return nil, errors.New(e)
 		}
 	}
 
 	if len(path) > 1024 {
-		return errors.New("Path name exceeds 1024 bytes")
+		return nil, errors.New("path name exceeds 1024 bytes")
 	}
 
 	prop := sarflags.GetDStr(d.Header, "property")
 	switch prop {
-	case "normalfile", "normaldirecory":
+	case "normalfile", "normaldirectory":
 		// Careful the mtime & ctime values are seconds elapsed since Y2K epoch NOT Unix time!!!!
-		// We get th d.size, d.mtime & d.ctime from the stat
-		if err := d.StatFile(path); err != nil {
-			return err
+		// We get the d.size, d.mtime & d.ctime from the stat
+		if d, err = Statfile(path); err != nil {
+			return nil, err
 		}
-	case "specialfile": // Named Pipe so is a stream, lets set directroy entries to now
+	case "specialfile", "specialdirectory": // Named Pipe so is a stream, lets set directroy entries to now
 		// We set size to 0, d.ctime & d.mtime to now
 		d.Size = 0
 		if err := d.Mtime.Now("epoch2000_32"); err != nil {
-			return err
+			return nil, err
 		}
 		d.Ctime = d.Mtime
 	default:
 		e := "Invalid Property:" + prop
-		return errors.New(e)
+		return nil, errors.New(e)
 	}
 
 	d.Path = path
-	return nil
+	return d, nil
 }
 
 // Put - Encode the Saratoga directory entry
-func (d DirEnt) Put() ([]byte, error) {
+func (d DirEnt) Encode() ([]byte, error) {
 
 	// Create the dirent slice
 	framelen := 2 + 4 + 4 // Header + Mtime + Ctime
@@ -122,13 +193,15 @@ func (d DirEnt) Put() ([]byte, error) {
 		dsize = 4
 	case "d64":
 		dsize = 8
+	case "d128":
+		dsize = 16
 	default:
-		return nil, errors.New("Invalid descriptor in MetaData frame")
+		return nil, errors.New("invalid descriptor in MetaData frame")
 	}
 	framelen += dsize
 	framelen += len(d.Path) + 1 // Add in the required NULL at the end of path
 	if len(d.Path) > 1024 {
-		return nil, errors.New("Path name exceeds 1024 bytes")
+		return nil, errors.New("path name exceeds 1024 bytes")
 	}
 
 	frame := make([]byte, framelen)
@@ -172,7 +245,7 @@ func (d DirEnt) Put() ([]byte, error) {
 }
 
 // Get -- Decode Directory Entry byte slice frame into DirEnt struct
-func (d *DirEnt) Get(frame []byte) error {
+func (d *DirEnt) Decode(frame []byte) error {
 
 	if len(frame) < 12 {
 		return errors.New("DirEntGet - Entry too short")
@@ -194,24 +267,23 @@ func (d *DirEnt) Get(frame []byte) error {
 		d.Size = uint64(binary.BigEndian.Uint64(frame[pos : pos+dsize]))
 		pos += dsize
 	default:
-		return errors.New("Invalid MetaData Frame")
+		return errors.New("invalid MetaData Frame")
 	}
 	// fmt.Printf("Header:%d Size:%d\n", d.header, d.size)
 
-	var ts []byte
-	ts = make([]byte, 5)
+	ts := make([]byte, 5)
 	ts[0], _ = sarflags.SetT(0, "epoch2000_32")
 
 	copy(ts[1:], frame[pos:pos+4])
 	if terr := d.Mtime.Get(ts); terr != nil {
-		return errors.New("Invalid Mtime")
+		return errors.New("invalid Mtime")
 	}
 	pos += 4
 	// fmt.Printf("Mtime:%s ", d.mtime.Print())
 
 	copy(ts[1:], frame[pos:pos+4])
 	if terr := d.Ctime.Get(ts); terr != nil {
-		return errors.New("Invalid Ctime")
+		return errors.New("invalid Ctime")
 	}
 	pos += 4
 	// fmt.Printf("Ctime:%s\n", d.ctime.Print())

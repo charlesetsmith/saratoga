@@ -210,16 +210,16 @@ type Flagtype struct {
 // These DO NOT Change
 var Flags map[string]Flagtype
 
-// DateFlag Information
-type DateFlagtype struct {
+// DirentFlag Information
+type DirentFlagtype struct {
 	Len     uint16            // Bit Length of the flag within the header
 	Msb     uint16            // Mosost significant bit within the header
 	Options map[string]uint16 // What are the Options for the DateFlag
 }
 
-// Global map of date decode info
+// Global map of directory decode info
 // These DO NOT Change
-var DateFlags map[string]DateFlagtype
+var DirentFlags map[string]DirentFlagtype
 
 // TimeStamp Information
 type TimeStamptype struct {
@@ -310,30 +310,30 @@ func getmaxdesc() (desc string, err error) {
 }
 
 // Read  in the JSON Config data
-func ReadConfig(fname string, c *Cliflags) error {
+func ReadConfig(fname string) (*Cliflags, error) {
 	var err error
 
 	// var cmu sync.Mutex
-	Flags = make(map[string]Flagtype)         // Setup the Flags global map
-	Frameflags = make(map[string][]string)    // Setup Frameflags global map
-	DateFlags = make(map[string]DateFlagtype) // Setup Dateflags global map
-	Commands = make(map[string]Cmdtype)       // Setup Commands global map
+	Flags = make(map[string]Flagtype)             // Setup the Flags global map
+	Frameflags = make(map[string][]string)        // Setup Frameflags global map
+	DirentFlags = make(map[string]DirentFlagtype) // Setup Direntflags global map
+	Commands = make(map[string]Cmdtype)           // Setup Commands global map
 
 	// Find the maximum descriptor on this platform
 	if MaxDescriptor, err = getmaxdesc(); err != nil {
-		return err
+		return nil, err
 	}
 
 	var confdata []byte
 	if confdata, err = ioutil.ReadFile(fname); err != nil {
 		fmt.Println("Cannot open the saratoga config file", os.Args[1], ":", err)
-		return err
+		return nil, err
 	}
 
 	var sarconfdata map[string]interface{}
 	if err = json.Unmarshal([]byte(confdata), &sarconfdata); err != nil {
 		fmt.Println("Cannot Unmarshal json from saratoga config file", os.Args[1], ":", err)
-		return err
+		return nil, err
 	}
 	// Lock them up while we are changing the values
 	Climu.Lock()
@@ -464,10 +464,10 @@ func ReadConfig(fname string, c *Cliflags) error {
 			// fmt.Println("FLAG=", f, v)
 			//	fmt.Println(f, "=", v.Options)
 			// }
-		case "dateflags": // Now this is the HARD ONE!!!!!
-			dateflags := value.(map[string]interface{})
-			for dkey, val := range dateflags {
-				var tmp DateFlagtype
+		case "direntflags": // Now this is the HARD ONE!!!!!
+			direntflags := value.(map[string]interface{})
+			for dkey, val := range direntflags {
+				var tmp DirentFlagtype
 				// fmt.Println("FLAG=", key, "INFO=", val)
 				dainfo := val.(map[string]interface{})
 				for dikey, info := range dainfo {
@@ -486,7 +486,7 @@ func ReadConfig(fname string, c *Cliflags) error {
 					}
 				}
 				// fmt.Println("dateflag for", key, "=", tmp)
-				DateFlags[dkey] = tmp
+				DirentFlags[dkey] = tmp
 			}
 		case "timestamps":
 			timestamps := value.(interface{})
@@ -509,6 +509,7 @@ func ReadConfig(fname string, c *Cliflags) error {
 
 	}
 
+	c := new(Cliflags)
 	// Give default values to flags from saratoga JSON config
 	c.Global = make(map[string]string)
 	c.Global["csumtype"] = conf.Csumtype
@@ -548,7 +549,7 @@ func ReadConfig(fname string, c *Cliflags) error {
 			panic(ps)
 		}
 	}
-	return nil
+	return c, nil
 }
 
 // Valid - Check for valid flag and value
@@ -560,8 +561,60 @@ func Valid(flag string, option string) bool {
 	return false
 }
 
+// Add - CHeck for and Add a flag to a current list of flags
+func AddFlag(curflag string, flag string, option string) string {
+	var newflags string
+	if Valid(flag, option) {
+		if curflag != "" {
+			newflags = curflag + "," + flag + "=" + option
+		} else {
+			newflags = flag + "=" + option
+		}
+		return newflags
+	}
+	log.Fatalln("Invalid Flag:", flag, "or option:", option)
+	return curflag
+}
+
+// Look for and return value of a particular flag in flags
+// e.g flags:descriptor=d32,timestamp=off flag:timestamp return:off
+func FlagValue(flags, flag string) string {
+	flags = strings.Replace(flags, " ", "", -1) // Get rid of extra spaces in flags
+	// Grab the flags and set the frame header
+	flagslice := strings.Split(flags, ",") // The name=val of the flag
+	for fl := range flagslice {
+		f := strings.Split(flagslice[fl], "=") // f[0]=name f[1]=val
+		if f[0] == flag {
+			return f[1]
+		}
+	}
+	return ""
+}
+
+// Replace an existing flag or add a new flag
+func ReplaceFlag(flags, value, option string) string {
+	var newflags string
+	var replaced bool
+
+	for _, flag := range strings.Split(flags, ",") {
+		if strings.Split(flag, "=")[0] == value {
+			replaced = true
+			// We are replacing this current flags value with a new one
+			newflags = AddFlag(newflags, value, option)
+		} else {
+			// Just add the current flag to the list
+			newflags = AddFlag(newflags, strings.Split(flag, "=")[0], strings.Split(flag, "=")[1])
+		}
+	}
+	if !replaced { // We are adding this flag as it does not currently exist
+		newflags = AddFlag(newflags, value, option)
+	}
+	return newflags
+}
+
 // CopyCliflags - copy from source to desination the Clieflags structure
-func CopyCliflags(d *Cliflags, s *Cliflags) error {
+func (s *Cliflags) CopyCliflags() (*Cliflags, error) {
+	d := new(Cliflags)
 	d.V4Multicast = s.V4Multicast
 	d.V6Multicast = s.V4Multicast
 	d.Port = s.Port
@@ -579,13 +632,13 @@ func CopyCliflags(d *Cliflags, s *Cliflags) error {
 	d.Timeout.Transfer = s.Timeout.Transfer
 	// Copy the Global flag defaults
 	if len(s.Global) == 0 {
-		return errors.New("no global flags defined in copyflags")
+		return nil, errors.New("no global flags defined in copyflags")
 	}
 	d.Global = make(map[string]string)
 	for g := range s.Global {
 		d.Global[g] = s.Global[g]
 	}
-	return nil
+	return d, nil
 }
 
 // Values - Return slice of flags applicable to frame type (field)
@@ -722,8 +775,8 @@ func GetD(curflag uint16, field string) uint16 {
 
 	var shiftbits, maskbits, setbits uint16
 
-	shiftbits = dflagsize - DateFlags[field].Len - DateFlags[field].Msb
-	maskbits = (1 << DateFlags[field].Len) - 1
+	shiftbits = dflagsize - DirentFlags[field].Len - DirentFlags[field].Msb
+	maskbits = (1 << DirentFlags[field].Len) - 1
 	setbits = maskbits << shiftbits
 	return (curflag & setbits) >> shiftbits
 }
@@ -732,11 +785,11 @@ func GetD(curflag uint16, field string) uint16 {
 func GetDStr(curflag uint16, field string) string {
 	var shiftbits, maskbits, setbits, val uint16
 
-	shiftbits = dflagsize - DateFlags[field].Len - DateFlags[field].Msb
-	maskbits = (1 << DateFlags[field].Len) - 1
+	shiftbits = dflagsize - DirentFlags[field].Len - DirentFlags[field].Msb
+	maskbits = (1 << DirentFlags[field].Len) - 1
 	setbits = maskbits << shiftbits
 	val = (curflag & setbits) >> shiftbits
-	for ki, fi := range DateFlags[field].Options {
+	for ki, fi := range DirentFlags[field].Options {
 		if fi == val {
 			return ki
 		}
@@ -754,15 +807,15 @@ func SetD(curflag uint16, field string, flagname string) (uint16, error) {
 		return curflag, errors.New(e)
 	}
 	// Get the value of the flag
-	newval, ok := DateFlags[field].Options[flagname]
+	newval, ok := DirentFlags[field].Options[flagname]
 	if !ok {
 		e := "SetD lookup fail Invalid flagname" + flagname + "in DFlag" + field
 		log.Fatalln(e)
 		return curflag, errors.New(e)
 	}
 
-	shiftbits := uint16(dflagsize - DateFlags[field].Len - DateFlags[field].Msb)
-	maskbits := uint16((1 << DateFlags[field].Len) - 1)
+	shiftbits := uint16(dflagsize - DirentFlags[field].Len - DirentFlags[field].Msb)
+	maskbits := uint16((1 << DirentFlags[field].Len) - 1)
 	setbits := uint16(maskbits << shiftbits)
 	// log.Printf("Shiftbits=%d Maskbits=%b Setbits=%b\n", shiftbits, maskbits, setbits)
 	result := uint16(((curflag) & (^setbits)))
@@ -774,7 +827,7 @@ func SetD(curflag uint16, field string, flagname string) (uint16, error) {
 // FrameD - return a slice of flag names matching field
 func FrameD(field string) []string {
 	var s []string
-	for k := range DateFlags[field].Options {
+	for k := range DirentFlags[field].Options {
 		s = append(s, k)
 	}
 	return s
@@ -783,7 +836,7 @@ func FrameD(field string) []string {
 // FlagD - return a slice of flag names that are used by Dirent
 func FlagD() []string {
 	var s []string
-	for k := range DateFlags {
+	for k := range DirentFlags {
 		s = append(s, k)
 	}
 	return s
@@ -799,7 +852,7 @@ func TestD(curdflag uint16, field string, flagname string) bool {
 func NameD(curdflag uint16, field string) string {
 
 	x := GetD(curdflag, field)
-	for ki, fi := range DateFlags[field].Options {
+	for ki, fi := range DirentFlags[field].Options {
 		// log.Println("Flags for field ", field, fi.name, fi.val)
 		if fi == x {
 			return ki
@@ -811,8 +864,53 @@ func NameD(curdflag uint16, field string) string {
 
 // GoodD -- Is this a valid Descriptor Flag
 func GoodD(field string) bool {
-	_, ok := DateFlags[field]
+	_, ok := DirentFlags[field]
 	return ok
+}
+
+// Valid - Check for valid flag and value
+func ValidD(flag string, option string) bool {
+	if GoodD(flag) {
+		_, ok := DirentFlags[flag].Options[option]
+		return ok
+	}
+	return false
+}
+
+// Add - CHeck for and Add a flag to a current list of flags
+func AddFlagD(curflag string, flag string, option string) string {
+	var newflags string
+	if ValidD(flag, option) {
+		if curflag != "" {
+			newflags = curflag + "," + flag + "=" + option
+		} else {
+			newflags = flag + "=" + option
+		}
+		return newflags
+	}
+	log.Fatalln("Invalid Directory Flag:", flag, "or option:", option)
+	return curflag
+}
+
+// Replace an existing flag or add a new flag
+func ReplaceFlagD(flags, value, option string) string {
+	var newflags string
+	var replaced bool
+
+	for _, flag := range strings.Split(flags, ",") {
+		if strings.Split(flag, "=")[0] == value {
+			replaced = true
+			// We are replacing this current flags value with a new one
+			newflags = AddFlagD(newflags, value, option)
+		} else {
+			// Just add the current flag to the list
+			newflags = AddFlagD(newflags, strings.Split(flag, "=")[0], strings.Split(flag, "=")[1])
+		}
+	}
+	if !replaced { // We are adding this flag as it does not currently exist
+		newflags = AddFlagD(newflags, value, option)
+	}
+	return newflags
 }
 
 // Length in bits of the timestamp flag size

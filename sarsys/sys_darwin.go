@@ -1,3 +1,4 @@
+//go:build darwin
 // +build darwin
 
 // For Apple Darwin Systems
@@ -66,4 +67,15 @@ func (ft *FileTime) NewTime(fi os.FileInfo) {
 	// ft.Mtime = time.Unix(int64(stat.Mtimespec.Sec), int64(stat.Mtimespec.Nsec))
 	ft.Mtime = fi.ModTime()
 	ft.Ctime = time.Unix(int64(stat.Ctimespec.Sec), int64(stat.Ctimespec.Nsec))
+}
+
+// Windows does not implement the syscall.Stat_t type we
+// need, but the *nixes do. We use this
+// to get owner/group on file
+func GetOwnerAndGroup(finfo os.FileInfo) (int, int) {
+	systat := finfo.Sys().(*syscall.Stat_t)
+	if systat != nil {
+		return int(systat.Uid), int(systat.Gid)
+	}
+	return 0, 0
 }

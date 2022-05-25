@@ -1,3 +1,4 @@
+//go:build windows
 // +build windows
 
 // For Windows Systems
@@ -75,4 +76,10 @@ func (ft *FileTime) NewTime(fi os.FileInfo) {
 	ft.Ctime = time.Since(time.Unix(0, stat.CreationTime.Nanoseconds()))
 	ft.Mtime = fi.ModTime()
 	// ft.Mtime = time.Since(time.Unix(0, stat.LastWriteTime.Nanoseconds()))
+}
+
+// Windows does not implement the syscall.Stat_t type we
+// need, but the *nixes do.
+func GetOwnerAndGroup(finfo os.FileInfo) (int, int) {
+	return 0, 0
 }
