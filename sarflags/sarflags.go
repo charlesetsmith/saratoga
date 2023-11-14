@@ -295,7 +295,6 @@ func Mtu() int {
 // Calculate the maximum descriptor size on this platform
 // d16, d32, d64, d128
 func getmaxdesc() (desc string, err error) {
-	err = nil
 	switch MaxUint {
 	case MaxUint16:
 		desc = "d16"
@@ -304,10 +303,9 @@ func getmaxdesc() (desc string, err error) {
 	case MaxUint64:
 		desc = "d64"
 	default: // yes we never get here till we have 128 bit integers
-		desc = "d128"
-		err = errors.New("descriptor d128 not supported")
+		return "d128", errors.New("descriptor d128 not supported")
 	}
-	return desc, err
+	return desc, nil
 }
 
 // Read  in the JSON Config data

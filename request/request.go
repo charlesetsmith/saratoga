@@ -54,8 +54,7 @@ func (r *Request) New(flags string, info interface{}) error {
 				return err
 			}
 		default:
-			e := "Request.New: Invalid Flag " + f[0] + "=" + f[1] + "<" + flags + ">"
-			return errors.New(e)
+			return errors.New("Request.New: Invalid Flag " + f[0] + "=" + f[1] + "<" + flags + ">")
 		}
 	}
 	e := reflect.ValueOf(info).Elem()
@@ -112,7 +111,7 @@ func (r *Request) Encode() ([]byte, error) {
 func (r *Request) Decode(frame []byte) error {
 
 	if len(frame) < 9 {
-		return errors.New("request.Get - Frame too short")
+		return errors.New("request.Get - request frame too short")
 	}
 	r.Header = binary.BigEndian.Uint32(frame[:4])
 	r.Session = binary.BigEndian.Uint32(frame[4:8])

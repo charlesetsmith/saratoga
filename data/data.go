@@ -80,12 +80,10 @@ func (d *Data) New(flags string, info interface{}) error {
 					return err
 				}
 			default:
-				e := "invalid timestamp type in data - " + f[1]
-				return errors.New(e)
+				return errors.New(f[1] + " invalid timestamp type in data")
 			}
 		default:
-			e := "Invalid Flag " + f[0] + " for Data Frame"
-			return errors.New(e)
+			return errors.New(f[0] + " invalid flag in data")
 		}
 	}
 
@@ -125,7 +123,7 @@ func (d *Data) Make(header uint32, info interface{}) error {
 			return err
 		}
 	default:
-		return errors.New("invalid timestamp type in data")
+		return errors.New(sarflags.GetStr(d.Header, "reqtstamp") + "invalid timestamp type")
 	}
 
 	e := reflect.ValueOf(info).Elem()
@@ -143,7 +141,7 @@ func (d *Data) Make(header uint32, info interface{}) error {
 func (d *Data) Decode(frame []byte) error {
 
 	if len(frame) < 10 {
-		return errors.New("data.Get - Frame too short")
+		return errors.New("data.Get - data frame too short")
 	}
 	d.Header = binary.BigEndian.Uint32(frame[:4])
 	d.Session = binary.BigEndian.Uint32(frame[4:8])
@@ -168,11 +166,12 @@ func (d *Data) Decode(frame []byte) error {
 			d.Payload = make([]byte, len(frame[32:]))
 			copy(d.Payload, frame[32:])
 		case "d128": // KLUDGE!!!!
-			d.Offset = binary.BigEndian.Uint64(frame[24+8 : 40]) // 16 bytes
-			d.Payload = make([]byte, len(frame[64:]))
-			copy(d.Payload, frame[64:])
+			return errors.New(sarflags.GetStr(d.Header, "descriptor") + "d128 not supported in data")
+			// d.Offset = binary.BigEndian.Uint64(frame[24+8 : 40]) // 16 bytes
+			// d.Payload = make([]byte, len(frame[64:]))
+			// copy(d.Payload, frame[64:])
 		default:
-			return errors.New("invalid data Frame")
+			return errors.New(sarflags.GetStr(d.Header, "descriptor") + " invalid descriptor in data")
 		}
 		return nil
 	}
@@ -190,11 +189,12 @@ func (d *Data) Decode(frame []byte) error {
 		d.Payload = make([]byte, len(frame[16:]))
 		copy(d.Payload, frame[16:])
 	case "d128": // KLUDGE!!!!
-		d.Offset = uint64(binary.BigEndian.Uint64(frame[8+8 : 32]))
-		d.Payload = make([]byte, len(frame[32:]))
-		copy(d.Payload, frame[32:])
+		return errors.New(sarflags.GetStr(d.Header, "descriptor") + "d128 not supported in data")
+		// d.Offset = uint64(binary.BigEndian.Uint64(frame[8+8 : 32]))
+		// d.Payload = make([]byte, len(frame[32:]))
+		// copy(d.Payload, frame[32:])
 	default:
-		return errors.New("invalid data Frame")
+		return errors.New(sarflags.GetStr(d.Header, "descriptor") + "invalid descriptor in data")
 	}
 	return nil
 }
@@ -219,9 +219,10 @@ func (d *Data) Encode() ([]byte, error) {
 	case "d64":
 		framelen += 8
 	case "d128":
-		framelen += 16
+		return nil, errors.New(sarflags.GetStr(d.Header, "descriptor") + "d128 not supported in data")
+		// framelen += 16
 	default:
-		return nil, errors.New("invalid descriptor in Data frame")
+		return nil, errors.New(sarflags.GetStr(d.Header, "descriptor") + "invalid descriptor in data")
 	}
 	framelen += len(d.Payload)
 
@@ -245,10 +246,10 @@ func (d *Data) Encode() ([]byte, error) {
 		binary.BigEndian.PutUint64(frame[pos:pos+8], uint64(d.Offset))
 		pos += 8
 	case "d128": // KLUDGE!!!!!
-		binary.BigEndian.PutUint64(frame[pos+8:pos+8], uint64(d.Offset))
-		pos += 16
+		return nil, errors.New(sarflags.GetStr(d.Header, "descriptor") + "d128 not supported in data")
+		// pos += 16
 	default:
-		return nil, errors.New("malformed data frame")
+		return nil, errors.New(sarflags.GetStr(d.Header, "descriptor") + " invalid descriptor in data")
 	}
 	copy(frame[pos:], d.Payload)
 	return frame, nil

@@ -137,8 +137,11 @@ func (s Status) Encode() ([]byte, error) {
 		dsize = 4
 	case "d64":
 		dsize = 8
+	case "d128":
+		return nil, errors.New("d128 not supported in status")
+		// dsize = 16
 	default:
-		return nil, errors.New("invalid descriptor in status frame")
+		return nil, errors.New("invalid descriptor in status")
 	}
 	framelen += (dsize*2 + (dsize * len(s.Holes) * 2)) // progress + inrespto + holes
 	frame := make([]byte, framelen)
@@ -186,6 +189,19 @@ func (s Status) Encode() ([]byte, error) {
 			binary.BigEndian.PutUint64(frame[pos:pos+dsize], uint64(s.Holes[i].End))
 			pos += dsize
 		}
+		/*
+			case 16: // d128 bit descriptor when we get there!
+				binary.BigEndian.PutUint128(frame[pos:pos+dsize], uint128(s.Progress))
+				pos += dsize
+				binary.BigEndian.PutUint128(frame[pos:pos+dsize], uint128(s.Inrespto))
+				pos += dsize
+				for i := range s.Holes {
+					binary.BigEndian.PutUint128(frame[pos:pos+dsize], uint128(s.Holes[i].Start))
+					pos += dsize
+					binary.BigEndian.PutUint128(frame[pos:pos+dsize], uint128(s.Holes[i].End))
+					pos += dsize
+				}
+		*/
 	}
 	return frame, nil
 }
@@ -194,7 +210,7 @@ func (s Status) Encode() ([]byte, error) {
 func (s Status) Decode(frame []byte) error {
 
 	if len(frame) < 12 {
-		return errors.New("Status Frame too short")
+		return errors.New("status frame too short")
 	}
 	s.Header = binary.BigEndian.Uint32(frame[:4])
 	s.Session = binary.BigEndian.Uint32(frame[4:8])
@@ -254,8 +270,25 @@ func (s Status) Decode(frame []byte) error {
 			pos += dsize
 			s.Holes = append(s.Holes, holes.Hole{Start: start, End: end})
 		}
+	case "d128":
+		return errors.New("d128 not supported in status")
+		/* when we get there!
+		dsize = 16
+		s.Progress = uint128(binary.BigEndian.Uint128(frame[pos : pos+dsize]))
+		pos += dsize
+		s.Inrespto = uint128(binary.BigEndian.Uint128(frame[pos : pos+dsize]))
+		pos += dsize
+		hlen := len(frame[pos:])
+		for i := 0; i < hlen/2/dsize; i++ {
+			start := int(binary.BigEndian.Uint128(frame[pos : pos+dsize]))
+			pos += dsize
+			end := int(binary.BigEndian.Uint128(frame[pos : pos+dsize]))
+			pos += dsize
+			s.Holes = append(s.Holes, holes.Hole{Start: start, End: end})
+		}
+		*/
 	default:
-		return errors.New("invalid descriptor in status frame")
+		return errors.New("invalid descriptor in status")
 	}
 	return nil
 }

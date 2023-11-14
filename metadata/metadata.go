@@ -72,8 +72,7 @@ func statfile(fname string, header uint32) (string, error) {
 	switch sarflags.GetStr(header, "transfer") {
 	case "stream":
 		if !stream {
-			e := "Stream specified but " + fname + " is not a named pipe"
-			return direntflags, errors.New(e)
+			return direntflags, errors.New("stream specified but " + fname + " is not a named pipe")
 		}
 		// You can't get a checksum from a stream
 		if sarflags.GetStr(header, "csumtype") != "none" {
@@ -83,16 +82,14 @@ func statfile(fname string, header uint32) (string, error) {
 		return direntflags, errors.New("bundle transfers not supported")
 	case "file":
 		if !file {
-			e := fname + " is not a file"
-			return direntflags, errors.New(e)
+			return direntflags, errors.New(fname + " not a file")
 		}
 	case "directory":
 		if !dir {
-			e := fname + " is not a directory"
-			return direntflags, errors.New(e)
+			return direntflags, errors.New(fname + " not a directory")
 		}
 	default:
-		return direntflags, errors.New("invalid Transfer type")
+		return direntflags, errors.New(sarflags.GetStr(header, "transfer") + " invalid transfer type")
 	}
 	return direntflags, nil
 }
@@ -132,8 +129,7 @@ func (m *MetaData) New(flags string, info interface{}) error {
 			}
 			csumtype = f[1]
 		default:
-			e := "Invalid Flag " + f[0] + " for MetaData Frame"
-			return errors.New(e)
+			return errors.New(f[0] + "invalid flag for MetaData Frame")
 		}
 	}
 

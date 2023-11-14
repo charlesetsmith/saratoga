@@ -62,7 +62,7 @@ func (b *Beacon) New(flags string, info interface{}) error {
 				return err
 			}
 			switch f[1] {
-			case "d16", "d32", "d64", "d128":
+			case "d16", "d32", "d64": //, "d128":
 				if b.Header, err = sarflags.Set(b.Header, f[0], f[1]); err != nil {
 					return err
 				}
@@ -116,8 +116,7 @@ func (b *Beacon) New(flags string, info interface{}) error {
 			b.Header, _ = sarflags.Set(b.Header, "freespaced", "d64")
 			return nil
 		}
-		e := "beacon.New: More than uint64 can hold freespace left - We dont do d128 yet"
-		return errors.New(e)
+		return errors.New("beacon.New: d128 not supported invalid beacon frame")
 	}
 	if sarflags.GetStr(b.Header, "freespace") == "no" {
 		b.Freespace = 0
@@ -181,8 +180,7 @@ func (b *Beacon) Make(header uint32, info interface{}) error {
 			b.Header, _ = sarflags.Set(b.Header, "freespaced", "d64")
 			return nil
 		}
-		e := "beacon.New: More than uint64 can hold freespace left - We dont do d128 yet"
-		return errors.New(e)
+		return errors.New("beacon.New: d128 not supported invalid beacon frame")
 	}
 	if sarflags.GetStr(b.Header, "freespace") == "no" {
 		b.Freespace = 0
@@ -205,7 +203,8 @@ func (b Beacon) Encode() ([]byte, error) {
 		case "d64":
 			framelen += 8
 		case "d128":
-			framelen += 16
+			return nil, errors.New("d128 not supported invalid beacon frame")
+			// framelen += 16
 		default:
 			return nil, errors.New("invalid beacon frame")
 		}
@@ -227,7 +226,8 @@ func (b Beacon) Encode() ([]byte, error) {
 			binary.BigEndian.PutUint64(frame[pos:12], uint64(b.Freespace))
 			pos += 8
 		case "d128": // d128 we use d64 for the moment untill we have 128 bit uints!
-			binary.BigEndian.PutUint64(frame[pos:20], uint64(b.Freespace))
+			return nil, errors.New("d128 not supported invalid beacon frame")
+			// binary.BigEndian.PutUint64(frame[pos:20], uint64(b.Freespace))
 		default:
 			return nil, errors.New("invalid beacon frame")
 		}
@@ -252,8 +252,9 @@ func (b *Beacon) Decode(frame []byte) error {
 			b.Freespace = binary.BigEndian.Uint64(frame[4:12])
 			b.Eid = string(frame[12:])
 		case "d128":
-			b.Freespace = binary.BigEndian.Uint64(frame[4:20])
-			b.Eid = string(frame[20:])
+			return errors.New("d128 not supported invalid beacon frame")
+			// b.Freespace = binary.BigEndian.Uint64(frame[4:20])
+			// b.Eid = string(frame[20:])
 		default:
 			b.Freespace = 0
 			b.Eid = string(frame[4:])
