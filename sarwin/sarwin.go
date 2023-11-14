@@ -1,5 +1,7 @@
-// Handle screen outputs for views in colours for Saratoga
-// We have msg,error,cli and packet windows
+/*
+ * Handle screen outputs for views in colours for Saratoga
+ * We have msg,error,cli and packet windows
+ */
 
 package sarwin
 
@@ -18,7 +20,7 @@ import (
 var ansiprefix = "\033["
 var ansipostfix = "m"
 var ansiseparator = ";"
-var ansioff = "\033[0m" // Turn ansii escapesequence off
+var ansioff = "\033[0m" // Turn ansii escape sequence off
 
 // Foreground colours (b=bright)
 var fg = map[string]string{
