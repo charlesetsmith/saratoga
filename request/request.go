@@ -12,7 +12,6 @@ import (
 
 	"github.com/charlesetsmith/saratoga/frames"
 	"github.com/charlesetsmith/saratoga/sarflags"
-	"github.com/jroimartin/gocui"
 )
 
 // Request -- Holds Request frame information
@@ -68,7 +67,7 @@ func (r *Request) New(flags string, info interface{}) error {
 }
 
 // Make - Construct a request frame with a given header
-//func (r *Request) Make(header uint32, session uint32, fname string, auth []byte) error {
+// func (r *Request) Make(header uint32, session uint32, fname string, auth []byte) error {
 func (r *Request) Make(header uint32, info interface{}) error {
 
 	var err error
@@ -163,6 +162,6 @@ func (r *Request) UDPWrite(conn *net.UDPConn) string {
 	return frames.UDPWrite(r, conn)
 }
 
-func (r Request) RxHandler(g *gocui.Gui, conn *net.UDPConn) string {
+func (r Request) RxHandler(conn *net.UDPConn) string {
 	return "success"
 }

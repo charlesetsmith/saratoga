@@ -18,7 +18,6 @@ import (
 	"github.com/charlesetsmith/saratoga/frames"
 	"github.com/charlesetsmith/saratoga/sarflags"
 	"github.com/charlesetsmith/saratoga/timestamp"
-	"github.com/jroimartin/gocui"
 )
 
 // Beacon -- Holds Beacon frame information
@@ -294,7 +293,7 @@ func (b Beacon) ShortPrint() string {
 }
 
 // Send - Send a IPv4 or IPv6 beacon to a server
-func (b *Beacon) Send(g *gocui.Gui, addr string, port int, count uint, interval uint, errflag chan string) {
+func (b *Beacon) Send(addr string, port int, count uint, interval uint, errflag chan string) {
 
 	var eid string     // Is IPv4:Socket.PID or [IPv6]:Socket.PID
 	var newaddr string // Wrap IPv6 address in [ ]
@@ -400,7 +399,7 @@ func (b *Beacon) UDPWrite(conn *net.UDPConn) string {
 }
 
 // Handle the received beacon
-func (b *Beacon) RxHandler(g *gocui.Gui, conn *net.UDPConn) string {
+func (b *Beacon) RxHandler(conn *net.UDPConn) string {
 	/*
 		if b.NewPeer(conn) {
 			sarwin.MsgPrintln(g, "yellow_black", "Beacon Received Added/Changed Peer ", conn.RemoteAddr().String())

@@ -6,7 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+
+	// "io/ioutil"
 	"log"
 	"math"
 	"os"
@@ -325,7 +326,7 @@ func ReadConfig(fname string) (*Cliflags, error) {
 	}
 
 	var confdata []byte
-	if confdata, err = ioutil.ReadFile(fname); err != nil {
+	if confdata, err = os.ReadFile(fname); err != nil {
 		fmt.Println("Cannot open the saratoga config file", os.Args[1], ":", err)
 		return nil, err
 	}

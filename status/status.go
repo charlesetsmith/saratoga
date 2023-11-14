@@ -14,7 +14,6 @@ import (
 	"github.com/charlesetsmith/saratoga/holes"
 	"github.com/charlesetsmith/saratoga/sarflags"
 	"github.com/charlesetsmith/saratoga/timestamp"
-	"github.com/jroimartin/gocui"
 )
 
 // Status -- Status of the transfer and holes
@@ -72,8 +71,7 @@ func (s Status) New(flags string, info interface{}) error {
 				return err
 			}
 		default:
-			e := "Invalid Flag " + f[0] + " for Status Frame"
-			return errors.New(e)
+			return errors.New("Invalid Flag " + f[0] + " for Status Frame")
 		}
 	}
 	e := reflect.ValueOf(info).Elem()
@@ -92,7 +90,7 @@ func (s Status) New(flags string, info interface{}) error {
 
 // Make - Construct a status frame with a given header
 // func (s *Status) Make(header uint32, session uint32, progress uint64, inrespto uint64, holes holes.Holes) error {
-func (s Status) Make(header uint32, info interface{}) error {
+func (s *Status) Make(header uint32, info interface{}) error {
 
 	var err error
 
@@ -302,6 +300,6 @@ func (s *Status) UDPWrite(conn *net.UDPConn) string {
 }
 
 // Data Reciever handler
-func (s Status) RxHandler(g *gocui.Gui, conn *net.UDPConn) string {
+func (s Status) RxHandler(conn *net.UDPConn) string {
 	return "success"
 }

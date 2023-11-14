@@ -14,7 +14,6 @@ import (
 	"github.com/charlesetsmith/saratoga/dirent"
 	"github.com/charlesetsmith/saratoga/frames"
 	"github.com/charlesetsmith/saratoga/sarflags"
-	"github.com/jroimartin/gocui"
 )
 
 // MetaData -- Holds MetaData frame information
@@ -300,6 +299,6 @@ func (m *MetaData) UDPWrite(conn *net.UDPConn) string {
 }
 
 // Data Reciever handler
-func (m MetaData) RxHandler(g *gocui.Gui, conn *net.UDPConn) string {
+func (m MetaData) RxHandler(conn *net.UDPConn) string {
 	return "success"
 }

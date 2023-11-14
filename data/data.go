@@ -13,7 +13,6 @@ import (
 	"github.com/charlesetsmith/saratoga/frames"
 	"github.com/charlesetsmith/saratoga/sarflags"
 	"github.com/charlesetsmith/saratoga/timestamp"
-	"github.com/jroimartin/gocui"
 )
 
 // Data -- Holds Data frame information
@@ -94,8 +93,7 @@ func (d *Data) New(flags string, info interface{}) error {
 	// Assign the values from the interface Dinfo structure
 	d.Session = uint32(e.FieldByName("Session").Uint())
 	d.Offset = e.FieldByName("Offset").Uint()
-	dlen := e.FieldByName("Payload").Len()
-	d.Payload = make([]byte, dlen)
+	d.Payload = make([]byte, e.FieldByName("Payload").Len())
 	copy(d.Payload, e.FieldByName("Payload").Bytes())
 	return nil
 }
@@ -291,6 +289,9 @@ func (d *Data) UDPWrite(conn *net.UDPConn) string {
 }
 
 // Data Reciever handler
-func (d Data) RxHandler(g *gocui.Gui, conn *net.UDPConn) string {
+/*
+ * Lets get rid of gocui
+ */
+func (d Data) RxHandler(conn *net.UDPConn) string {
 	return "success"
 }
