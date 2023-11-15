@@ -1,4 +1,4 @@
-// Saratoga Interactive Client - Main
+// Saratoga Interactive Initiator - Main
 
 package main
 
@@ -25,7 +25,7 @@ import (
 	"github.com/jroimartin/gocui"
 )
 
-// Request Handler for Server
+// Request Handler
 func reqrxhandler(g *gocui.Gui, r request.Request, remoteAddr *net.UDPAddr) string {
 	// Handle the request
 
@@ -33,12 +33,11 @@ func reqrxhandler(g *gocui.Gui, r request.Request, remoteAddr *net.UDPAddr) stri
 	switch reqtype {
 	case "noaction", "get", "put", "getdelete", "delete", "getdir":
 		var t *transfer.Transfer
-		if t = transfer.Lookup(transfer.Server, r.Session, remoteAddr.IP.String()); t == nil {
+		if t = transfer.Lookup(transfer.Responder, r.Session, remoteAddr.IP.String()); t == nil {
 			// No matching request so add a new transfer
 			var err error
-			a := remoteAddr.String()
-			if err = transfer.NewServer(g, r, a); err == nil {
-				sarwin.MsgPrintln(g, "yellow_black", "Created Transfer ", reqtype, " from ",
+			if t, err = transfer.NewResponder(g, r, remoteAddr.String()); err == nil {
+				sarwin.MsgPrintln(g, "yellow_black", "New Transfer ", reqtype, " from ",
 					sarnet.UDPinfo(remoteAddr))
 				return "success"
 			}
@@ -60,11 +59,11 @@ func reqrxhandler(g *gocui.Gui, r request.Request, remoteAddr *net.UDPAddr) stri
 	}
 }
 
-// Metadata handler for Server
+// Metadata handler for Responder
 func metrxhandler(g *gocui.Gui, m metadata.MetaData, remoteAddr *net.UDPAddr) string {
 	// Handle the metadata
 	var t *transfer.Transfer
-	if t = transfer.Lookup(transfer.Server, m.Session, remoteAddr.IP.String()); t != nil {
+	if t = transfer.Lookup(transfer.Responder, m.Session, remoteAddr.IP.String()); t != nil {
 		if err := t.Change(g, m); err != nil { // Size of file has changed!!!
 			return "unspecified"
 		}
@@ -78,11 +77,11 @@ func metrxhandler(g *gocui.Gui, m metadata.MetaData, remoteAddr *net.UDPAddr) st
 	return "badpacket"
 }
 
-// Data handler for server
+// Data handler for responder
 func datrxhandler(g *gocui.Gui, d data.Data, conn *net.UDPConn, remoteAddr *net.UDPAddr) string {
 	// Handle the data
 	var t *transfer.Transfer
-	if t = transfer.Lookup(transfer.Server, d.Session, remoteAddr.IP.String()); t != nil {
+	if t = transfer.Lookup(transfer.Responder, d.Session, remoteAddr.IP.String()); t != nil {
 		// t.SData(g, d, conn, remoteAddr) // The data handler for the transfer
 		transfer.Trmu.Lock()
 		if sarflags.GetStr(d.Header, "reqtstamp") == "yes" { // Grab the timestamp from data
@@ -109,7 +108,7 @@ func datrxhandler(g *gocui.Gui, d data.Data, conn *net.UDPConn, remoteAddr *net.
 			// Send back a status to the client to tell it a success with creating the transfer
 			transfer.WriteStatus(g, t, stheader)
 		}
-		sarwin.MsgPrintln(g, "yellow_black", "Server Received Data Len:", len(d.Payload), " Pos:", d.Offset)
+		sarwin.MsgPrintln(g, "yellow_black", "Responder Received Data Len:", len(d.Payload), " Pos:", d.Offset)
 		transfer.Strmu.Unlock()
 		sarwin.MsgPrintln(g, "yellow_black", "Changed Transfer ", d.Session, " from ",
 			sarnet.UDPinfo(remoteAddr))
@@ -137,7 +136,7 @@ func starxhandler(g *gocui.Gui, s status.Status, conn *net.UDPConn, remoteAddr *
 	return "success"
 }
 
-// Listen -- Go routine for recieving IPv4 & IPv6 for an incoming frames and shunt them off to the
+// Listen -- Go routine for recieving IPv4 & IPv6 for incoming frames and shunt them off to the
 // correct frame handlers
 func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 
@@ -174,47 +173,54 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 		frame := make([]byte, framelen)
 		copy(frame, buf[:framelen])
 		// fmt.Println("We have a frame of length:", framelen)
-		// Grab the Saratoga Header
+		// Grab the Saratoga Header which is the first 32 bits
 		header := binary.BigEndian.Uint32(frame[:4])
+		// Check the version
 		if sarflags.GetStr(header, "version") != "v1" { // Make sure we are Version 1
-			sarwin.ErrPrintln(g, "red_black", "Header is not Saratoga v1")
-			if _, err = sarflags.Set(0, "errno", "badpacket"); err != nil {
-				// Bad Packet send back a Status to the client
-				var st status.Status
-				sinfo := status.Sinfo{Session: 0, Progress: 0, Inrespto: 0, Holes: nil}
-				if frames.New(&st, "errcode=badpacket", &sinfo) != nil {
-					sarwin.ErrPrintln(g, "red_black", "Cannot create badpacket status")
-				}
-				sarwin.ErrPrintln(g, "red_black", "Not Saratoga Version 1 Frame from ",
-					sarnet.UDPinfo(remoteAddr))
+			// If a bad version received then send back a Status to the client
+			var st status.Status
+			sinfo := status.Sinfo{Session: 0, Progress: 0, Inrespto: 0, Holes: nil}
+			sarwin.ErrPrintln(g, "red_black", "Not Saratoga Version 1 Frame from ",
+				sarnet.UDPinfo(remoteAddr))
+			if frames.New(&st, "errcode=badpacket", &sinfo) != nil {
+				sarwin.ErrPrintln(g, "red_black", "Cannot create badpacket status")
+			}
+			// OK Send it out the connection
+			err := st.UDPWrite(conn)
+			if err != "success" {
+				sarwin.ErrPrintln(g, "red_black", err+" unable to send status")
 			}
 			continue
 		}
 		sarwin.MsgPrintln(g, "white_black", "Received: ", sarflags.GetStr(header, "frametype"))
 
-		// Process the frame
+		// Process the received frame
 		switch sarflags.GetStr(header, "frametype") {
 		case "beacon":
+			// We have received a beacon on the connection
 			var rxb beacon.Beacon
-			if rxerr := frames.Decode(&rxb, frame); rxerr != nil {
-				// if rxerr := rxb.Decode(frame); rxerr != nil {
+			if rxerr := rxb.Decode(frame); rxerr != nil {
 				// We just drop bad beacons
 				sarwin.ErrPrintln(g, "red_black", "Bad Beacon:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr))
 				continue
 			}
 			// Handle the beacon
-			if errcode := frames.RxHandler(&rxb, g, conn); errcode != "success" {
+			if errcode := frames.RxHandler(&rxb, conn); errcode != "success" {
 				sarwin.ErrPrintln(g, "red_black", "Bad Beacon:", errcode, "  from ",
 					sarnet.UDPinfo(remoteAddr))
 			}
+			if rxb.NewPeer(conn) {
+				sarwin.MsgPrintln(g, "Received new or updated beacon from ", sarnet.UDPinfo(remoteAddr))
+			}
 			sarwin.PacketPrintln(g, "green_black", "Listen Rx ", rxb.ShortPrint())
+			continue
 
 		case "request":
 			// Handle incoming request
 			var r request.Request
 			var rxerr error
-			if rxerr = frames.Decode(&r, frame); rxerr != nil {
+			if rxerr = r.Decode(frame); rxerr != nil {
 				// We just drop bad requests
 				sarwin.ErrPrintln(g, "red_black", "Bad Request:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr))
@@ -224,24 +230,23 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 
 			// Create a status to the client to tell it the error or that we have accepted the transfer
 			session := binary.BigEndian.Uint32(frame[4:8])
-			// t := transfer.Lookup(transfer.Client, session, remoteAddr.String())
-			if errcode := frames.RxHandler(&r, g, conn); errcode != "success" {
-				sarwin.ErrPrintln(g, "red_black", "Bad Request:", errcode, "  from ",
-					sarnet.UDPinfo(remoteAddr))
-			}
-			errcode := reqrxhandler(g, r, remoteAddr)                         // process the request
-			stheader := "descriptor=" + sarflags.GetStr(header, "descriptor") // echo the descriptor
-			stheader += ",metadatarecvd=no,allholes=yes,reqholes=requested,"
-			stheader += "errcode=" + errcode // and the handler result
+			// t := transfer.Lookup(transfer.Initiator, session, remoteAddr.String())
+			errcode := reqrxhandler(g, r, remoteAddr) // process the request
+			stheader := "descriptor=" + sarflags.GetStr(header, "descriptor") +
+				",metadatarecvd=no,allholes=yes,reqholes=requested," +
+				"errcode=" + errcode // and the handler result
 
 			if errcode != "success" {
 				transfer.WriteErrStatus(g, stheader, session, conn, remoteAddr)
 				sarwin.ErrPrintln(g, "red_black", "Bad Status:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr), " session ", session)
 			} else {
+				// Acknowledge the request to the peer
 				var t *transfer.Transfer
-				if t = transfer.Lookup(transfer.Client, session, remoteAddr.String()); t != nil {
-					transfer.WriteStatus(g, t, stheader)
+				if t = transfer.Lookup(transfer.Initiator, session, remoteAddr.String()); t != nil {
+					t.WriteStatus(g, stheader)
+				} else {
+					sarwin.ErrPrintln(g, "red_black", "Cannot find existing transfer")
 				}
 			}
 			continue
@@ -265,7 +270,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 
 			// sarwin.MsgPrintln(g, "white_black", "Decoded data ", d.Print())
 			session := binary.BigEndian.Uint32(frame[4:8])
-			if errcode := frames.RxHandler(&d, g, conn); errcode != "success" {
+			if errcode := frames.RxHandler(&d, conn); errcode != "success" {
 				sarwin.ErrPrintln(g, "red_black", "Bad Data:", errcode, "  from ",
 					sarnet.UDPinfo(remoteAddr))
 			}
@@ -310,7 +315,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 			sarwin.PacketPrintln(g, "green_black", "Listen Rx ", m.ShortPrint())
 
 			session := binary.BigEndian.Uint32(frame[4:8])
-			if errcode := frames.RxHandler(&m, g, conn); errcode != "success" {
+			if errcode := frames.RxHandler(&m, conn); errcode != "success" {
 				sarwin.ErrPrintln(g, "red_black", "Bad Metadata:", errcode, "  from ",
 					sarnet.UDPinfo(remoteAddr))
 			}
@@ -345,7 +350,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 				continue
 			} // Handle the status
 			sarwin.PacketPrintln(g, "green_black", "Listen Rx ", s.ShortPrint())
-			if errcode := frames.RxHandler(&s, g, conn); errcode != "success" {
+			if errcode := frames.RxHandler(&s, conn); errcode != "success" {
 				sarwin.ErrPrintln(g, "red_black", "Bad Status:", errcode, "  from ",
 					sarnet.UDPinfo(remoteAddr))
 			}
