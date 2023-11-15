@@ -22,9 +22,9 @@
 		"request" :  	56,
 		"status" :   	57,
 		"transfer" : 	58,
-		"binterval" :	3
+		"binterval" :	3,
+		"datacounter" : 100
 	},
-	"datacounter" :     100,
 	"commands" : {
 		"?" : {
 			"usage" : "?",

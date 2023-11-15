@@ -180,11 +180,12 @@ const MaxBuff = uint64(9000)
 
 // Timeouts - Global Timeouts and counters
 type Timeouts struct {
-	Metadata  int  `json:"metadata"`  // Secs to wait for a metadatarecvd before a resend
-	Request   int  `json:"request"`   // Secs to wait before a resend
-	Status    int  `json:"status"`    // Secs to wait before request status again
-	Transfer  int  `json:"transfer"`  // Secs to wait before cancelling transfer when nothing recieved
-	Binterval uint `json:"binterval"` // Secs between sending beacon frames
+	Metadata    int  `json:"metadata"`    // Secs to wait for a metadatarecvd before a resend
+	Request     int  `json:"request"`     // Secs to wait before a resend
+	Status      int  `json:"status"`      // Secs to wait before request status again
+	Transfer    int  `json:"transfer"`    // Secs to wait before cancelling transfer when nothing recieved
+	Binterval   uint `json:"binterval"`   // Secs between sending beacon frames
+	Datacounter int  `json:"datacounter"` // How many data frames received before a status is requested
 }
 
 // GTimeout - timeouts for responses 0 means no timeout
@@ -257,7 +258,7 @@ type config struct {
 	Prompt      string   `json:"prompt"`      // Command line prompt: saratoga
 	Ppad        int      `json:"ppad"`        // Padding length in prompt for []:
 	Timeout     Timeouts // Various Timers
-	Datacounter int      `json:"datacounter"` // How many data frames received before a status is requested
+	// Datacounter int      `json:"datacounter"` // How many data frames received before a status is requested
 }
 
 // Climu - Protect CLI input flags
@@ -272,11 +273,11 @@ type Cliflags struct {
 	Port        int
 	Timestamp   string   // What timestamp to use
 	Timeout     Timeouts // Various timeouts
-	Datacnt     int      // # data frames to send before a request flag is set
-	Timezone    string   // Timezone for logs utc or local time
-	Prompt      string   // Prompt
-	Ppad        int      // Length of Padding around Prompt []: = 3
-	Sardir      string   // Saratoga working directory
+	// Datacnt     int      // # data frames to send before a request flag is set
+	Timezone string // Timezone for logs utc or local time
+	Prompt   string // Prompt
+	Ppad     int    // Length of Padding around Prompt []: = 3
+	Sardir   string // Saratoga working directory
 }
 
 // MTU -- Maximum write []byte buffer, set to interface MTU
@@ -382,20 +383,20 @@ func ReadConfig(fname string) (*Cliflags, error) {
 			for keyt, valuet := range timers {
 				// fmt.Println("  keyt=", keyt, "= valuet=", valuet)
 				switch keyt {
-				case "metadata":
+				case "metadata": // If we dont receive a metadata then send status
 					conf.Timeout.Metadata = int(valuet.(float64))
-				case "request":
+				case "request": // If we dont receive a metadata then send status
 					conf.Timeout.Request = int(valuet.(float64))
-				case "status":
+				case "status": // Request a status every n seconds
 					conf.Timeout.Status = int(valuet.(float64))
 				case "transfer":
 					conf.Timeout.Transfer = int(valuet.(float64))
 				case "binterval":
 					conf.Timeout.Transfer = int(valuet.(float64))
+				case "datacounter": // Default number of data frames before a status is requested
+					conf.Timeout.Datacounter = int(value.(float64))
 				}
 			}
-		case "datacounter": // Defaul number of data frames before a status is requested
-			conf.Datacounter = int(value.(float64))
 		case "commands": //This is a map in json so copy it to the Commands array
 			cmds := value.(map[string]interface{})
 			for cmd, value := range cmds {
@@ -523,16 +524,16 @@ func ReadConfig(fname string) (*Cliflags, error) {
 	c.V4Multicast = conf.V4multicast
 	c.V6Multicast = conf.V6multicast
 	c.Port = conf.Port
-	c.Timestamp = conf.Timestamp                 // Default timestamp type to use
-	c.Timeout.Metadata = conf.Timeout.Metadata   // Seconds
-	c.Timeout.Request = conf.Timeout.Request     // Seconds
-	c.Timeout.Status = conf.Timeout.Status       // Seconds
-	c.Timeout.Transfer = conf.Timeout.Transfer   // Seconds
-	c.Timeout.Binterval = conf.Timeout.Binterval // Seconds between beacons
-	c.Datacnt = conf.Datacounter                 // # Data frames between request for status
-	c.Timezone = conf.Timezone                   // TImezone to use for logs
-	c.Prompt = conf.Prompt                       // Prompt Prefix in cmd
-	c.Ppad = conf.Ppad                           // For []: in prompt = 3
+	c.Timestamp = conf.Timestamp                     // Default timestamp type to use
+	c.Timeout.Metadata = conf.Timeout.Metadata       // Seconds
+	c.Timeout.Request = conf.Timeout.Request         // Seconds
+	c.Timeout.Status = conf.Timeout.Status           // Seconds
+	c.Timeout.Transfer = conf.Timeout.Transfer       // Seconds
+	c.Timeout.Binterval = conf.Timeout.Binterval     // Seconds between beacons
+	c.Timeout.Datacounter = conf.Timeout.Datacounter // # Data frames between request for status
+	c.Timezone = conf.Timezone                       // TImezone to use for logs
+	c.Prompt = conf.Prompt                           // Prompt Prefix in cmd
+	c.Ppad = conf.Ppad                               // For []: in prompt = 3
 
 	// Get the default directory for sarotaga transfers from environment
 	// We default to what is in the environment variable otherwise what is in saratoga.json
@@ -618,7 +619,6 @@ func (s *Cliflags) CopyCliflags() (*Cliflags, error) {
 	d.V6Multicast = s.V4Multicast
 	d.Port = s.Port
 	d.Timestamp = s.Timestamp
-	d.Datacnt = s.Datacnt
 	d.Timezone = s.Timezone
 	d.Prompt = s.Prompt
 	d.Ppad = s.Ppad
@@ -629,6 +629,7 @@ func (s *Cliflags) CopyCliflags() (*Cliflags, error) {
 	d.Timeout.Request = s.Timeout.Request
 	d.Timeout.Status = s.Timeout.Status
 	d.Timeout.Transfer = s.Timeout.Transfer
+	d.Timeout.Datacounter = s.Timeout.Datacounter
 	// Copy the Global flag defaults
 	if len(s.Global) == 0 {
 		return nil, errors.New("no global flags defined in copyflags")
