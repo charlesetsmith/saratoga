@@ -77,6 +77,8 @@ func Lookup(direction bool, session uint32, peer string) *Transfer {
 	}
 	for _, i := range Transfers {
 		remaddr := net.ParseIP(i.Conn.RemoteAddr().String())
+		// Check if direction (Initiator or Responder), session # and IP address match in our current
+		// list of transfers (if so then return a pointer to it)
 		if direction == i.Direction && session == i.Session && addr.Equal(remaddr) {
 			return &i
 		}

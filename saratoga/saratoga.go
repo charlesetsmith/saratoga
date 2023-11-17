@@ -25,31 +25,34 @@ import (
 	"github.com/jroimartin/gocui"
 )
 
-// Request Handler
+// Request Handler for the Responder
 func reqrxhandler(g *gocui.Gui, r request.Request, remoteAddr *net.UDPAddr) string {
 	// Handle the request
 
 	reqtype := sarflags.GetStr(r.Header, "reqtype")
 	switch reqtype {
 	case "noaction", "get", "put", "getdelete", "delete", "getdir":
+		// See if we already have the Transfer
 		var t *transfer.Transfer
-		if t = transfer.Lookup(transfer.Responder, r.Session, remoteAddr.IP.String()); t == nil {
-			// No matching request so add a new transfer
-			var err error
-			if t, err = transfer.NewResponder(g, r, remoteAddr.String()); err == nil {
-				sarwin.MsgPrintln(g, "yellow_black", "New Transfer ", reqtype, " from ",
-					sarnet.UDPinfo(remoteAddr))
-				return "success"
+		if t = transfer.Lookup(transfer.Responder, r.Session, remoteAddr.IP.String()); t != nil {
+			if t.Ttype != reqtype {
+				sarwin.ErrPrintln(g, "red_black", "Request does not match Request Type ",
+					sarnet.UDPinfo(remoteAddr),
+					" session ", r.Session)
+				return "badrequest"
 			}
-			sarwin.ErrPrintln(g, "red_black", "Cannot create Transfer ", reqtype, " from ",
-				sarnet.UDPinfo(remoteAddr),
-				"session", r.Session, err)
-			return "badrequest"
+			return "success"
 		}
-		// Request is currently in progress
-		sarwin.ErrPrintln(g, "red_black", "Request ", reqtype, " from ",
+		// No matching Transfer so add a new one
+		var err error
+		if t, err = transfer.NewResponder(g, r, remoteAddr.String()); err == nil {
+			sarwin.MsgPrintln(g, "yellow_black", "New Transfer ", reqtype, " from ",
+				sarnet.UDPinfo(remoteAddr))
+			return "success"
+		}
+		sarwin.ErrPrintln(g, "red_black", "Cannot create Transfer ", reqtype, " from ",
 			sarnet.UDPinfo(remoteAddr),
-			" for session ", r.Session, " already in progress")
+			"session", r.Session, err)
 		return "badrequest"
 	default:
 		sarwin.ErrPrintln(g, "red_black", "Invalid Request from ",
@@ -216,6 +219,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 			continue
 
 		case "request":
+			// We are therefore a "Responder"
 			// Handle incoming request
 			var r request.Request
 			var rxerr error
@@ -227,26 +231,25 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 			}
 			sarwin.PacketPrintln(g, "green_black", "Listen Rx ", r.ShortPrint())
 
-			// Create a status to the client to tell it the error or that we have accepted the transfer
+			// Create a status to the Initiator to tell it the error or that we have accepted the transfer
 			session := binary.BigEndian.Uint32(frame[4:8])
 			// t := transfer.Lookup(transfer.Initiator, session, remoteAddr.String())
 			errcode := reqrxhandler(g, r, remoteAddr) // process the request
+			// Create the header with the errcode
 			stheader := "descriptor=" + sarflags.GetStr(header, "descriptor") +
-				",metadatarecvd=no,allholes=yes,reqholes=requested," +
-				"errcode=" + errcode // and the handler result
-
+				",metadatarecvd=no,allholes=yes,reqholes=requested,errcode=" + errcode
 			if errcode != "success" {
+				// Just send an error status back, dont create a transfer
 				transfer.WriteErrStatus(g, stheader, session, conn, remoteAddr)
 				sarwin.ErrPrintln(g, "red_black", "Bad Status:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr), " session ", session)
-			} else {
-				// Acknowledge the request to the peer
-				var t *transfer.Transfer
-				if t = transfer.Lookup(transfer.Initiator, session, remoteAddr.String()); t != nil {
-					t.WriteStatus(g, stheader)
-				} else {
-					sarwin.ErrPrintln(g, "red_black", "Cannot find existing transfer")
-				}
+				continue
+			}
+			// Lookup or create the Transfer and Acknowledge the request to the Initiator
+			var t *transfer.Transfer
+			if t = transfer.Lookup(transfer.Responder, session, remoteAddr.String()); t != nil {
+				// Write off the status to the Initiator
+				t.WriteStatus(g, stheader)
 			}
 			continue
 
