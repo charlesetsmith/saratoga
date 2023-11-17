@@ -17,6 +17,7 @@ import (
 	"github.com/charlesetsmith/saratoga/sarflags"
 	"github.com/charlesetsmith/saratoga/sarwin"
 	"github.com/charlesetsmith/saratoga/status"
+	"github.com/charlesetsmith/saratoga/timestamp"
 	"github.com/jroimartin/gocui"
 )
 
@@ -34,14 +35,15 @@ var smu sync.Mutex
 var sessionid uint32
 
 type Transfer struct {
-	Direction bool         // Am I the Initiator or Responder end of the connection
-	Session   uint32       // Session ID - This is the unique key
-	Peer      net.IP       // IP Address of the peer
-	Conn      *net.UDPConn // The connection to the remote peer
-	Ttype     string       // Transfer type "get,getrm,put,putrm,putblind,rm"
-	Tstamp    string       // Timestamp type "localinterp,posix32,posix64,posix32_32,posix64_32,epoch2000_32"
-	Filename  string       // Local File name to receive or remove from remote host or send from local host
-	Fp        *os.File     // File pointer for local file
+	Direction  bool                // Am I the Initiator or Responder end of the connection
+	Session    uint32              // Session ID - This is the unique key
+	Peer       net.IP              // IP Address of the peer
+	Conn       *net.UDPConn        // The connection to the remote peer
+	Ttype      string              // Transfer type "get,getrm,put,putrm,putblind,rm"
+	Tstamp     timestamp.Timestamp // Latest timestamp received from Data
+	Tstamptype string              // Timestamp type "localinterp,posix32,posix64,posix32_32,posix64_32,epoch2000_32"
+	Filename   string              // Local File name to receive or remove from remote host or send from local host
+	Fp         *os.File            // File pointer for local file
 	// frames    [][]byte           // Frames to process
 	// holes     holes.Holes        // Holes to process
 	Version    string               // Flag
@@ -55,6 +57,7 @@ type Transfer struct {
 	Dir        *dirent.DirEnt       // Directory entry info of the file to get/put
 	Fileinfo   *dirent.FileMetaData // File metadata of the local file
 	Data       []byte               // Buffered data
+	Dcount     uint64               // Number Data frames sent/recieved
 	Framecount uint64               // Total number frames received in this transfer (so we can schedule status)
 	Progress   uint64               // Current Progress indicator
 	Inrespto   uint64               // In respose to indicator
@@ -116,7 +119,7 @@ func NewInitiator(g *gocui.Gui, ttype string, ip string, fname string, c *sarfla
 		t := new(Transfer)
 		t.Direction = Initiator
 		t.Ttype = ttype
-		t.Tstamp = c.Timestamp
+		t.Tstamptype = c.Timestamp
 		t.Session = newsession()
 		t.Peer = addr
 		t.Filename = fname
@@ -172,10 +175,10 @@ func NewResponder(g *gocui.Gui, r request.Request, ip string) (*Transfer, error)
 	t.Csumtype = ""  // We don't know checksum type until we get a metadata
 	t.Checksum = nil // Nor do we know what it is
 	t.Filename = r.Fname
-	t.Tstamp = ""  // Filled out with status or data frame "localinterp,posix32,posix64,posix32_32,posix64_32,epoch2000_32"
-	t.Progress = 0 // Current progress indicator
-	t.Inrespto = 0 // Cururent In response to indicator
-	t.Dir = nil    //
+	t.Tstamptype = "" // Filled out with status or data frame "localinterp,posix32,posix64,posix32_32,posix64_32,epoch2000_32"
+	t.Progress = 0    // Current progress indicator
+	t.Inrespto = 0    // Cururent In response to indicator
+	t.Dir = nil       //
 
 	// flags
 	// property - normalfile, normaldirectory, specialfile, specialdirectory

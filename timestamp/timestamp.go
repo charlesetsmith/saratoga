@@ -17,6 +17,7 @@ type Timestamp struct {
 	secs   uint64
 	nsecs  uint64
 	local  string // If we dont have a defined timestamp type then just return what is in flag string
+	ttype  string // What are we posix32,posix64...
 }
 
 // New - Construct a timestamp - return byte slice of time
@@ -37,6 +38,7 @@ func (t *Timestamp) New(flag string, ts time.Time) error {
 	case "posix32":
 		secs := ts.Unix()
 		t.secs = uint64(secs)
+		t.ttype = flag
 		if t.secs > sarflags.MaxUint32 {
 			return errors.New("posix32:Seconds exceed 32 bits")
 		}
@@ -45,11 +47,13 @@ func (t *Timestamp) New(flag string, ts time.Time) error {
 	case "posix64":
 		secs := ts.Unix()
 		t.secs = uint64(secs)
+		t.ttype = flag
 		t.nsecs = 0
 		t.local = ""
 	case "posix32_32":
 		nsecs := ts.UnixNano()
 		t.secs = uint64(nsecs / 1e9)
+		t.ttype = flag
 		t.nsecs = uint64(nsecs % 1e9)
 		if t.secs > sarflags.MaxUint32 {
 			return errors.New("posix32_32:Seconds exceed 32 bits")
@@ -58,6 +62,7 @@ func (t *Timestamp) New(flag string, ts time.Time) error {
 	case "posix64_32":
 		nsecs := ts.UnixNano()
 		t.secs = uint64(nsecs / 1e9)
+		t.ttype = flag
 		t.nsecs = uint64(nsecs % 1e9)
 		if t.nsecs > sarflags.MaxUint32 {
 			return errors.New("posix64_32:Remainder exceed 32 bits")
@@ -67,6 +72,7 @@ func (t *Timestamp) New(flag string, ts time.Time) error {
 		epoch2k, _ := time.Parse(time.RFC3339, "2000-01-01T00:00:00Z")
 		secs := ts.Unix()
 		secs -= epoch2k.Unix()
+		t.ttype = flag
 		t.secs = uint64(secs)
 		if t.secs > sarflags.MaxUint32 {
 			return errors.New("epoch2000_32:Seconds out of bounds")
@@ -75,6 +81,7 @@ func (t *Timestamp) New(flag string, ts time.Time) error {
 		t.local = ""
 	default: // localinterp Dont know this timestamp type so whatever is in flag is used
 		t.local = flag
+		t.ttype = flag
 	}
 	return nil
 }
@@ -123,31 +130,38 @@ func (t *Timestamp) Now(flag string) error {
 func (t *Timestamp) Get(tstamp []byte) error {
 
 	t.header = tstamp[0]
-	switch sarflags.GetTStr(t.header) {
+	ttype := sarflags.GetTStr(t.header)
+	switch ttype {
 	case "posix32":
 		t.secs = uint64(binary.BigEndian.Uint32(tstamp[1:5]))
 		t.nsecs = 0
 		t.local = ""
+		t.ttype = ttype
 	case "posix64":
 		t.secs = uint64(binary.BigEndian.Uint64(tstamp[1:9]))
 		t.nsecs = 0
 		t.local = ""
+		t.ttype = ttype
 	case "posix32_32":
 		t.secs = uint64(binary.BigEndian.Uint32(tstamp[1:5]))
 		t.nsecs = uint64(binary.BigEndian.Uint32(tstamp[5:9]))
 		t.local = ""
+		t.ttype = ttype
 	case "posix64_32":
 		t.secs = uint64(binary.BigEndian.Uint64(tstamp[1:9]))
 		t.nsecs = uint64(binary.BigEndian.Uint32(tstamp[9:13]))
 		t.local = ""
+		t.ttype = ttype
 	case "epoch2000_32":
 		t.secs = uint64(binary.BigEndian.Uint32(tstamp[1:5]))
 		t.nsecs = 0
 		t.local = ""
+		t.ttype = ttype
 	default:
 		t.secs = 0
 		t.nsecs = 0
 		t.local = string(tstamp[1:15])
+		t.ttype = ttype
 		return errors.New("timestamp.Get: Invalid Timestamp")
 	}
 	return nil

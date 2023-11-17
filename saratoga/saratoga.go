@@ -84,7 +84,7 @@ func datrxhandler(g *gocui.Gui, d data.Data, conn *net.UDPConn, remoteAddr *net.
 	if t = transfer.Lookup(transfer.Responder, d.Session, remoteAddr.IP.String()); t != nil {
 		// t.SData(g, d, conn, remoteAddr) // The data handler for the transfer
 		transfer.Trmu.Lock()
-		if sarflags.GetStr(d.Header, "reqtstamp") == "yes" { // Grab the timestamp from data
+		if sarflags.GetStr(d.Header, "reqtstamp") == "yes" { // Grab the latest timestamp from data
 			t.Tstamp = d.Tstamp
 		}
 		// Copy the data in this frame to the transfer buffer
@@ -93,11 +93,7 @@ func datrxhandler(g *gocui.Gui, d data.Data, conn *net.UDPConn, remoteAddr *net.
 			return "badoffset"
 		}
 		copy(t.Data[d.Offset:], d.Payload)
-		t.Dcount++
-		if t.Dcount%100 == 0 { // Send back a status every 100 data frames recieved
-			t.Dcount = 0
-		}
-		if t.Dcount == 0 || sarflags.GetStr(d.Header, "reqstatus") == "yes" || !t.Havemeta { // Send a status back
+		if t.Dcount%100 == 0 || sarflags.GetStr(d.Header, "reqstatus") == "yes" || !t.Havemeta { // Send a status back
 			stheader := "descriptor=" + sarflags.GetStr(d.Header, "descriptor") // echo the descriptor
 			stheader += ",allholes=yes,reqholes=requested,errcode=success,"
 			if !t.Havemeta {
@@ -106,10 +102,11 @@ func datrxhandler(g *gocui.Gui, d data.Data, conn *net.UDPConn, remoteAddr *net.
 				stheader += "metadatarecvd=yes"
 			}
 			// Send back a status to the client to tell it a success with creating the transfer
-			transfer.WriteStatus(g, t, stheader)
+			t.WriteStatus(g, stheader)
 		}
+		t.Dcount++
 		sarwin.MsgPrintln(g, "yellow_black", "Responder Received Data Len:", len(d.Payload), " Pos:", d.Offset)
-		transfer.Strmu.Unlock()
+		transfer.Trmu.Unlock()
 		sarwin.MsgPrintln(g, "yellow_black", "Changed Transfer ", d.Session, " from ",
 			sarnet.UDPinfo(remoteAddr))
 		return "success"
@@ -120,15 +117,15 @@ func datrxhandler(g *gocui.Gui, d data.Data, conn *net.UDPConn, remoteAddr *net.
 	return "badpacket"
 }
 
-// Status handler for server
+// Status handler for responder
 func starxhandler(g *gocui.Gui, s status.Status, conn *net.UDPConn, remoteAddr *net.UDPAddr) string {
-	var t *transfer.STransfer
-	if t = transfer.SMatch(remoteAddr.IP.String(), s.Session); t == nil { // No existing transfer
+	var t *transfer.Transfer
+	if t = transfer.Lookup(transfer.Initiator, s.Session, remoteAddr.IP.String()); t == nil { // No existing transfer
 		return "badstatus"
 	}
 	// Update transfers Inrespto & Progress indicators
-	transfer.Strmu.Lock()
-	defer transfer.Strmu.Unlock()
+	transfer.Trmu.Lock()
+	defer transfer.Trmu.Unlock()
 	t.Inrespto = s.Inrespto
 	t.Progress = s.Progress
 	// Resend the data requested by the Holes
@@ -203,13 +200,15 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 				// We just drop bad beacons
 				sarwin.ErrPrintln(g, "red_black", "Bad Beacon:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr))
+				// Ignore and throw it away
 				continue
 			}
 			// Handle the beacon
-			if errcode := frames.RxHandler(&rxb, conn); errcode != "success" {
+			if errcode := rxb.RxHandler(conn); errcode != "success" {
 				sarwin.ErrPrintln(g, "red_black", "Bad Beacon:", errcode, "  from ",
 					sarnet.UDPinfo(remoteAddr))
 			}
+			// Create or update the Peer table
 			if rxb.NewPeer(conn) {
 				sarwin.MsgPrintln(g, "Received new or updated beacon from ", sarnet.UDPinfo(remoteAddr))
 			}

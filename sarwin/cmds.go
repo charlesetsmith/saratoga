@@ -85,7 +85,7 @@ func sendbeacons(g *gocui.Gui, flags string, count uint, interval uint, host str
 		MsgPrintln(g, "cyan_black", "Sending beacon to ", addr)
 		binfo := beacon.Binfo{Freespace: 0, Eid: ""}
 		if err := frames.New(b, flags, &binfo); err == nil {
-			go txb.Send(g, addr, port, count, interval, errflag)
+			go txb.Send(addr, port, count, interval, errflag)
 			errcode := <-errflag
 			if errcode != "success" {
 				ErrPrintln(g, "red_black", "Error:", errcode,
@@ -416,6 +416,7 @@ func cmdFreespace(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	MsgPrintln(g, "red_black", "usage:", prusage("freespace", c))
 }
 
+// Initiator _get_
 func cmdGet(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	switch len(args) {
 	case 1:
@@ -429,7 +430,7 @@ func cmdGet(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 		}
 	case 3:
 		// var t transfer.CTransfer
-		if _, err := transfer.NewClient(g, "get", args[1], args[2], c); err != nil {
+		if _, err := transfer.NewInitiator(g, "get", args[1], args[2], c); err != nil {
 			return
 		}
 		return
@@ -437,6 +438,7 @@ func cmdGet(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	MsgPrintln(g, "red_black", prusage("get", c))
 }
 
+// Initiator _getdir_
 func cmdGetdir(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	switch len(args) {
 	case 1:
@@ -449,7 +451,7 @@ func cmdGetdir(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 			return
 		}
 	case 3:
-		if t, err := transfer.NewClient(g, "getdir", args[1], args[2], c); err != nil {
+		if t, err := transfer.NewInitiator(g, "getdir", args[1], args[2], c); err != nil {
 			MsgPrintln(g, "green_black", prusage("getdir", c))
 			MsgPrintln(g, "green_black", prhelp("getdir", c))
 		}
@@ -458,6 +460,7 @@ func cmdGetdir(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	MsgPrintln(g, "red_black", prusage("getdir", c))
 }
 
+// Initiator _get_ then _delete_
 func cmdGetrm(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	switch len(args) {
 	case 1:
@@ -670,7 +673,8 @@ func cmdPeers(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	MsgPrintln(g, "magenta_black", sbuf)
 }
 
-// put/send a file to a destination
+// Initiator _put_
+// send a file to a destination
 func cmdPut(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 
 	switch len(args) {
@@ -707,7 +711,8 @@ func cmdPut(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	MsgPrintln(g, "red_black", prusage("put", c))
 }
 
-// blind put/send a file to a destination
+// Initiator _put_
+// blind send a file to a destination not expecting return _status_ from Responder
 func cmdPutblind(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 
 	errflag := make(chan string, 1) // The return channel holding the saratoga errflag
@@ -739,7 +744,8 @@ func cmdPutblind(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	MsgPrintln(g, "red_black", prusage("putblind", c))
 }
 
-// put/send a file file to a remote destination then remove it from the origin
+// Initiator _put_
+// send a file file to a remote destination then remove it from the origin
 func cmdPutrm(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 
 	errflag := make(chan string, 1) // The return channel holding the saratoga errflag
@@ -801,6 +807,7 @@ func cmdReqtstamp(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	MsgPrintln(g, "red_black", "usage:", prusage("reqtstamp", c))
 }
 
+// Initiator _delete_
 // remove a file from a remote destination
 func cmdRm(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 
@@ -825,6 +832,7 @@ func cmdRm(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	MsgPrintln(g, "red_black", prusage("rm", c))
 }
 
+// Initiator _getdir_, _delete_ ...
 // remove a directory from a remote destination
 func cmdRmdir(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 
@@ -907,6 +915,7 @@ func cmdRxwilling(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	MsgPrintln(g, "red_black", prusage("rxwilling", c))
 }
 
+// Initiator _put_ not expecting _status_
 // source is a named pipe not a file
 func cmdStream(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	sarflags.Climu.Lock()
@@ -1205,23 +1214,23 @@ var cmdhandler = map[string]cmdfunc{
 	"exit":       cmdExit,
 	"files":      cmdFiles,
 	"freespace":  cmdFreespace,
-	"get":        cmdGet,
-	"getdir":     cmdGetdir,
-	"getrm":      cmdGetrm,
+	"get":        cmdGet,    // _get_
+	"getdir":     cmdGetdir, // _getdir_
+	"getrm":      cmdGetrm,  // _get_,_delete_
 	"help":       cmdHelp,
 	"history":    cmdHistory,
 	"home":       cmdHome,
 	"interval":   cmdInterval,
 	"ls":         cmdLs,
 	"peers":      cmdPeers,
-	"put":        cmdPut,
-	"putblind":   cmdPutblind,
-	"putrm":      cmdPutrm,
+	"put":        cmdPut,      // _put_
+	"putblind":   cmdPutblind, // _put_ (no _status_)
+	"putrm":      cmdPutrm,    // _put_ (delete local)
 	"quit":       cmdExit,
 	"reqtstamp":  cmdReqtstamp,
-	"rm":         cmdRm,
+	"rm":         cmdRm, // _delete_
 	"rmtran":     cmdRmtran,
-	"rmdir":      cmdRmdir,
+	"rmdir":      cmdRmdir, // _getdir_, _delete_ ...
 	"rxwilling":  cmdRxwilling,
 	"stream":     cmdStream,
 	"timeout":    cmdTimeout,
