@@ -6,8 +6,11 @@ import (
 	"net"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/jroimartin/gocui"
 
 	"github.com/charlesetsmith/saratoga/dirent"
 	"github.com/charlesetsmith/saratoga/frames"
@@ -18,7 +21,6 @@ import (
 	"github.com/charlesetsmith/saratoga/sarwin"
 	"github.com/charlesetsmith/saratoga/status"
 	"github.com/charlesetsmith/saratoga/timestamp"
-	"github.com/jroimartin/gocui"
 )
 
 // Ttypes - Transfer types
@@ -86,6 +88,17 @@ func Lookup(direction bool, session uint32, peer string) *Transfer {
 	return nil
 }
 
+// Lookup a host & session and return transfer pointer or nil if it does not exist
+func Match(addr, session string) *Transfer {
+	ses, err := strconv.Atoi(session)
+	for i := len(Transfers) - 1; i >= 0; i-- {
+		if err == nil && addr == Transfers[i].Conn.RemoteAddr().String() && uint32(ses) == Transfers[i].Session {
+			return &Transfers[i]
+		}
+	}
+	return nil
+}
+
 // WriteErrStatus - Send an error status
 func WriteErrStatus(g *gocui.Gui, flags string, session uint32, conn *net.UDPConn, remoteAddr *net.UDPAddr) string {
 	if sarflags.FlagValue(flags, "errcode") == "success" { // Dont send success that is silly
@@ -143,19 +156,19 @@ func NewInitiator(g *gocui.Gui, ttype string, ip string, fname string, c *sarfla
 
 // New - Add a new transfer to the Transfers list upon receipt of a request
 // when we receive a request we are therefore a "server"
-func NewResponder(g *gocui.Gui, r request.Request, ip string) (*Transfer, error) {
+func NewResponder(g *gocui.Gui, r request.Request, ip string) error {
 
 	var err error
 	var addr net.IP
 	if addr = net.ParseIP(ip); addr == nil { // Do we have a valid IP Address
 		sarwin.ErrPrintln(g, "red_black", "Transfer not added, invalid IP address ", ip)
-		return nil, errors.New(" invalid IP Address")
+		return errors.New(" invalid IP Address")
 	}
 	if Lookup(Responder, r.Session, ip) != nil {
 		emsg := fmt.Sprintf("Transfer %s for session %d to %s is currently in progress, cannnot duplicate transfer",
 			Directions[Responder], r.Session, ip)
 		sarwin.ErrPrintln(g, "red_black", emsg)
-		return nil, errors.New(emsg)
+		return errors.New(emsg)
 	}
 	// Lock it as we are going to add a new transfer
 	Trmu.Lock()
@@ -187,11 +200,12 @@ func NewResponder(g *gocui.Gui, r request.Request, ip string) (*Transfer, error)
 	// descriptor - d16, d32, d64, d128
 	// reliability - yes, no
 	var flags string
+
 	switch t.Ttype {
 	case "get", "getrm", "rm": // We are acting on a file local to this system
 		// Find the file metadata to get it's properties
 		if t.Fileinfo, err = dirent.FileMeta(t.Filename); err != nil {
-			return nil, err
+			return err
 		}
 		if t.Fileinfo.IsDir {
 			flags = sarflags.AddFlag("", "property", "normaldirectory")
@@ -211,11 +225,11 @@ func NewResponder(g *gocui.Gui, r request.Request, ip string) (*Transfer, error)
 		flags = sarflags.AddFlag(flags, "reliability", "no")
 	}
 	if t.Dir, err = dirent.New(flags, t.Filename); err != nil {
-		return nil, err
+		return err
 	}
 	t.Curfills = nil
 	if t.Cliflags, err = sarwin.Cmdptr.CopyCliflags(); err != nil {
-		return nil, errors.New("Cannot copy CLI flags for transfer")
+		return errors.New("Cannot copy CLI flags for transfer")
 	}
 
 	// conn * net.UDPConn // The connection to the remote peer
@@ -228,7 +242,7 @@ func NewResponder(g *gocui.Gui, r request.Request, ip string) (*Transfer, error)
 		Directions[t.Direction], ip, r.Session)
 	Transfers = append(Transfers, *t)
 	sarwin.MsgPrintln(g, "green_black", msg)
-	return t, nil
+	return nil
 }
 
 // Info - List transfers in progress to msg window
@@ -389,4 +403,10 @@ func (t *Transfer) Print() string {
 		t.Ttype,
 		t.Conn.RemoteAddr().String(),
 		t.Filename)
+}
+
+func (t *Transfer) Do(g *gocui.Gui, chan e error) {
+	sarwin.MsgPrintln(g, "Doing command")
+	e = nil
+	<- e
 }

@@ -13,6 +13,7 @@ import (
 	"syscall"
 
 	"github.com/charlesetsmith/saratoga/beacon"
+	"github.com/charlesetsmith/saratoga/cmds"
 	"github.com/charlesetsmith/saratoga/data"
 	"github.com/charlesetsmith/saratoga/frames"
 	"github.com/charlesetsmith/saratoga/metadata"
@@ -45,7 +46,7 @@ func reqrxhandler(g *gocui.Gui, r request.Request, remoteAddr *net.UDPAddr) stri
 		}
 		// No matching Transfer so add a new one
 		var err error
-		if t, err = transfer.NewResponder(g, r, remoteAddr.String()); err == nil {
+		if err = transfer.NewResponder(g, r, remoteAddr.String()); err == nil {
 			sarwin.MsgPrintln(g, "yellow_black", "New Transfer ", reqtype, " from ",
 				sarnet.UDPinfo(remoteAddr))
 			return "success"
@@ -376,6 +377,45 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 }
 
 var Cmdptr *sarflags.Cliflags
+
+// This is where we process command line inputs after a CR entered
+func GetLine(g *gocui.Gui, v *gocui.View) error {
+	if g == nil || v == nil {
+		log.Fatal("getLine - g or v is nil")
+	}
+	switch v.Name() {
+	case "cmd":
+		c := Cmdptr
+		// Find out where we are
+		_, cy := v.Cursor()
+		// Get the line
+		line, _ := v.Line(cy)
+
+		command := strings.SplitN(line, ":", 2)
+		if command[1] == "" { // We have just hit enter - do nothing
+			return nil
+		}
+		// Save the command into history
+		sarwin.Cinfo.Commands = append(sarwin.Cinfo.Commands, command[1])
+
+		// Spawn a go to run the command
+		go func(*gocui.Gui, string) {
+			// defer Sarwg.Done()
+			cmds.Docmd(g, command[1], c)
+		}(g, command[1])
+
+		if command[1] == "exit" || command[1] == "quit" {
+			// Sarwg.Wait()
+			err := sarwin.Quit(g, v)
+			// THIS IS A KLUDGE FIX IT WITH A CHANNEL
+			log.Fatal("\nGocui Exit. Bye!\n", err)
+		}
+		sarwin.Prompt(g, v)
+	case "msg", "packet", "err":
+		return sarwin.CursorDown(g, v)
+	}
+	return nil
+}
 
 // Main
 func main() {

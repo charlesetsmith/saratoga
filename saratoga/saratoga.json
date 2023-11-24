@@ -123,7 +123,7 @@
 			"help" : "remove a directory from a peer"
 		},
 		"rmtran" : {
-			"usage" : "rmtran <ttype> <peer> <filename>",
+			"usage" : "rmtran <peer> <session>",
 			"help" : "remove a current transfer"
 		},
 		"rxwilling" : {
