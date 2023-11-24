@@ -694,7 +694,7 @@ func cmdPut(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 			errflag := make(chan error, 1) // The return channel holding the saratoga errflag
 			go t.Do(g, errflag)            // Actually do the transfer
 			errcode := <-errflag
-			if errcode != "success" {
+			if errcode != nil {
 				sarwin.ErrPrintln(g, "red_black", "Error:", errcode,
 					" Unable to send file:", t.Print())
 				if derr := t.Remove(); derr != nil {
@@ -715,7 +715,7 @@ func cmdPut(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 // blind send a file to a destination not expecting return _status_ from Responder
 func cmdPutblind(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 
-	errflag := make(chan string, 1) // The return channel holding the saratoga errflag
+	errflag := make(chan error, 1) // The return channel holding the saratoga errflag
 
 	switch len(args) {
 	case 1:
@@ -732,7 +732,7 @@ func cmdPutblind(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 		if t, err := transfer.NewInitiator(g, "putblind", args[1], args[2], c); err == nil && t != nil {
 			go t.Do(g, errflag)
 			errcode := <-errflag
-			if errcode != "success" {
+			if errcode != nil {
 				sarwin.ErrPrintln(g, "red_black", "Error:", errcode,
 					"Unable to send file:", t.Print())
 			}
@@ -748,7 +748,7 @@ func cmdPutblind(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 // send a file file to a remote destination then remove it from the origin
 func cmdPutrm(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 
-	errflag := make(chan string, 1) // The return channel holding the saratoga errflag
+	errflag := make(chan error, 1) // The return channel holding the saratoga errflag
 
 	switch len(args) {
 	case 1:
@@ -763,9 +763,9 @@ func cmdPutrm(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	case 3:
 		// var t *transfer.Transfer
 		if t, err := transfer.NewInitiator(g, "putrm", args[1], args[2], c); err == nil && t != nil {
-			go transfer.Do(g, errflag)
+			go t.Do(g, errflag)
 			errcode := <-errflag
-			if errcode != "success" {
+			if errcode != nil {
 				sarwin.ErrPrintln(g, "red_black", "Error:", errcode,
 					" Unable to send file:", t.Print())
 			} else {
@@ -1239,8 +1239,8 @@ var cmdhandler = map[string]cmdfunc{
 	"usage":      cmdUsage,
 }
 
-// Lookup the command and execute it
-func Lookup(g *gocui.Gui, c *sarflags.Cliflags, name string) bool {
+// Lookup and run the command
+func Run(g *gocui.Gui, c *sarflags.Cliflags, name string) bool {
 	if name == "" { // Handle just return
 		return true
 	}
@@ -1258,14 +1258,4 @@ func Lookup(g *gocui.Gui, c *sarflags.Cliflags, name string) bool {
 		}
 	}
 	return false
-}
-
-// Docmd -- Execute the command entered
-func Docmd(g *gocui.Gui, s string, c *sarflags.Cliflags) {
-	if s == "" { // Handle just return
-		return
-	}
-	if !Lookup(g, c, s) {
-		sarwin.ErrPrintf(g, "red_black", "Invalid command:", s)
-	}
 }

@@ -405,8 +405,8 @@ func (t *Transfer) Print() string {
 		t.Filename)
 }
 
-func (t *Transfer) Do(g *gocui.Gui, chan e error) {
+func (t *Transfer) Do(g *gocui.Gui, e chan error) {
 	sarwin.MsgPrintln(g, "Doing command")
 	e = nil
-	<- e
+	<-e
 }
