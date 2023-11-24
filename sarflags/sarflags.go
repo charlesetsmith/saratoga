@@ -392,7 +392,7 @@ func ReadConfig(fname string) (*Cliflags, error) {
 				case "transfer":
 					conf.Timeout.Transfer = int(valuet.(float64))
 				case "binterval":
-					conf.Timeout.Transfer = int(valuet.(float64))
+					conf.Timeout.Binterval = uint(valuet.(float64))
 				case "datacounter": // Default number of data frames before a status is requested
 					conf.Timeout.Datacounter = int(valuet.(float64))
 				}
