@@ -1,0 +1,17 @@
+go 1.21.4
+
+use (
+	../beacon
+	../data
+	../dirent
+	../frames
+	../holes
+	../metadata
+	../request
+	../sarflags
+	../sarnet
+	../sarsys
+	../sarwin
+	../status
+	../timestamp
+)
