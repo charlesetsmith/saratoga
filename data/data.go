@@ -53,7 +53,7 @@ func (d *Data) New(flags string, info interface{}) error {
 	for fl := range flag {
 		f := strings.Split(flag[fl], "=") // f[0]=name f[1]=val
 		switch f[0] {
-		case "descriptor", "reqstatus", "eod":
+		case "version", "descriptor", "reqstatus", "eod":
 			if d.Header, err = sarflags.Set(d.Header, f[0], f[1]); err != nil {
 				return err
 			}

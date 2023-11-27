@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 
-	// "io/ioutil"
 	"log"
 	"math"
 	"os"
@@ -258,7 +257,6 @@ type config struct {
 	Prompt      string   `json:"prompt"`      // Command line prompt: saratoga
 	Ppad        int      `json:"ppad"`        // Padding length in prompt for []:
 	Timeout     Timeouts // Various Timers
-	// Datacounter int      `json:"datacounter"` // How many data frames received before a status is requested
 }
 
 // Climu - Protect CLI input flags
@@ -378,10 +376,10 @@ func ReadConfig(fname string) (*Cliflags, error) {
 		case "ppad":
 			conf.Ppad = int(value.(float64))
 		case "timeout": // This is a map in json so copy it to the Timeout structure vars
-			// fmt.Println(key, "=", value)
+			fmt.Println(key, "=", value)
 			timers := value.(map[string]interface{})
 			for keyt, valuet := range timers {
-				// fmt.Println("  keyt=", keyt, "= valuet=", valuet)
+				fmt.Println("  keyt=", keyt, "= valuet=", valuet)
 				switch keyt {
 				case "metadata": // If we dont receive a metadata then send status
 					conf.Timeout.Metadata = int(valuet.(float64))

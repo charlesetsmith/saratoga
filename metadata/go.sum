@@ -1,0 +1,10 @@
+github.com/charlesetsmith/saratoga/dirent v0.0.0-20231125221206-e3b4c81defea h1:m4mD/ZKMvh0mZENwZeW9f+kigSPvZHg/EK4ChrZtLcw=
+github.com/charlesetsmith/saratoga/dirent v0.0.0-20231125221206-e3b4c81defea/go.mod h1:oathsZ1XLjTufFmTaSHm7tDAftIRT5+rNOQIPykzYW0=
+github.com/charlesetsmith/saratoga/frames v0.0.0-20231125221206-e3b4c81defea h1:COlbcL88xjawU4nSLqY/1n0opr80CesPYK/qKfYhxOk=
+github.com/charlesetsmith/saratoga/frames v0.0.0-20231125221206-e3b4c81defea/go.mod h1:zYueR4Cz++u5QhqKa41p2zJuybrvAj/xqTUONJJhUms=
+github.com/charlesetsmith/saratoga/sarflags v0.0.0-20231125221206-e3b4c81defea h1:ru5uZSwAj1203Fh1fEdiKxcBbflrWJdCiWLkwN3WXmc=
+github.com/charlesetsmith/saratoga/sarflags v0.0.0-20231125221206-e3b4c81defea/go.mod h1:aJMF28eYM14hybB+8mYAlbIZu+cd4ohVC86K8sxNbzg=
+github.com/charlesetsmith/saratoga/sarsys v0.0.0-20231125221206-e3b4c81defea h1:RIjV+55gJtSQhX0ZDpIi7yB1wvxh/ju7a02syF32Yf4=
+github.com/charlesetsmith/saratoga/sarsys v0.0.0-20231125221206-e3b4c81defea/go.mod h1:kKVyS78JmTtiDOPd4+jR4xamlMKTv3e9j46gRPRUFXQ=
+github.com/charlesetsmith/saratoga/timestamp v0.0.0-20231125221206-e3b4c81defea h1:vJ5CsPWhCWYy3xaZTpDLb+rfg/y2Yg9F4VWodXDYDgg=
+github.com/charlesetsmith/saratoga/timestamp v0.0.0-20231125221206-e3b4c81defea/go.mod h1:PPTF+KIdST2MhfOFuVLLDWQ+julRTvXYWm7Pw0c8INM=
