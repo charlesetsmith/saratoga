@@ -339,7 +339,7 @@ func ReadConfig(fname string) (*Cliflags, error) {
 	// Now decode all of those variables, arrays & maps in the json into the config struct's
 	var conf config
 	for key, value := range sarconfdata {
-		fmt.Println(key, "=", value)
+		// fmt.Println(key, "=", value)
 		switch key {
 		case "v4multicast":
 			conf.V4multicast = value.(string)
@@ -376,10 +376,10 @@ func ReadConfig(fname string) (*Cliflags, error) {
 		case "ppad":
 			conf.Ppad = int(value.(float64))
 		case "timeout": // This is a map in json so copy it to the Timeout structure vars
-			fmt.Println(key, "=", value)
+			// fmt.Println(key, "=", value)
 			timers := value.(map[string]interface{})
 			for keyt, valuet := range timers {
-				fmt.Println("  keyt=", keyt, "= valuet=", valuet)
+				// fmt.Println("  keyt=", keyt, "= valuet=", valuet)
 				switch keyt {
 				case "metadata": // If we dont receive a metadata then send status
 					conf.Timeout.Metadata = int(valuet.(float64))

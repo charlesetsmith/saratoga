@@ -28,12 +28,12 @@ func TestData(t *testing.T) {
 	var d Data
 	dptr := &d
 
-	dat.Session = 0
-	dat.Offset = 0
+	dat.Session = 1234
+	dat.Offset = 100
 	dat.Payload = nil
 
-	if err := dptr.New("descriptor=d64,reqstatus=no,eod=no,reqtstamp=no", dat); err != nil {
-		fmt.Println("ERROR:", err)
+	if err := dptr.New("descriptor=d64,reqstatus=no,eod=no,reqtstamp=no", &dat); err != nil {
+		t.Fatal(err)
 	}
-	t.Fatalf(dptr.Print())
+	t.Log(dptr.Print())
 }
