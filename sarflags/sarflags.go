@@ -339,7 +339,7 @@ func ReadConfig(fname string) (*Cliflags, error) {
 	// Now decode all of those variables, arrays & maps in the json into the config struct's
 	var conf config
 	for key, value := range sarconfdata {
-		// fmt.Println(key, "=", value)
+		fmt.Println(key, "=", value)
 		switch key {
 		case "v4multicast":
 			conf.V4multicast = value.(string)
