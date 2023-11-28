@@ -1,4 +1,4 @@
-package data
+package status
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"github.com/charlesetsmith/saratoga/sarflags"
 )
 
-func TestData(t *testing.T) {
+func TestStatus(t *testing.T) {
 	// var err error
 	// var Cmdptr *sarflags.Cliflags
 	// The Command line interface commands, help & usage to be read from saratoga.json
@@ -23,19 +23,19 @@ func TestData(t *testing.T) {
 	}
 
 	// fmt.Println("Global Settings: ", Cmdptr.Global)
-	var dat Dinfo
-	// Load up the Data Structure
-	dat.Session = 1234
-	dat.Offset = 56789
-	dat.Payload = nil
+	var sta Sinfo
+	// Load up the Status Structure
+	sta.Session = 1234
+	sta.Progress = 56789
+	sta.Inrespto = 3456
 
-	var d Data
-	dptr := &d
-
-	// Create a new Data Frame
-	if err := dptr.New("descriptor=d32,reqstatus=yes,eod=no,reqtstamp=yes", &dat); err != nil {
+	var s Status
+	sptr := &s
+	flags := "descriptor=d32,stream=no,reqtstamp=yes,metadatarecvd=no,allholes=no,reqholes=requested,errcode=success"
+	// Create a new Status Frame
+	if err := sptr.New(flags, &sta); err != nil {
 		t.Fatal(err)
 	}
 	// fmt.Println("Data Frame: ", dptr.Print())
-	t.Log(dptr.Print())
+	t.Log(sptr.Print())
 }
