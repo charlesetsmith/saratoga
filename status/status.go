@@ -40,7 +40,7 @@ type Sinfo struct {
 // Flags is of format "flagname1=flagval1,flagname2=flagval2...
 // The timestamp type to use is also in the flags as "timestamp=flagval"
 // func (s *Status) New(flags string, session uint32, progress uint64, inrespto uint64, holes holes.Holes) error {
-func (s Status) New(flags string, info interface{}) error {
+func (s *Status) New(flags string, info interface{}) error {
 
 	var err error
 
@@ -59,15 +59,27 @@ func (s Status) New(flags string, info interface{}) error {
 	for fl := range flag {
 		f := strings.Split(flag[fl], "=") // f[0]=name f[1]=val
 		switch f[0] {
-		case "descriptor", "stream", "reqtstamp", "metadatarecvd", "allholes", "reqholes", "errcode":
+		case "descriptor", "stream", "metadatarecvd", "allholes", "reqholes", "errcode":
 			if s.Header, err = sarflags.Set(s.Header, f[0], f[1]); err != nil {
 				return err
 			}
+		case "reqtstamp":
+			if s.Header, err = sarflags.Set(s.Header, f[0], f[1]); err != nil {
+				return err
+			}
+			// If we requested a timestamp then default it to posix32
+			if f[1] == "yes" {
+				if err = s.Tstamp.Now("posix32"); err != nil {
+					return err
+				}
+			}
+		// If we have not requested a timestamp (reqtstamp=no) but we have set the type to one of below then
+		// get the time and date and set (reqtstamp=yes)
 		case "localinterp", "posix32", "posix64", "posix32_32", "posix64_32":
 			if err = s.Tstamp.Now(f[0]); err != nil {
 				return err
 			}
-			if s.Header, err = sarflags.Set(s.Header, "reqtsamp", "yes"); err != nil {
+			if s.Header, err = sarflags.Set(s.Header, "reqtstamp", "yes"); err != nil {
 				return err
 			}
 		default:
@@ -207,7 +219,7 @@ func (s Status) Encode() ([]byte, error) {
 }
 
 // Get -- Decode Status byte slice frame into Status struct
-func (s Status) Decode(frame []byte) error {
+func (s *Status) Decode(frame []byte) error {
 
 	if len(frame) < 12 {
 		return errors.New("status frame too short")

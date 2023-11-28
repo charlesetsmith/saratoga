@@ -1,7 +1,6 @@
 package status
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/charlesetsmith/saratoga/sarflags"
@@ -18,7 +17,8 @@ func TestStatus(t *testing.T) {
 
 	// Read in JSON config file and parse it into the Config structure.
 	if _, err := sarflags.ReadConfig("../saratoga/saratoga.json"); err != nil {
-		fmt.Println("Cannot open saratoga config file we have a Readconf error ", "saratoga.json", " ", err)
+		emsg := "Cannot open or parse saratoga.json Readconf error: " + err.Error()
+		t.Fatal(emsg)
 		return
 	}
 
@@ -31,11 +31,11 @@ func TestStatus(t *testing.T) {
 
 	var s Status
 	sptr := &s
-	flags := "descriptor=d32,stream=no,reqtstamp=yes,metadatarecvd=no,allholes=no,reqholes=requested,errcode=success"
+
+	f := "descriptor=d32,stream=no,reqtstamp=yes,metadatarecvd=no,allholes=no,reqholes=requested,errcode=success,posix64_32"
 	// Create a new Status Frame
-	if err := sptr.New(flags, &sta); err != nil {
+	if err := s.New(f, &sta); err != nil {
 		t.Fatal(err)
 	}
-	// fmt.Println("Data Frame: ", dptr.Print())
 	t.Log(sptr.Print())
 }

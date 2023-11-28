@@ -33,7 +33,8 @@ func TestData(t *testing.T) {
 	dptr := &d
 
 	// Create a new Data Frame
-	if err := dptr.New("descriptor=d32,reqstatus=yes,eod=no,reqtstamp=yes", &dat); err != nil {
+	f := "descriptor=d32,reqstatus=yes,eod=no,reqtstamp=yes"
+	if err := dptr.New(f, &dat); err != nil {
 		t.Fatal(err)
 	}
 	// fmt.Println("Data Frame: ", dptr.Print())
