@@ -37,10 +37,9 @@ func statfile(fname string, header uint32) (string, error) {
 	var direntflags string
 	var err error
 
-	direntflags = sarflags.AddFlag("", "reliability", "yes,") // This saratoga only supports reliable file types
 	fi, err := os.Lstat(fname)
 	if err != nil {
-		return direntflags, err
+		return "", err
 	}
 	switch mode := fi.Mode(); {
 	case mode.IsRegular():
@@ -115,7 +114,7 @@ func (m *MetaData) New(flags string, info interface{}) error {
 	for fl := range flag {
 		f := strings.Split(flag[fl], "=") // f[0]=name f[1]=val
 		switch f[0] {
-		case "descriptor", "progress", "udptype", "transfer", "reliability":
+		case "descriptor", "progress", "transfer", "reliability":
 			if m.Header, err = sarflags.Set(m.Header, f[0], f[1]); err != nil {
 				return err
 			}
@@ -143,8 +142,10 @@ func (m *MetaData) New(flags string, info interface{}) error {
 	if direntflags, err = statfile(fname, m.Header); err != nil {
 		return err
 	}
+
 	// Create Directory Entry
-	if m.Dir, err = dirent.New(direntflags, fname); err != nil {
+	m.Dir = new(dirent.DirEnt)
+	if err = m.Dir.New(direntflags, fname); err != nil {
 		return err
 	}
 
@@ -190,7 +191,8 @@ func (m *MetaData) Make(header uint32, info interface{}) error {
 		return err
 	}
 	// Directory Entry
-	if m.Dir, err = dirent.New(direntflags, fname); err != nil {
+	m.Dir = new(dirent.DirEnt)
+	if err = m.Dir.New(direntflags, fname); err != nil {
 		return err
 	}
 
@@ -213,7 +215,7 @@ func (m *MetaData) Make(header uint32, info interface{}) error {
 }
 
 // Put -- Encode the Saratoga Metadata buffer
-func (m MetaData) Encode() ([]byte, error) {
+func (m *MetaData) Encode() ([]byte, error) {
 
 	// Create the frame slice
 	framelen := 4 + 4 // Header + Session

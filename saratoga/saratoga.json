@@ -163,7 +163,7 @@
 	{
 		"beacon" :  ["version", "frametype", "descriptor", "stream", "txwilling", "rxwilling", "udplite", "freespace", "freespaced"],
 		"request":  ["version", "frametype", "descriptor", "stream", "reqtype", "fileordir", "udplite"],
-		"metadata": ["version", "frametype", "descriptor", "transfer", "progress", "udptype", "csumlen", "csumtype"],
+		"metadata": ["version", "frametype", "descriptor", "transfer", "progress", "reliability", "csumlen", "csumtype"],
 		"data":     ["version", "frametype", "descriptor", "transfer", "reqtstamp", "reqstatus", "eod"],
 		"status":   ["version", "frametype", "descriptor", "reqtstamp", "metadatarecvd", "allholes", "reqholes", "errcode"]
 	},
@@ -248,15 +248,6 @@
 				"invalid": 1,
 				"capable": 2,
 				"yes": 3
-			}
-		},
-		"udptype" : { 
-			"frametypes" : [ "metadata" ],
-			"len" : 1,
-			"msb" : 13,
-			"options" : {
-				"udponly": 0,
-				"udplite": 1
 			}
 		},
 		"metadatarecvd" : { 
@@ -391,6 +382,15 @@
 				"sha1": 3
 			}
 		},
+		"reliability" : {
+			"frametypes" : [ "metadata" ],
+			"len" : 1,
+			"msb" : 13,
+			"options" : {
+				"udponly": 0,
+				"udplite": 1
+			}
+		},
 		"errcode" : { 
 			"frametypes" : [ "status" ],
 			"len" : 8,
@@ -452,14 +452,6 @@
 			"msb": 10,
 			"options": {
 				"reserved": 0
-			}
-		},
-		"reliability": {
-			"len": 1,
-			"msb": 13,
-			"options": {
-				"yes": 0,
-				"no":  1
 			}
 		}
 	},

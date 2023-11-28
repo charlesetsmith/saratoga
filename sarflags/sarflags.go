@@ -71,7 +71,7 @@ import (
 // * | | | | | | | | |X|X|-> Descriptor - f_descriptor
 // * | | | | | | | | | | |X|X|-> Type of Transfer - f_transfer
 // * | | | | | | | | | | | | |X|-> Transfer in Progress - f_progress
-// * | | | | | | | | | | | | | |X|-> Reliability - f_udptype
+// * | | | | | | | | | | | | | |X|-> Reliability - f_reliability
 // * | | | | | | | | | | | | | | | | | | | | | | | | |X|X|X|X|-> Checksum Length - f_csumlen
 // * | | | | | | | | | | | | | | | | | | | | | | | | | | | | |X|X|X|X|-> Checksum Type - f_csumtype
 // * | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |
