@@ -134,7 +134,7 @@ func (r *Request) Decode(frame []byte) error {
 }
 
 // Print - Print out details of Request struct
-func (r *Request) Print() string {
+func (r Request) Print() string {
 	sflag := fmt.Sprintf("Request: 0x%x\n", r.Header)
 	rflags := sarflags.Values("request")
 	for f := range rflags {
@@ -148,7 +148,7 @@ func (r *Request) Print() string {
 }
 
 // Print - Print out details of Request struct
-func (r *Request) ShortPrint() string {
+func (r Request) ShortPrint() string {
 	sflag := fmt.Sprintf("Request: 0x%x\n", r.Header)
 	sflag += fmt.Sprintf("  session:%d\n", r.Session)
 	sflag += fmt.Sprintf("  filename:%s\n", r.Fname)
