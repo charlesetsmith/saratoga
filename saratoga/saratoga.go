@@ -530,8 +530,8 @@ func main() {
 
 	sarwin.MsgPrintln(g, "green_black", "Maximum Descriptor is:", sarflags.MaxDescriptor)
 
-	sarwin.ErrPrintln(g, "white_black", "^P - Toggle Packet View")
-	sarwin.ErrPrintln(g, "white_black", "^Space - Rotate/Change View")
+	sarwin.MsgPrintln(g, "white_black", "^P - Toggle Packet View")
+	sarwin.MsgPrintln(g, "white_black", "^Space - Rotate/Change View")
 
 	// The Base calling functions for Saratoga live in cli.go so look there first!
 	errflag := make(chan error, 1)
