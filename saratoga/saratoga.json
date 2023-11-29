@@ -14,7 +14,7 @@
 	"udplite" :        	"no",
 	"timestamp" :       "posix64",
 	"timezone" :       	"utc",
-	"sardir" :		    "~/sardir",
+	"sardir" :		    "/Users/chas/sardir",
     "prompt" :          "saratoga",
     "ppad"  :   		3,
 	"timeout" : {

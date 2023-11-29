@@ -435,17 +435,19 @@ func main() {
 		log.Fatal(err)
 	}
 	defer g.Close()
+
+	// Get Host Interfaces & Address's
+	ifis, ierr := net.Interfaces()
+	if ierr != nil {
+		fmt.Println(ierr.Error())
+		log.Fatal(ierr)
+	}
 	g.SetManagerFunc(sarwin.Layout)
 	if err := sarwin.Keybindings(g); err != nil {
 		log.Panicln(err)
 	}
 
 	// Show Host Interfaces & Address's
-	ifis, ierr := net.Interfaces()
-	if ierr != nil {
-		sarwin.MsgPrintln(g, "green_black", ierr.Error())
-	}
-	argnumb++
 	for _, ifi := range ifis {
 		if ifi.Name == os.Args[argnumb] { // || ifi.Name == "lo0" {
 			sarwin.MsgPrintln(g, "green_black", ifi.Name, " MTU ", ifi.MTU, " ", ifi.Flags.String(), ":")
