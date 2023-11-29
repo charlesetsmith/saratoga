@@ -726,6 +726,7 @@ func newsession() uint32 {
 }
 
 // FileDescriptor - Get the appropriate descriptor flag size based on file length
+/*
 func filedescriptor(fname string) string {
 	if fi, err := os.Stat(fname); err == nil {
 		size := uint64(fi.Size())
@@ -748,8 +749,10 @@ func filedescriptor(fname string) string {
 	}
 	return "descriptor=d64"
 }
+*/
 
-// Work out the maximum payload in data.Data frame given flags
+// Work out the maximum payload in data.Data frame given flagsa
+/*
 func maxpaylen(flags string) int {
 
 	plen := sarflags.Mtu() - 60 - 8 // 60 for IP header, 8 for UDP header
@@ -783,6 +786,7 @@ func maxpaylen(flags string) int {
 	}
 	return plen
 }
+*/
 
 // Work out the maximum payload in status.Status frame given flags
 func stpaylen(flags string) int {
@@ -1003,7 +1007,8 @@ func NewResponder(g *gocui.Gui, r request.Request, ip string) error {
 	switch t.Ttype {
 	case "get", "getrm", "rm": // We are acting on a file local to this system
 		// Find the file metadata to get it's properties
-		if t.Fileinfo, err = dirent.FileMeta(t.Filename); err != nil {
+		t.Fileinfo = new(dirent.FileMetaData)
+		if err = t.Fileinfo.FileMeta(t.Filename); err != nil {
 			return err
 		}
 		if t.Fileinfo.IsDir {
@@ -1023,12 +1028,13 @@ func NewResponder(g *gocui.Gui, r request.Request, ip string) error {
 	case "putblind": // We are putting a file onto this system
 		flags = sarflags.AddFlag(flags, "reliability", "no")
 	}
-	if t.Dir, err = dirent.New(flags, t.Filename); err != nil {
+	t.Dir = new(dirent.DirEnt)
+	if err = t.Dir.New(flags, t.Filename); err != nil {
 		return err
 	}
 	t.Curfills = nil
 	if t.Cliflags, err = Cmdptr.CopyCliflags(); err != nil {
-		return errors.New("Cannot copy CLI flags for transfer")
+		return errors.New("cannot copy CLI flags for transfer")
 	}
 
 	// conn * net.UDPConn // The connection to the remote peer

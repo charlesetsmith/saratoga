@@ -87,7 +87,7 @@ func (t *Timestamp) New(flag string, ts time.Time) error {
 }
 
 // Put - Return byte sequence in saratoga format ready to transmit
-func (t Timestamp) Put() []byte {
+func (t *Timestamp) Put() []byte {
 
 	tstamp := make([]byte, 16)
 
@@ -162,13 +162,14 @@ func (t *Timestamp) Get(tstamp []byte) error {
 		t.nsecs = 0
 		t.local = string(tstamp[1:15])
 		t.ttype = ttype
-		return errors.New("timestamp.Get: Invalid Timestamp")
+		e := "timestamp.Get: Invalid Timestamp type:" + ttype
+		return errors.New(e)
 	}
 	return nil
 }
 
 // Secs -- How Many whole seconds in the timestamp
-func (t Timestamp) Secs() uint64 {
+func (t *Timestamp) Secs() uint64 {
 	return t.secs
 }
 
