@@ -388,11 +388,12 @@ func main() {
 	argnumb := 1
 
 	// The Command line interface commands, help & usage to be read from saratoga.json
-	Cmdptr = new(sarflags.Cliflags)
+	Cmdptr := new(sarflags.Cliflags)
+	sarflags.Cliflag = Cmdptr
 
 	var err error
 	// Read in JSON config file and parse it into the Config structure.
-	if Cmdptr, err = sarflags.ReadConfig(os.Args[argnumb]); err != nil {
+	if err = Cmdptr.ReadConfig(os.Args[argnumb]); err != nil {
 		fmt.Println("Cannot open saratoga config file we have a Readconf error ", os.Args[argnumb], " ", err)
 		return
 	}
@@ -519,14 +520,21 @@ func main() {
 	sarwin.MsgPrintf(g, "green_black", "Available space is %d MB\n",
 		(uint64(fs.Bsize)*fs.Bavail)/1024/1024)
 
-	sarwin.ErrPrintln(g, "green_black", "MaxInt=", sarflags.MaxInt)
-	sarwin.ErrPrintln(g, "green_black", "MaxUint=", sarflags.MaxUint)
-	sarwin.ErrPrintln(g, "green_black", "MaxInt16=", sarflags.MaxInt16)
-	sarwin.ErrPrintln(g, "green_black", "MaxUint16=", sarflags.MaxUint16)
-	sarwin.ErrPrintln(g, "green_black", "MaxInt32=", sarflags.MaxInt32)
-	sarwin.ErrPrintln(g, "green_black", "MaxUint32=", sarflags.MaxUint32)
-	sarwin.ErrPrintln(g, "green_black", "MaxInt64=", sarflags.MaxInt64)
-	sarwin.ErrPrintln(g, "green_black", "MaxUint64=", sarflags.MaxUint64)
+	sarwin.MsgPrintln(g, "white_black", "Global Variables")
+	for i := range Cmdptr.Global {
+		sarwin.MsgPrintln(g, "white_black", i, "=", Cmdptr.Global[i])
+	}
+
+	/*
+		sarwin.ErrPrintln(g, "green_black", "MaxInt=", sarflags.MaxInt)
+		sarwin.ErrPrintln(g, "green_black", "MaxUint=", sarflags.MaxUint)
+		sarwin.ErrPrintln(g, "green_black", "MaxInt16=", sarflags.MaxInt16)
+		sarwin.ErrPrintln(g, "green_black", "MaxUint16=", sarflags.MaxUint16)
+		sarwin.ErrPrintln(g, "green_black", "MaxInt32=", sarflags.MaxInt32)
+		sarwin.ErrPrintln(g, "green_black", "MaxUint32=", sarflags.MaxUint32)
+		sarwin.ErrPrintln(g, "green_black", "MaxInt64=", sarflags.MaxInt64)
+		sarwin.ErrPrintln(g, "green_black", "MaxUint64=", sarflags.MaxUint64)
+	*/
 
 	sarwin.MsgPrintln(g, "green_black", "Maximum Descriptor is:", sarflags.MaxDescriptor)
 
@@ -535,7 +543,7 @@ func main() {
 
 	// The Base calling functions for Saratoga live in cli.go so look there first!
 	errflag := make(chan error, 1)
-	go mainloop(g, errflag, Cmdptr)
+	go mainloop(g, errflag)
 	select {
 	case v4err := <-v4listenquit:
 		fmt.Println("Saratoga v4 listener has quit with error:", v4err)
@@ -547,7 +555,7 @@ func main() {
 }
 
 // Go routine for command line loop
-func mainloop(g *gocui.Gui, done chan error, c *sarflags.Cliflags) {
+func mainloop(g *gocui.Gui, done chan error) {
 	err := g.MainLoop()
 	// fmt.Println(err.Error())
 	done <- err

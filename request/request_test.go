@@ -7,24 +7,18 @@ import (
 )
 
 func TestRequest(t *testing.T) {
-	// var err error
-	// var Cmdptr *sarflags.Cliflags
-	// The Command line interface commands, help & usage to be read from saratoga.json
-	// Cmdptr = new(sarflags.Cliflags)
 
-	// The Command line interface commands, help & usage to be read from saratoga.json
-	// Cmdptr := new(sarflags.Cliflags)
-
+	conf := new(sarflags.Cliflags)
 	// Read in JSON config file and parse it into the Config structure.
-	if _, err := sarflags.ReadConfig("../saratoga/saratoga.json"); err != nil {
+	if err := conf.ReadConfig("../saratoga/saratoga.json"); err != nil {
 		emsg := "Cannot open or parse saratoga.json Readconf error: " + err.Error()
 		t.Fatal(emsg)
 		return
 	}
 
-	// fmt.Println("Global Settings: ", Cmdptr.Global)
+	// fmt.Println("Global Settings: ", conf.Global)
 	var req Rinfo
-	// Load up the Status Structure
+	// Load up the Request Structure
 	req.Session = 1234
 	req.Fname = "go.mod"
 

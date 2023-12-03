@@ -1,6 +1,7 @@
 package metadata
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/charlesetsmith/saratoga/sarflags"
@@ -14,13 +15,18 @@ func TestMetadata(t *testing.T) {
 
 	// The Command line interface commands, help & usage to be read from saratoga.json
 	// Cmdptr := new(sarflags.Cliflags)
+	conf := new(sarflags.Cliflags)
 
 	// Read in JSON config file and parse it into the Config structure.
-	if _, err := sarflags.ReadConfig("../saratoga/saratoga.json"); err != nil {
+	if err := conf.ReadConfig("../saratoga/saratoga.json"); err != nil {
 		emsg := "Cannot open or parse saratoga.json Readconf error: " + err.Error()
 		t.Fatal(emsg)
 		return
 	}
+	for i := range conf.Global {
+		fmt.Println(i, "=", conf.Global[i])
+	}
+	fmt.Println("Timeouts:", conf.Timeout)
 
 	// fmt.Println("Global Settings: ", Cmdptr.Global)
 	var met Minfo

@@ -1,7 +1,6 @@
 package timestamp
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/charlesetsmith/saratoga/sarflags"
@@ -9,9 +8,11 @@ import (
 
 func TestTimestamp(t *testing.T) {
 
+	conf := new(sarflags.Cliflags)
 	// Read in JSON config file and parse it into the Config structure.
-	if _, err := sarflags.ReadConfig("../saratoga/saratoga.json"); err != nil {
-		fmt.Println("Cannot open saratoga config file we have a Readconf error ", "saratoga.json", " ", err)
+	if err := conf.ReadConfig("../saratoga/saratoga.json"); err != nil {
+		emsg := "Cannot open or parse saratoga.json Readconf error: " + err.Error()
+		t.Fatal(emsg)
 		return
 	}
 

@@ -509,8 +509,6 @@ var Commands []string
 // Sarwg - Wait group for commands to run/finish - We dont quit till this is 0
 var Sarwg sync.WaitGroup
 
-var Cmdptr *sarflags.Cliflags
-
 func Quit(g *gocui.Gui, v *gocui.View) error {
 	return gocui.ErrQuit
 }
@@ -539,9 +537,9 @@ func GetLine(g *gocui.Gui, v *gocui.View) error {
 	if g == nil || v == nil {
 		log.Fatal("getLine - g or v is nil")
 	}
+
 	switch v.Name() {
 	case "cmd":
-		c := Cmdptr
 		// Find out where we are
 		_, cy := v.Cursor()
 		// Get the line
@@ -560,7 +558,7 @@ func GetLine(g *gocui.Gui, v *gocui.View) error {
 			// THIS IS A KLUDGE FIX IT WITH A CHANNEL
 			log.Fatal("\nGocui Exit. Bye!\n", err)
 		}
-		Run(g, c, command[1])
+		Run(g, command[1], sarflags.Cliflag)
 		Prompt(g, v)
 	case "msg", "packet", "err":
 		return CursorDown(g, v)
@@ -1033,7 +1031,7 @@ func NewResponder(g *gocui.Gui, r request.Request, ip string) error {
 		return err
 	}
 	t.Curfills = nil
-	if t.Cliflags, err = Cmdptr.CopyCliflags(); err != nil {
+	if t.Cliflags, err = sarflags.Cliflag.CopyCliflags(); err != nil {
 		return errors.New("cannot copy CLI flags for transfer")
 	}
 
@@ -1362,31 +1360,38 @@ func cmdCancel(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 func cmdChecksum(g *gocui.Gui, args []string, c *sarflags.Cliflags) {
 	sarflags.Climu.Lock()
 	defer sarflags.Climu.Unlock()
-
+	//for k, v := range sarflags.Cliflag.Global {
+	//	MsgPrintln(g, "red_black", k, "=", v)
+	// }
+	ErrPrintln(g, "red_black", "Args=", args, " Len=", len(args))
 	switch len(args) {
 	case 1:
-		MsgPrintln(g, "green_black", "Checksum ", c.Global["csumtype"])
+		MsgPrintln(g, "white_black", "Checksum ", sarflags.Cliflag.Global["csumtype"])
 		return
 	case 2:
 		switch args[1] {
 		case "?": // usage
-			MsgPrintln(g, "green_black", prusage("checksum", c))
-			MsgPrintln(g, "green_black", prhelp("checksum", c))
+			ErrPrintln(g, "green_black", prusage("checksum", sarflags.Cliflag))
+			ErrPrintln(g, "green_black", prhelp("checksum", sarflags.Cliflag))
 			return
 		case "off", "none":
-			c.Global["csumtype"] = "none"
+			sarflags.Cliflag.Global["csumtype"] = "none"
 		case "crc32":
-			c.Global["csumtype"] = "crc32"
+			sarflags.Cliflag.Global["csumtype"] = "crc32"
 		case "md5":
-			c.Global["csumtype"] = "md5"
+			sarflags.Cliflag.Global["csumtype"] = "md5"
 		case "sha1":
-			c.Global["csumtype"] = "sha1"
+			sarflags.Cliflag.Global["csumtype"] = "sha1"
 		default:
-			CmdPrintln(g, "green_red", prusage("checksum", c))
+			CmdPrintln(g, "green_red", "ERROR", prusage("checksum", sarflags.Cliflag))
+			return
 		}
+		MsgPrintln(g, "green_black", "Checksum ", sarflags.Cliflag.Global["csumtype"])
 		return
+	default:
+		ErrPrintln(g, "green_red", prusage("checksum", sarflags.Cliflag))
 	}
-	CmdPrintln(g, "green_red", prusage("checksum", c))
+	CmdPrintln(g, "green_red", prusage("checksum", sarflags.Cliflag))
 }
 
 // cmdDescriptor -- set descriptor size 16,32,64,128 bits
@@ -2355,13 +2360,18 @@ var cmdhandler = map[string]cmdfunc{
 }
 
 // Lookup and run the command
-func Run(g *gocui.Gui, c *sarflags.Cliflags, name string) bool {
+func Run(g *gocui.Gui, name string, c *sarflags.Cliflags) bool {
 	if name == "" { // Handle just return
 		return true
 	}
+	// for k, v := range c.Global {
+	//	MsgPrintln(g, "white_red", k, "=", v)
+	// }
+	// MsgPrintln(g, "white_black", "Commands=", sarflags.Commands)
 	// Get rid of leading and trailing whitespace
 	s := strings.TrimSpace(name)
 	vals := strings.Fields(s)
+	ErrPrintln(g, "yellow_black", "Command Values:", vals, " Len=", len(vals))
 	for key := range sarflags.Commands {
 		if key == name {
 			fn, ok := cmdhandler[name]

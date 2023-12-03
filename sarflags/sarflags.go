@@ -278,6 +278,10 @@ type Cliflags struct {
 	Sardir   string // Saratoga working directory
 }
 
+// Glabal Variable holding the Command line interface flags
+// This is used throughout sarwin and allocated in main
+var Cliflag *Cliflags
+
 // MTU -- Maximum write []byte buffer, set to interface MTU
 var mtu int
 
@@ -308,7 +312,8 @@ func getmaxdesc() (desc string, err error) {
 }
 
 // Read  in the JSON Config data
-func ReadConfig(fname string) (*Cliflags, error) {
+// Set values to the filled out Cliflags structure in *Cliflags
+func (c *Cliflags) ReadConfig(fname string) error {
 	var err error
 
 	// var cmu sync.Mutex
@@ -319,25 +324,26 @@ func ReadConfig(fname string) (*Cliflags, error) {
 
 	// Find the maximum descriptor on this platform
 	if MaxDescriptor, err = getmaxdesc(); err != nil {
-		return nil, err
+		return err
 	}
 
 	var confdata []byte
 	if confdata, err = os.ReadFile(fname); err != nil {
 		fmt.Println("Cannot open the saratoga config file", os.Args[1], ":", err)
-		return nil, err
+		return err
 	}
 
 	var sarconfdata map[string]interface{}
 	if err = json.Unmarshal([]byte(confdata), &sarconfdata); err != nil {
 		fmt.Println("Cannot Unmarshal json from saratoga config file", os.Args[1], ":", err)
-		return nil, err
+		return err
 	}
 	// Lock them up while we are changing the values
 	Climu.Lock()
 	defer Climu.Unlock()
 	// Now decode all of those variables, arrays & maps in the json into the config struct's
 	var conf config
+
 	for key, value := range sarconfdata {
 		// fmt.Println(key, "=", value)
 		switch key {
@@ -398,17 +404,17 @@ func ReadConfig(fname string) (*Cliflags, error) {
 		case "commands": //This is a map in json so copy it to the Commands array
 			cmds := value.(map[string]interface{})
 			for cmd, value := range cmds {
-				var c Cmdtype
+				var ct Cmdtype
 				info := value.(map[string]interface{})
 				for keyx, valx := range info {
 					switch keyx {
 					case "help":
-						c.Help = valx.(string)
+						ct.Help = valx.(string)
 					case "usage":
-						c.Usage = valx.(string)
+						ct.Usage = valx.(string)
 					}
 				}
-				Commands[cmd] = c
+				Commands[cmd] = ct
 			}
 			// for _, v := range conf.Commands {
 			// fmt.Println(v.Cmd, " | ", v.Usage, " | ", v.Help)
@@ -483,7 +489,6 @@ func ReadConfig(fname string) (*Cliflags, error) {
 						}
 					}
 				}
-				// fmt.Println("dateflag for", key, "=", tmp)
 				DirentFlags[dkey] = tmp
 			}
 		case "timestamps":
@@ -507,9 +512,8 @@ func ReadConfig(fname string) (*Cliflags, error) {
 
 	}
 
-	c := new(Cliflags)
 	// Give default values to flags from saratoga JSON config
-	c.Global = make(map[string]string)
+	c.Global = make(map[string]string, 9)
 	c.Global["csumtype"] = conf.Csumtype
 	c.Global["freespace"] = conf.Freespace
 	c.Global["txwilling"] = conf.Txwilling
@@ -535,19 +539,17 @@ func ReadConfig(fname string) (*Cliflags, error) {
 
 	// Get the default directory for sarotaga transfers from environment
 	// We default to what is in the environment variable otherwise what is in saratoga.json
-	var sardir string
-	if sardir = os.Getenv("SARDIR"); sardir == "" {
-		sardir = conf.Sardir // If no env variable set then set it to conf file value
+	if c.Sardir = os.Getenv("SARDIR"); c.Sardir == "" {
+		c.Sardir = conf.Sardir // If no env variable set then set it to conf file value
 	}
-	c.Sardir = sardir
 
 	for f, v := range c.Global {
 		if !Valid(f, c.Global[f]) {
 			ps := "Invalid Flag:" + f + "=" + v
-			panic(ps)
+			return errors.New(ps)
 		}
 	}
-	return c, nil
+	return nil
 }
 
 // Valid - Check for valid flag and value
