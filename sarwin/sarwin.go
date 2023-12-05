@@ -1269,8 +1269,8 @@ func cmdBeacon(g *gocui.Gui, args []string) {
 	case 2:
 		switch args[1] {
 		case "?": // usage
+			MsgPrintln(g, "magenta_black", prhelp("beacon"))
 			MsgPrintln(g, "green_black", prusage("beacon"))
-			MsgPrintln(g, "green_black", prhelp("beacon"))
 			return
 		case "off": // remove and disable all beacons
 			clibeacon.flags = sarflags.Setglobal("beacon", sarflags.Cliflag)
@@ -1319,8 +1319,8 @@ func cmdBeacon(g *gocui.Gui, args []string) {
 					MsgPrintln(g, "green_black", "")
 				}
 			} else {
-				MsgPrintln(g, "red_black", "Invalid IP Address:", args[i])
-				CmdPrintln(g, "red_black", prusage("beacon"))
+				ErrPrintln(g, "red_black", "Invalid IP Address:", args[i])
+				ErrPrintln(g, "red_black", prusage("beacon"))
 			}
 		}
 		return
@@ -1368,8 +1368,8 @@ func cmdChecksum(g *gocui.Gui, args []string) {
 	case 2:
 		switch args[1] {
 		case "?": // usage
-			ErrPrintln(g, "green_black", prusage("checksum"))
-			ErrPrintln(g, "green_black", prhelp("checksum"))
+			MsgPrintln(g, "magenta_black", prhelp("checksum"))
+			MsgPrintln(g, "green_black", prusage("checksum"))
 			return
 		case "off", "none":
 			sarflags.Cliflag.Global["csumtype"] = "none"
@@ -1388,7 +1388,7 @@ func cmdChecksum(g *gocui.Gui, args []string) {
 	default:
 		ErrPrintln(g, "green_red", prusage("checksum"))
 	}
-	CmdPrintln(g, "green_red", prusage("checksum"))
+	ErrPrintln(g, "green_red", prusage("checksum"))
 }
 
 // cmdDescriptor -- set descriptor size 16,32,64,128 bits
@@ -1403,8 +1403,8 @@ func cmdDescriptor(g *gocui.Gui, args []string) {
 	case 2:
 		switch args[1] {
 		case "?": // usage
+			MsgPrintln(g, "magenta_black", prhelp("descriptor"))
 			MsgPrintln(g, "green_black", prusage("descriptor"))
-			MsgPrintln(g, "green_black", prhelp("descriptor"))
 			return
 		case "auto":
 			if sarflags.MaxUint <= sarflags.MaxUint16 {
@@ -1443,12 +1443,12 @@ func cmdDescriptor(g *gocui.Gui, args []string) {
 		case "d128":
 			MsgPrintln(g, "red_black", "128 bit descriptors not supported on this platform")
 		default:
-			MsgPrintln(g, "red_black", "usage:", prusage("descriptor"))
+			ErrPrintln(g, "red_black", "usage:", prusage("descriptor"))
 		}
 		MsgPrintln(g, "green_black", "Descriptor size is ", sarflags.Cliflag.Global["descriptor"])
 		return
 	}
-	MsgPrintln(g, "red_black", "usage:", prusage("descriptor"))
+	ErrPrintln(g, "red_black", "usage:", prusage("descriptor"))
 }
 
 // Cexit = Exit level to quit from saratoga
@@ -1464,8 +1464,8 @@ func cmdExit(g *gocui.Gui, args []string) {
 	case 2:
 		switch args[1] {
 		case "?": // Usage
+			MsgPrintln(g, "magenta_black", prhelp("exit"))
 			MsgPrintln(g, "green_black", prusage("exit"))
-			MsgPrintln(g, "green_black", prhelp("exit"))
 		case "0": // exit 0
 			Cexit = 0
 			MsgPrintln(g, "green_black", "Good Bye!")
@@ -1473,10 +1473,10 @@ func cmdExit(g *gocui.Gui, args []string) {
 			Cexit = 1
 			MsgPrintln(g, "green_black", "Good Bye!")
 		default: // Help
-			MsgPrintln(g, "red_black", prusage("exit"))
+			ErrPrintln(g, "red_black", prusage("exit"))
 		}
 	default:
-		MsgPrintln(g, "red_black", prusage("exit"))
+		ErrPrintln(g, "red_black", prusage("exit"))
 	}
 }
 
@@ -1497,12 +1497,12 @@ func cmdFiles(g *gocui.Gui, args []string) {
 		return
 	case 2:
 		if args[1] == "?" { // usage
+			MsgPrintln(g, "magenta_black", prhelp("files"))
 			MsgPrintln(g, "green_black", prusage("files"))
-			MsgPrintln(g, "green_black", prhelp("files"))
 			return
 		}
 	}
-	MsgPrintln(g, "red_black", prusage("files"))
+	ErrPrintln(g, "red_black", prusage("files"))
 }
 
 func cmdFreespace(g *gocui.Gui, args []string) {
@@ -1520,8 +1520,8 @@ func cmdFreespace(g *gocui.Gui, args []string) {
 	case 2:
 		switch args[1] {
 		case "?": // usage
+			MsgPrintln(g, "magenta_black", prhelp("freespace"))
 			MsgPrintln(g, "green_black", prusage("freespace"))
-			MsgPrintln(g, "green_black", prhelp("freespace"))
 			return
 		case "yes":
 			MsgPrintln(g, "green_black", "freespace is advertised")
@@ -1533,7 +1533,7 @@ func cmdFreespace(g *gocui.Gui, args []string) {
 			return
 		}
 	}
-	MsgPrintln(g, "red_black", "usage:", prusage("freespace"))
+	ErrPrintln(g, "red_black", "usage:", prusage("freespace"))
 }
 
 // Initiator _get_
@@ -1544,8 +1544,8 @@ func cmdGet(g *gocui.Gui, args []string) {
 		return
 	case 2:
 		if args[1] == "?" {
+			MsgPrintln(g, "magenta_black", prhelp("get"))
 			MsgPrintln(g, "green_black", prusage("get"))
-			MsgPrintln(g, "green_black", prhelp("get"))
 			return
 		}
 	case 3:
@@ -1555,7 +1555,7 @@ func cmdGet(g *gocui.Gui, args []string) {
 		}
 		return
 	}
-	MsgPrintln(g, "red_black", prusage("get"))
+	ErrPrintln(g, "red_black", prusage("get"))
 }
 
 // Initiator _getdir_
@@ -1566,18 +1566,18 @@ func cmdGetdir(g *gocui.Gui, args []string) {
 		return
 	case 2:
 		if args[1] == "?" {
+			MsgPrintln(g, "magenta_black", prhelp("getdir"))
 			MsgPrintln(g, "green_black", prusage("getdir"))
-			MsgPrintln(g, "green_black", prhelp("getdir"))
 			return
 		}
 	case 3:
 		if _, err := NewInitiator(g, "getdir", args[1], args[2], sarflags.Cliflag); err != nil {
-			MsgPrintln(g, "green_black", prusage("getdir"))
-			MsgPrintln(g, "green_black", prhelp("getdir"))
+			MsgPrintln(g, "magenta_black", prhelp("getdir"))
+			ErrPrintln(g, "green_black", prusage("getdir"))
 		}
 		return
 	}
-	MsgPrintln(g, "red_black", prusage("getdir"))
+	ErrPrintln(g, "red_black", prusage("getdir"))
 }
 
 // Initiator _get_ then _delete_
@@ -1588,19 +1588,19 @@ func cmdGetrm(g *gocui.Gui, args []string) {
 		return
 	case 2:
 		if args[1] == "?" {
+			MsgPrintln(g, "magenta_black", prhelp("getrm"))
 			MsgPrintln(g, "green_black", prusage("getrm"))
-			MsgPrintln(g, "green_black", prhelp("getrm"))
 			return
 		}
 	case 3:
 		if _, err := NewInitiator(g, "getrm", args[1], args[2], sarflags.Cliflag); err != nil {
-			MsgPrintln(g, "green_black", prusage("getrm"))
-			MsgPrintln(g, "green_black", prhelp("getrm"))
+			MsgPrintln(g, "magenta_black", prhelp("getrm"))
+			ErrPrintln(g, "green_black", prusage("getrm"))
 			return
 		}
 		return
 	}
-	MsgPrintln(g, "red_black", prusage("getrm"))
+	ErrPrintln(g, "red_black", prusage("getrm"))
 }
 
 func cmdHelp(g *gocui.Gui, args []string) {
@@ -1662,8 +1662,8 @@ func cmdInterval(g *gocui.Gui, args []string) {
 	case 2:
 		switch args[1] {
 		case "?":
+			MsgPrintln(g, "magenta_black", prhelp("interval"))
 			MsgPrintln(g, "green_black", prusage("interval"))
-			MsgPrintln(g, "green_black", prhelp("interval"))
 			return
 		case "off":
 			sarflags.Cliflag.Timeout.Binterval = 0
@@ -1674,9 +1674,9 @@ func cmdInterval(g *gocui.Gui, args []string) {
 				return
 			}
 		}
-		MsgPrintln(g, "red_black", prusage("interval"))
+		ErrPrintln(g, "red_black", prusage("interval"))
 	}
-	MsgPrintln(g, "red_black", prusage("interval"))
+	ErrPrintln(g, "red_black", prusage("interval"))
 }
 
 func cmdHistory(g *gocui.Gui, args []string) {
@@ -1687,15 +1687,15 @@ func cmdHistory(g *gocui.Gui, args []string) {
 	case 2:
 		switch args[1] {
 		case "?":
+			MsgPrintln(g, "magenta_black", prhelp("history"))
 			MsgPrintln(g, "green_black", prusage("history"))
-			MsgPrintln(g, "green_black", prhelp("history"))
 			return
 		default:
 			MsgPrintln(g, "green_black", "History not implemented yet")
 			return
 		}
 	}
-	MsgPrintln(g, "red_black", prusage("history"))
+	ErrPrintln(g, "red_black", prusage("history"))
 }
 
 func cmdHome(g *gocui.Gui, args []string) {
@@ -1706,23 +1706,23 @@ func cmdHome(g *gocui.Gui, args []string) {
 	case 2:
 		switch args[1] {
 		case "?":
+			MsgPrintln(g, "magenta_black", prhelp("home"))
 			MsgPrintln(g, "green_black", prusage("home"))
-			MsgPrintln(g, "green_black", prhelp("home"))
 			return
 		}
 	}
-	MsgPrintln(g, "red_black", prusage("home"))
+	ErrPrintln(g, "red_black", prusage("home"))
 }
 
 func cmdLs(g *gocui.Gui, args []string) {
 	if len(args) != 0 {
-		MsgPrintln(g, "red_bblack", prusage("ls"))
+		ErrPrintln(g, "red_bblack", prusage("ls"))
 		return
 	}
 	switch args[1] {
 	case "?":
+		MsgPrintln(g, "magenta_black", prhelp("ls"))
 		MsgPrintln(g, "green_black", prusage("ls"))
-		MsgPrintln(g, "green_black", prhelp("ls"))
 		return
 	}
 	MsgPrintln(g, "green_black", "ls not implemented yet")
@@ -1730,66 +1730,72 @@ func cmdLs(g *gocui.Gui, args []string) {
 
 // Display all of the peer information learned frm beacons
 func cmdPeers(g *gocui.Gui, args []string) {
-	if len(args) != 1 {
-		MsgPrintln(g, "red_bblack", prusage("peers"))
-		return
-	}
-
-	if len(beacon.Peers) == 0 {
-		MsgPrintln(g, "magenta_black", "No Peers")
-		return
-	}
-	// Table format
-	// Work out the max length of each field
-	var addrlen, eidlen, dcrelen, dmodlen int
-	for p := range beacon.Peers {
-		if len(beacon.Peers[p].Addr) > addrlen {
-			addrlen = len(beacon.Peers[p].Addr)
+	switch len(args) {
+	case 1:
+		if len(beacon.Peers) == 0 {
+			MsgPrintln(g, "green_black", "No Peers")
+			return
 		}
-		if len(beacon.Peers[p].Eid) > eidlen {
-			eidlen = len(beacon.Peers[p].Eid)
+		// Table format
+		// Work out the max length of each field
+		var addrlen, eidlen, dcrelen, dmodlen int
+		for p := range beacon.Peers {
+			if len(beacon.Peers[p].Addr) > addrlen {
+				addrlen = len(beacon.Peers[p].Addr)
+			}
+			if len(beacon.Peers[p].Eid) > eidlen {
+				eidlen = len(beacon.Peers[p].Eid)
+			}
+			if len(beacon.Peers[p].Created.Print()) > dcrelen {
+				dcrelen = len(beacon.Peers[p].Created.Print())
+			}
+			if len(beacon.Peers[p].Created.Print()) > dmodlen {
+				dmodlen = len(beacon.Peers[p].Updated.Print())
+			}
 		}
-		if len(beacon.Peers[p].Created.Print()) > dcrelen {
-			dcrelen = len(beacon.Peers[p].Created.Print())
+		if eidlen < 3 {
+			eidlen = 3
 		}
-		if len(beacon.Peers[p].Created.Print()) > dmodlen {
-			dmodlen = len(beacon.Peers[p].Updated.Print())
+
+		sfmt := fmt.Sprintf("|%%%ds|%%6s|%%%ds|%%3s|%%%ds|%%%ds|\n",
+			addrlen, eidlen, dcrelen, dmodlen)
+		sborder := fmt.Sprintf(sfmt,
+			strings.Repeat("-", addrlen),
+			strings.Repeat("-", 6),
+			strings.Repeat("-", eidlen),
+			strings.Repeat("-", 3),
+			strings.Repeat("-", dcrelen),
+			strings.Repeat("-", dmodlen))
+
+		var sslice sort.StringSlice
+		for key := range beacon.Peers {
+			pinfo := fmt.Sprintf(sfmt, beacon.Peers[key].Addr,
+				strconv.Itoa(int(beacon.Peers[key].Freespace/1024/1024)),
+				beacon.Peers[key].Eid,
+				beacon.Peers[key].Maxdesc,
+				beacon.Peers[key].Created.Print(),
+				beacon.Peers[key].Updated.Print())
+			sslice = append(sslice, pinfo)
+		}
+		sort.Sort(sslice)
+
+		sbuf := sborder
+		sbuf += fmt.Sprintf(sfmt, "IP", "GB", "EID", "Des", "Date Created", "Date Modified")
+		sbuf += sborder
+		for key := 0; key < len(sslice); key++ {
+			sbuf += sslice[key]
+		}
+		sbuf += sborder
+		MsgPrintln(g, "green_black", sbuf)
+	case 2:
+		if args[1] == "?" {
+			MsgPrintln(g, "magenta_black", prhelp("peers"))
+			MsgPrintln(g, "green_black", prusage("peers"))
+			return
 		}
 	}
-	if eidlen < 3 {
-		eidlen = 3
-	}
-
-	sfmt := fmt.Sprintf("|%%%ds|%%6s|%%%ds|%%3s|%%%ds|%%%ds|\n",
-		addrlen, eidlen, dcrelen, dmodlen)
-	sborder := fmt.Sprintf(sfmt,
-		strings.Repeat("-", addrlen),
-		strings.Repeat("-", 6),
-		strings.Repeat("-", eidlen),
-		strings.Repeat("-", 3),
-		strings.Repeat("-", dcrelen),
-		strings.Repeat("-", dmodlen))
-
-	var sslice sort.StringSlice
-	for key := range beacon.Peers {
-		pinfo := fmt.Sprintf(sfmt, beacon.Peers[key].Addr,
-			strconv.Itoa(int(beacon.Peers[key].Freespace/1024/1024)),
-			beacon.Peers[key].Eid,
-			beacon.Peers[key].Maxdesc,
-			beacon.Peers[key].Created.Print(),
-			beacon.Peers[key].Updated.Print())
-		sslice = append(sslice, pinfo)
-	}
-	sort.Sort(sslice)
-
-	sbuf := sborder
-	sbuf += fmt.Sprintf(sfmt, "IP", "GB", "EID", "Des", "Date Created", "Date Modified")
-	sbuf += sborder
-	for key := 0; key < len(sslice); key++ {
-		sbuf += sslice[key]
-	}
-	sbuf += sborder
-	MsgPrintln(g, "magenta_black", sbuf)
+	MsgPrintln(g, "magenta_black", prhelp("peers"))
+	ErrPrintln(g, "red_black", prusage("peers"))
 }
 
 // Initiator _put_
@@ -1802,8 +1808,8 @@ func cmdPut(g *gocui.Gui, args []string) {
 		return
 	case 2:
 		if args[1] == "?" {
+			MsgPrintln(g, "magenta_black", prhelp("put"))
 			MsgPrintln(g, "green_black", prusage("put"))
-			MsgPrintln(g, "green_black", prhelp("put"))
 			return
 		}
 	case 3:
@@ -1825,7 +1831,7 @@ func cmdPut(g *gocui.Gui, args []string) {
 		}
 		return
 	}
-	MsgPrintln(g, "red_black", prusage("put"))
+	ErrPrintln(g, "red_black", prusage("put"))
 }
 
 // Initiator _put_
@@ -1840,8 +1846,8 @@ func cmdPutblind(g *gocui.Gui, args []string) {
 		return
 	case 2:
 		if args[1] == "?" {
+			MsgPrintln(g, "magenta_black", prhelp("putblind"))
 			MsgPrintln(g, "green_black", prusage("putblind"))
-			MsgPrintln(g, "green_black", prhelp("putblind"))
 			return
 		}
 	case 3:
@@ -1858,7 +1864,7 @@ func cmdPutblind(g *gocui.Gui, args []string) {
 		}
 		return
 	}
-	MsgPrintln(g, "red_black", prusage("putblind"))
+	ErrPrintln(g, "red_black", prusage("putblind"))
 }
 
 // Initiator _put_
@@ -1873,8 +1879,8 @@ func cmdPutrm(g *gocui.Gui, args []string) {
 		return
 	case 2:
 		if args[1] == "?" {
+			MsgPrintln(g, "magenta_black", prhelp("putrm"))
 			MsgPrintln(g, "green_black", prusage("putrm"))
-			MsgPrintln(g, "green_black", prhelp("putrm"))
 			return
 		}
 	case 3:
@@ -1892,7 +1898,7 @@ func cmdPutrm(g *gocui.Gui, args []string) {
 		}
 		return
 	}
-	MsgPrintln(g, "red_black", prusage("putrm"))
+	ErrPrintln(g, "red_black", prusage("putrm"))
 }
 
 func cmdReqtstamp(g *gocui.Gui, args []string) {
@@ -1910,8 +1916,8 @@ func cmdReqtstamp(g *gocui.Gui, args []string) {
 	case 2:
 		switch args[1] {
 		case "?": // usage
+			MsgPrintln(g, "magenta_black", prhelp("reqtstamp"))
 			MsgPrintln(g, "green_black", prusage("reqtstamp"))
-			MsgPrintln(g, "green_black", prhelp("reqtstamp"))
 			return
 		case "yes":
 			sarflags.Cliflag.Global["reqtstamp"] = "yes"
@@ -1921,7 +1927,7 @@ func cmdReqtstamp(g *gocui.Gui, args []string) {
 			return
 		}
 	}
-	MsgPrintln(g, "red_black", "usage:", prusage("reqtstamp"))
+	ErrPrintln(g, "red_black", "usage:", prusage("reqtstamp"))
 }
 
 // Initiator _delete_
@@ -1934,18 +1940,18 @@ func cmdRm(g *gocui.Gui, args []string) {
 		return
 	case 2:
 		if args[1] == "?" {
+			MsgPrintln(g, "magenta_black", prhelp("rm"))
 			MsgPrintln(g, "green_black", prusage("rm"))
-			MsgPrintln(g, "green_black", prhelp("rm"))
 			return
 		}
 	case 3:
 		if _, err := NewInitiator(g, "rm", args[1], args[2], sarflags.Cliflag); err != nil {
-			MsgPrintln(g, "green_black", prusage("rm"))
-			MsgPrintln(g, "green_black", prhelp("rm"))
+			MsgPrintln(g, "magenta_black", prhelp("rm"))
+			ErrPrintln(g, "red_black", prusage("rm"))
 			return
 		}
 	}
-	MsgPrintln(g, "red_black", prusage("rm"))
+	ErrPrintln(g, "red_black", prusage("rm"))
 }
 
 // Initiator _getdir_, _delete_ ...
@@ -1958,31 +1964,31 @@ func cmdRmdir(g *gocui.Gui, args []string) {
 		return
 	case 2:
 		if args[1] == "?" {
+			MsgPrintln(g, "magenta_black", prhelp("rmdir"))
 			MsgPrintln(g, "green_black", prusage("rmdir"))
-			MsgPrintln(g, "green_black", prhelp("rmdir"))
 			return
 		}
 	case 3:
 		if _, err := NewInitiator(g, "rmdir", args[1], args[2], sarflags.Cliflag); err != nil {
-			MsgPrintln(g, "green_black", prusage("rmdir"))
-			MsgPrintln(g, "green_black", prhelp("rmdir"))
+			MsgPrintln(g, "magenta_black", prhelp("rmdir"))
+			ErrPrintln(g, "red_black", prusage("rmdir"))
 			return
 		}
 	}
-	MsgPrintln(g, "red_black", prusage("rmdir"))
+	ErrPrintln(g, "red_black", prusage("rmdir"))
 }
 
 func cmdRmtran(g *gocui.Gui, args []string) {
 
 	switch len(args) {
 	case 1:
-		MsgPrintln(g, "green_black", prusage("rmtran"))
-		MsgPrintln(g, "green_black", prhelp("rmtran"))
+		MsgPrintln(g, "magenta_black", prhelp("rmtran"))
+		ErrPrintln(g, "red_black", prusage("rmtran"))
 		return
 	case 2:
 		if args[1] == "?" {
+			MsgPrintln(g, "magenta_black", prhelp("rmtran"))
 			MsgPrintln(g, "green_black", prusage("rmtran"))
-			MsgPrintln(g, "green_black", prhelp("rmtran"))
 			return
 		}
 	case 4:
@@ -1998,7 +2004,7 @@ func cmdRmtran(g *gocui.Gui, args []string) {
 		}
 		return
 	}
-	MsgPrintln(g, "red_black", prusage("rmtran"))
+	ErrPrintln(g, "red_black", prusage("rmtran"))
 }
 
 // Are we willing to transmit files
@@ -2013,8 +2019,8 @@ func cmdRxwilling(g *gocui.Gui, args []string) {
 	case 2:
 		switch args[1] {
 		case "?":
+			MsgPrintln(g, "magenta_black", prhelp("rxwilling"))
 			MsgPrintln(g, "green_black", prusage("rxwilling"))
-			MsgPrintln(g, "green_black", prhelp("rxwilling"))
 			return
 		case "on":
 			sarflags.Cliflag.Global["rxwilling"] = "yes"
@@ -2027,7 +2033,7 @@ func cmdRxwilling(g *gocui.Gui, args []string) {
 			return
 		}
 	}
-	MsgPrintln(g, "red_black", prusage("rxwilling"))
+	ErrPrintln(g, "red_black", prusage("rxwilling"))
 }
 
 // Initiator _put_ not expecting _status_
@@ -2047,8 +2053,8 @@ func cmdStream(g *gocui.Gui, args []string) {
 	case 2:
 		switch args[1] {
 		case "?":
+			MsgPrintln(g, "magenta_black", prhelp("stream"))
 			MsgPrintln(g, "green_black", prusage("stream"))
-			MsgPrintln(g, "green_black", prhelp("stream"))
 			return
 		case "yes":
 			sarflags.Cliflag.Global["stream"] = "yes"
@@ -2058,7 +2064,7 @@ func cmdStream(g *gocui.Gui, args []string) {
 			return
 		}
 	}
-	MsgPrintln(g, "red_black", prusage("stream"))
+	ErrPrintln(g, "red_black", prusage("stream"))
 }
 
 // Timeout - set timeouts for responses to request/status/transfer in seconds
@@ -2098,8 +2104,8 @@ func cmdTimeout(g *gocui.Gui, args []string) {
 	case 2:
 		switch args[1] {
 		case "?":
+			MsgPrintln(g, "magenta_black", prhelp("timeout"))
 			MsgPrintln(g, "green_black", prusage("timeout"))
-			MsgPrintln(g, "green_black", prhelp("timeout"))
 		case "request":
 			if sarflags.Cliflag.Timeout.Request == 0 {
 				MsgPrintln(g, "green_black", "request:No Timeout")
@@ -2132,7 +2138,7 @@ func cmdTimeout(g *gocui.Gui, args []string) {
 				MsgPrintln(g, "green_black", "transfer:", sarflags.Cliflag.Timeout.Transfer, " sec")
 			}
 		default:
-			MsgPrintln(g, "green_black", prusage("timeout"))
+			ErrPrintln(g, "red_black", prusage("timeout"))
 		}
 		return
 	case 3:
@@ -2175,7 +2181,7 @@ func cmdTimeout(g *gocui.Gui, args []string) {
 					MsgPrintln(g, "green_black", "transfer:", sarflags.Cliflag.Timeout.Transfer, " sec")
 				}
 			default:
-				MsgPrintln(g, "green_black", prusage("timeout"))
+				ErrPrintln(g, "red_black", prusage("timeout"))
 			}
 			return
 		}
@@ -2199,10 +2205,10 @@ func cmdTimeout(g *gocui.Gui, args []string) {
 			}
 			return
 		}
-		MsgPrintln(g, "green_black", prusage("timeout"))
+		ErrPrintln(g, "red_black", prusage("timeout"))
 		return
 	}
-	MsgPrintln(g, "green_black", prusage("timeout"))
+	ErrPrintln(g, "red_black", prusage("timeout"))
 }
 
 // set the timestamp type we are using
@@ -2218,8 +2224,8 @@ func cmdTimestamp(g *gocui.Gui, args []string) {
 	case 2:
 		switch args[1] {
 		case "?":
+			MsgPrintln(g, "magenta_black", prhelp("timestamp"))
 			MsgPrintln(g, "green_black", prusage("timestamp"))
-			MsgPrintln(g, "green_black", prhelp("timestamp"))
 		case "off":
 			sarflags.Cliflag.Global["reqtstamp"] = "no"
 			// Don't change the TGlobal from what it was
@@ -2242,11 +2248,11 @@ func cmdTimestamp(g *gocui.Gui, args []string) {
 			sarflags.Cliflag.Global["reqtstamp"] = "yes"
 			sarflags.Cliflag.Timestamp = "localinterp"
 		default:
-			MsgPrintln(g, "red_black", prusage("timestamp"))
+			ErrPrintln(g, "red_black", prusage("timestamp"))
 		}
 		return
 	}
-	MsgPrintln(g, "red_black", prusage("timestamp"))
+	ErrPrintln(g, "red_black", prusage("timestamp"))
 }
 
 // set the timezone we use for logs local or utc
@@ -2261,18 +2267,18 @@ func cmdTimezone(g *gocui.Gui, args []string) {
 	case 2:
 		switch args[1] {
 		case "?":
+			MsgPrintln(g, "magenta_black", prhelp("timezone"))
 			MsgPrintln(g, "green_black", prusage("timezone"))
-			MsgPrintln(g, "green_black", prhelp("timezone"))
 		case "local":
 			sarflags.Cliflag.Timezone = "local"
 		case "utc":
 			sarflags.Cliflag.Timezone = "utc"
 		default:
-			MsgPrintln(g, "red_black", prusage("timezone"))
+			ErrPrintln(g, "red_black", prusage("timezone"))
 		}
 		return
 	}
-	MsgPrintln(g, "red_black", prusage("timezone"))
+	ErrPrintln(g, "red_black", prusage("timezone"))
 }
 
 // show current transfers in progress & % completed
@@ -2284,8 +2290,8 @@ func cmdTran(g *gocui.Gui, args []string) {
 	case 2:
 		switch args[1] {
 		case "?":
-			MsgPrintf(g, "green_black", "%s\n  %s\n",
-				prusage("tran"), prhelp("tran"))
+			MsgPrintln(g, "magenta_black", prhelp("tran"))
+			MsgPrintln(g, "green_black", prusage("tran"))
 		default:
 			for _, tt := range Ttypes {
 				if args[1] == tt {
@@ -2293,11 +2299,11 @@ func cmdTran(g *gocui.Gui, args []string) {
 					return
 				}
 			}
-			MsgPrintln(g, "green_black", prusage("tran"))
+			ErrPrintln(g, "red_black", prusage("tran"))
 		}
 		return
 	}
-	MsgPrintln(g, "green_black", prusage("tran"))
+	ErrPrintln(g, "red_black", prusage("tran"))
 }
 
 // we are willing to transmit files
@@ -2312,8 +2318,8 @@ func cmdTxwilling(g *gocui.Gui, args []string) {
 	case 2:
 		switch args[1] {
 		case "?":
+			MsgPrintln(g, "magenta_black", prhelp("txwilling"))
 			MsgPrintln(g, "green_black", prusage("txwilling"))
-			MsgPrintln(g, "green_black", prhelp("txwilling"))
 			return
 		case "on":
 			sarflags.Cliflag.Global["txwilling"] = "on"
@@ -2326,7 +2332,7 @@ func cmdTxwilling(g *gocui.Gui, args []string) {
 			return
 		}
 	}
-	MsgPrintln(g, "red_black", prusage("txwilling"))
+	ErrPrintln(g, "red_black", prusage("txwilling"))
 }
 
 // Show all commands usage
@@ -2400,6 +2406,7 @@ func Run(g *gocui.Gui, name string) bool {
 	// Get rid of leading and trailing whitespace
 	s := strings.TrimSpace(name)
 	vals := strings.Fields(s)
+	// Lookup the cmd and index func to run via cmdhandler map
 	for key := range sarflags.Commands {
 		if key == vals[0] {
 			fn, ok := cmdhandler[key]
@@ -2407,9 +2414,9 @@ func Run(g *gocui.Gui, name string) bool {
 				fn(g, vals)
 				return true
 			}
-			ErrPrintln(g, "green_black", "Invalid command:", vals[0])
+			ErrPrintln(g, "red_black", "Invalid command:", vals[0])
 		}
 	}
-	ErrPrintln(g, "green_black", "Invalid command:", vals[0])
+	ErrPrintln(g, "red_black", "Invalid command:", vals[0])
 	return false
 }
