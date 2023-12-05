@@ -1209,9 +1209,13 @@ func (t *Transfer) Print() string {
 		t.Filename)
 }
 
+// YEAH!!!! Not Doing anything yet
 func (t *Transfer) Do(g *gocui.Gui, e chan error) {
-	MsgPrintln(g, "Doing command")
-	e = nil
+	MsgPrintln(g, "Doing command - Well actually not doing it!!!!!")
+	ErrPrintln(g, "red_black", "Charles write some code to Do a transfer!!!!")
+	if e != nil {
+		e = nil
+	}
 	<-e
 }
 
