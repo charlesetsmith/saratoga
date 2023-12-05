@@ -2087,7 +2087,7 @@ func cmdTimeout(g *gocui.Gui, args []string) {
 			sarflags.Cliflag.Timeout.Datacounter = 100
 			MsgPrintln(g, "green_black", "Data Counter every 100 frames")
 		} else {
-			MsgPrintln(g, "green_black", "Datacnt:", sarflags.Cliflag.Timeout.Datacounter, " frames")
+			MsgPrintln(g, "green_black", "datacounter:", sarflags.Cliflag.Timeout.Datacounter, " frames")
 		}
 		if sarflags.Cliflag.Timeout.Transfer == 0 {
 			MsgPrintln(g, "green_black", "transfer:No Timeout")
@@ -2121,9 +2121,9 @@ func cmdTimeout(g *gocui.Gui, args []string) {
 		case "datacounter":
 			if sarflags.Cliflag.Timeout.Datacounter == 0 {
 				sarflags.Cliflag.Timeout.Datacounter = 100
-				MsgPrintln(g, "green_black", "Datacounter:Never")
+				MsgPrintln(g, "green_black", "datacounter:Never")
 			} else {
-				MsgPrintln(g, "green_black", "Datacounter:", sarflags.Cliflag.Timeout.Datacounter, " frames")
+				MsgPrintln(g, "green_black", "datacounter:", sarflags.Cliflag.Timeout.Datacounter, " frames")
 			}
 		case "transfer":
 			if sarflags.Cliflag.Timeout.Transfer == 0 {
@@ -2132,7 +2132,7 @@ func cmdTimeout(g *gocui.Gui, args []string) {
 				MsgPrintln(g, "green_black", "transfer:", sarflags.Cliflag.Timeout.Transfer, " sec")
 			}
 		default:
-			MsgPrintln(g, "red_black", prusage("stream"))
+			MsgPrintln(g, "green_black", prusage("timeout"))
 		}
 		return
 	case 3:
@@ -2140,17 +2140,42 @@ func cmdTimeout(g *gocui.Gui, args []string) {
 			switch args[1] {
 			case "metadata":
 				sarflags.Cliflag.Timeout.Metadata = n
+				if sarflags.Cliflag.Timeout.Metadata == 0 {
+					MsgPrintln(g, "green_black", "metadata:No Timeout")
+				} else {
+					MsgPrintln(g, "green_black", "metadata:", sarflags.Cliflag.Timeout.Metadata, " sec")
+				}
 			case "request":
 				sarflags.Cliflag.Timeout.Request = n
+				if sarflags.Cliflag.Timeout.Request == 0 {
+					MsgPrintln(g, "green_black", "request:No Timeout")
+				} else {
+					MsgPrintln(g, "green_black", "request:", sarflags.Cliflag.Timeout.Request, " sec")
+				}
 			case "status":
 				sarflags.Cliflag.Timeout.Status = n
-			case "datacnt":
-				if n == 0 {
-					n = 100
+				if sarflags.Cliflag.Timeout.Status == 0 {
+					MsgPrintln(g, "green_black", "status:No Timeout")
+				} else {
+					MsgPrintln(g, "green_black", "status:", sarflags.Cliflag.Timeout.Status, " sec")
 				}
+			case "datacounter":
 				sarflags.Cliflag.Timeout.Datacounter = n
+				if sarflags.Cliflag.Timeout.Datacounter == 0 {
+					sarflags.Cliflag.Timeout.Datacounter = 100
+					MsgPrintln(g, "green_black", "datacounter:Default set to every 100 frames")
+				} else {
+					MsgPrintln(g, "green_black", "datacounter:", sarflags.Cliflag.Timeout.Datacounter, " frames")
+				}
 			case "transfer":
 				sarflags.Cliflag.Timeout.Transfer = n
+				if sarflags.Cliflag.Timeout.Transfer == 0 {
+					MsgPrintln(g, "green_black", "transfer:No Timeout")
+				} else {
+					MsgPrintln(g, "green_black", "transfer:", sarflags.Cliflag.Timeout.Transfer, " sec")
+				}
+			default:
+				MsgPrintln(g, "green_black", prusage("timeout"))
 			}
 			return
 		}
@@ -2158,19 +2183,26 @@ func cmdTimeout(g *gocui.Gui, args []string) {
 			switch args[1] {
 			case "metadata":
 				sarflags.Cliflag.Timeout.Metadata = 60
+				MsgPrintln(g, "green_black", "metadata:", sarflags.Cliflag.Timeout.Metadata, " sec")
 			case "request":
 				sarflags.Cliflag.Timeout.Request = 60
+				MsgPrintln(g, "green_black", "request:", sarflags.Cliflag.Timeout.Request, " sec")
 			case "status":
 				sarflags.Cliflag.Timeout.Status = 60
+				MsgPrintln(g, "green_black", "status:", sarflags.Cliflag.Timeout.Status, " sec")
 			case "datacounter":
 				sarflags.Cliflag.Timeout.Datacounter = 100
+				MsgPrintln(g, "green_black", "datacounter:", sarflags.Cliflag.Timeout.Datacounter, " frames")
 			case "transfer":
 				sarflags.Cliflag.Timeout.Transfer = 60
+				MsgPrintln(g, "green_black", "transfer:", sarflags.Cliflag.Timeout.Transfer, " sec")
 			}
 			return
 		}
+		MsgPrintln(g, "green_black", prusage("timeout"))
+		return
 	}
-	MsgPrintln(g, "red_black", prusage("timeout"))
+	MsgPrintln(g, "green_black", prusage("timeout"))
 }
 
 // set the timestamp type we are using

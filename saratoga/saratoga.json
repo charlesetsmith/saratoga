@@ -135,8 +135,8 @@
 			"help" :  "current stream status or can/cannot handle stream"
 		},
 		"timeout" : {
-			"usage" : "timeout [metadata|request|transfer|status] <secs|off>",
-			"help" : "timeout in seconds for metadata, request frames, status receipts & transfer completion"
+			"usage" : "timeout [metadata|request|transfer|status|dataframes] <secs|off>",
+			"help" : "timeouts in secs for metadata, request frames, status receipts, transfer completion, status sent every dataframes"
 		},
 		"timestamp" : {
 			"usage" : "timestamp [off|32|64|32_32|64_32|32_y2k]",
