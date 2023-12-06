@@ -363,10 +363,13 @@ var pmu sync.Mutex // Protect Peers
 var Peers []Peer
 
 // NewPeer - Add/Change peer info from received beacon
-func (b *Beacon) NewPeer(from *net.UDPConn) bool {
+func (b *Beacon) NewPeer(from *net.UDPAddr) bool {
+	if from == nil {
+		return false
+	}
 	// Scan through existing Peers and change if the peer exists
 	for p := range Peers {
-		if Peers[p].Addr == from.RemoteAddr().String() { // Source IP address matches
+		if Peers[p].Addr == from.IP.String() { // Source Ip Address matches existing Peer
 			pmu.Lock()
 			defer pmu.Unlock()
 			// Has anything changed since the last beacon for this peer ?
@@ -381,8 +384,9 @@ func (b *Beacon) NewPeer(from *net.UDPConn) bool {
 		}
 	}
 	// We have a new Peer - add it
-	var newp Peer
-	newp.Addr = from.RemoteAddr().String()
+	// var newp Peer
+	newp := new(Peer)
+	newp.Addr = from.IP.String()
 	newp.Freespace = b.Freespace
 	newp.Eid = b.Eid
 	newp.Maxdesc = sarflags.GetStr(b.Header, "descriptor")
@@ -390,7 +394,7 @@ func (b *Beacon) NewPeer(from *net.UDPConn) bool {
 	newp.Updated = newp.Created
 	pmu.Lock()
 	defer pmu.Unlock()
-	Peers = append(Peers, newp)
+	Peers = append(Peers, *newp)
 	return true
 }
 

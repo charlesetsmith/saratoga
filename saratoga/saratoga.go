@@ -197,7 +197,8 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 		switch sarflags.GetStr(header, "frametype") {
 		case "beacon":
 			// We have received a beacon on the connection
-			var rxb beacon.Beacon
+			rxb := new(beacon.Beacon)
+			// var rxb beacon.Beacon
 			if rxerr := rxb.Decode(frame); rxerr != nil {
 				// We just drop bad beacons
 				sarwin.ErrPrintln(g, "red_black", "Bad Beacon:", rxerr, " from ",
@@ -206,13 +207,17 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 				continue
 			}
 			// Handle the beacon
-			if errcode := rxb.RxHandler(conn); errcode != "success" {
-				sarwin.ErrPrintln(g, "red_black", "Bad Beacon:", errcode, "  from ",
-					sarnet.UDPinfo(remoteAddr))
-			}
+			/*
+				if errcode := rxb.RxHandler(conn); errcode != "success" {
+					sarwin.ErrPrintln(g, "red_black", "Bad Beacon:", errcode, "  from ",
+						sarnet.UDPinfo(remoteAddr))
+				}
+			*/
 			// Create or update the Peer table
-			if rxb.NewPeer(conn) {
-				sarwin.MsgPrintln(g, "Received new or updated beacon from ", sarnet.UDPinfo(remoteAddr))
+			// sarwin.MsgPrintln(g, "blue_black", "Beacon from ", conn.RemoteAddr().String())
+			sarwin.MsgPrintln(g, "blue_black", "Beacon from ", sarnet.UDPinfo(remoteAddr))
+			if rxb.NewPeer(remoteAddr) {
+				sarwin.MsgPrintln(g, "Received new or updated Peer from ", sarnet.UDPinfo(remoteAddr))
 			}
 			sarwin.PacketPrintln(g, "green_black", "Listen Rx ", rxb.ShortPrint())
 			continue
@@ -510,6 +515,7 @@ func main() {
 		if err := sarnet.SetMulticastLoop(v4mcastcon); err != nil {
 			log.Fatal(err)
 		}
+
 		go listen(g, v4mcastcon, v4listenquit)
 		sarwin.MsgPrintln(g, "green_black", "Saratoga IPv4 Multicast Listener started on ",
 			sarnet.UDPinfo(&v4mcastaddr))
@@ -519,11 +525,6 @@ func main() {
 	sarwin.MsgPrintf(g, "green_black", "Saratoga Directory is %s\n", Cmdptr.Sardir)
 	sarwin.MsgPrintf(g, "green_black", "Available space is %d MB\n",
 		(uint64(fs.Bsize)*fs.Bavail)/1024/1024)
-
-	sarwin.MsgPrintln(g, "white_black", "Global Variables")
-	for i := range Cmdptr.Global {
-		sarwin.MsgPrintln(g, "white_black", i, "=", Cmdptr.Global[i])
-	}
 
 	/*
 		sarwin.ErrPrintln(g, "green_black", "MaxInt=", sarflags.MaxInt)

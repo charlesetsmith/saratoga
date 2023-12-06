@@ -234,6 +234,26 @@ func Layout(g *gocui.Gui) error {
 	return nil
 }
 
+// Does the foreground colour exist in our map of fg colours
+func fgexists(col string) bool {
+	for c := range fg {
+		if col == c {
+			return true
+		}
+	}
+	return false
+}
+
+// Does the background colour exist in our map of bg colours
+func bgexists(col string) bool {
+	for c := range bg {
+		if col == c {
+			return true
+		}
+	}
+	return false
+}
+
 // Create ansi sequence for colour change with c format of fg_bg (e.g. red_black)
 func setcolour(colour string) string {
 	if colour == "none" || colour == "" {
@@ -246,15 +266,15 @@ func setcolour(colour string) string {
 
 	switch len(sequence) {
 	case 2: // fg & bg
-		if fg[sequence[0]] != "" && bg[sequence[1]] != "" {
+		if fgexists(sequence[0]) && bgexists(sequence[1]) {
 			return ansiprefix + fg[sequence[0]] + ansiseparator + bg[sequence[1]] + ansipostfix
 		}
-		return ansiprefix + fg["white"] + ansiseparator + bg["red"] + ansipostfix
+		return ansiprefix + fg["white"] + ansiseparator + bg["bred"] + ansipostfix
 	case 1: // fg and "black" bg
-		if fg[sequence[0]] != "" {
+		if fgexists(sequence[0]) {
 			return ansiprefix + fg[sequence[0]] + ansiseparator + bg["black"] + ansipostfix
 		}
-		return ansiprefix + fg[sequence[0]] + ansiseparator + bg[sequence[1]] + ansipostfix
+		return ansiprefix + fg["white"] + ansiseparator + bg["bred"] + ansipostfix
 	default: // Woops wrong fg or bg so scream at the screen
 		// Error so make it jump out at us
 		return ansiprefix + fg["white"] + ansiseparator + bg["bred"] + ansipostfix
@@ -692,18 +712,20 @@ func sendbeacons(g *gocui.Gui, flags string, count uint, interval uint, host str
 	for _, addr := range addrs {
 		MsgPrintln(g, "cyan_black", "Sending beacon to ", addr)
 		binfo := beacon.Binfo{Freespace: 0, Eid: ""}
-		if err := frames.New(b, flags, &binfo); err == nil {
+		var err error
+		if err = frames.New(b, flags, &binfo); err == nil {
 			go txb.Send(addr, port, count, interval, errflag)
 			errcode := <-errflag
 			if errcode != "success" {
 				ErrPrintln(g, "red_black", "Error:", errcode,
 					"Unable to send beacon to ", addr)
 			} else {
-				PacketPrintln(g, "cyan_black", "Tx ", b.ShortPrint())
+				// PacketPrintln(g, "cyan_black", "Tx ", b.ShortPrint())
+				MsgPrintln(g, "green_black", "Tx ", b.ShortPrint())
 			}
-		} else {
-			ErrPrintln(g, "red_black", "cannot create beacon in txb.New:", err.Error())
+			return
 		}
+		ErrPrintln(g, "red_black", "cannot create beacon in txb.New:", err.Error())
 	}
 }
 
@@ -1219,9 +1241,10 @@ func (t *Transfer) Do(g *gocui.Gui, e chan error) {
 	<-e
 }
 
-/* ********************************************************************************* */
+/* ************************************************************************************ */
 // All of the different command line input handlers
-/* ********************************************************************************* */
+// These handle I/O to the Screen, write to Err and Msg Windows, read from Cmd Window
+/* ************************************************************************************ */
 
 // Beacon CLI Info
 type Beaconcmd struct {
@@ -1341,8 +1364,9 @@ func cmdBeacon(g *gocui.Gui, args []string) {
 	// beacon [count] <ipaddr> ...
 	MsgPrintf(g, "cyan_black", "Sending %d beacons to:",
 		clibeacon.count)
+	var argstr string
 	for i := addrstart; i < len(args); i++ { // Add Address'es to lists
-		MsgPrintf(g, "cyan_black", "%s ", args[i])
+		argstr += args[i] + " "
 		switch args[i] {
 		case "v4":
 			go sendbeacons(g, clibeacon.flags, clibeacon.count,
@@ -1355,7 +1379,7 @@ func cmdBeacon(g *gocui.Gui, args []string) {
 				clibeacon.interval, args[i], sarflags.Cliflag.Port)
 		}
 	}
-	MsgPrintln(g, "green_black", "")
+	MsgPrintln(g, "green_black", argstr)
 }
 
 func cmdCancel(g *gocui.Gui, args []string) {
@@ -1761,9 +1785,9 @@ func cmdPeers(g *gocui.Gui, args []string) {
 			eidlen = 3
 		}
 
-		sfmt := fmt.Sprintf("|%%%ds|%%6s|%%%ds|%%3s|%%%ds|%%%ds|\n",
+		bfmt := fmt.Sprintf("+%%%ds+%%6s+%%%ds+%%3s+%%%ds+%%%ds+\n",
 			addrlen, eidlen, dcrelen, dmodlen)
-		sborder := fmt.Sprintf(sfmt,
+		sborder := fmt.Sprintf(bfmt,
 			strings.Repeat("-", addrlen),
 			strings.Repeat("-", 6),
 			strings.Repeat("-", eidlen),
@@ -1771,6 +1795,8 @@ func cmdPeers(g *gocui.Gui, args []string) {
 			strings.Repeat("-", dcrelen),
 			strings.Repeat("-", dmodlen))
 
+		sfmt := fmt.Sprintf("|%%%ds|%%6s|%%%ds|%%3s|%%%ds|%%%ds|\n",
+			addrlen, eidlen, dcrelen, dmodlen)
 		var sslice sort.StringSlice
 		for key := range beacon.Peers {
 			pinfo := fmt.Sprintf(sfmt, beacon.Peers[key].Addr,
@@ -1784,22 +1810,24 @@ func cmdPeers(g *gocui.Gui, args []string) {
 		sort.Sort(sslice)
 
 		sbuf := sborder
-		sbuf += fmt.Sprintf(sfmt, "IP", "GB", "EID", "Des", "Date Created", "Date Modified")
+		sbuf += fmt.Sprintf(sfmt, "IP", "GB", "EID", "Des", "Created", "Modified")
 		sbuf += sborder
 		for key := 0; key < len(sslice); key++ {
 			sbuf += sslice[key]
 		}
 		sbuf += sborder
 		MsgPrintln(g, "green_black", sbuf)
+		return
 	case 2:
 		if args[1] == "?" {
 			MsgPrintln(g, "magenta_black", prhelp("peers"))
 			MsgPrintln(g, "green_black", prusage("peers"))
 			return
 		}
+	default:
+		MsgPrintln(g, "magenta_black", prhelp("peers"))
+		ErrPrintln(g, "red_black", prusage("peers"))
 	}
-	MsgPrintln(g, "magenta_black", prhelp("peers"))
-	ErrPrintln(g, "red_black", prusage("peers"))
 }
 
 // Initiator _put_
