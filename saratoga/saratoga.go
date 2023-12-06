@@ -217,7 +217,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 			// sarwin.MsgPrintln(g, "blue_black", "Beacon from ", conn.RemoteAddr().String())
 			sarwin.MsgPrintln(g, "blue_black", "Beacon from ", sarnet.UDPinfo(remoteAddr))
 			if rxb.NewPeer(remoteAddr) {
-				sarwin.MsgPrintln(g, "Received new or updated Peer from ", sarnet.UDPinfo(remoteAddr))
+				sarwin.MsgPrintln(g, "green_black", "Received new or updated Peer from ", sarnet.UDPinfo(remoteAddr))
 			}
 			sarwin.PacketPrintln(g, "green_black", "Listen Rx ", rxb.ShortPrint())
 			continue
