@@ -1,27 +1,22 @@
 package data
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/charlesetsmith/saratoga/sarflags"
 )
 
 func TestData(t *testing.T) {
-	// var err error
-	// var Cmdptr *sarflags.Cliflags
-	// The Command line interface commands, help & usage to be read from saratoga.json
-	// Cmdptr = new(sarflags.Cliflags)
 
 	// The Command line interface commands, help & usage to be read from saratoga.json
 	// Cmdptr := new(sarflags.Cliflags)
-
+	conf := new(sarflags.Cliflags)
 	// Read in JSON config file and parse it into the Config structure.
-	if _, err := sarflags.ReadConfig("../saratoga/saratoga.json"); err != nil {
-		fmt.Println("Cannot open saratoga config file we have a Readconf error ", "saratoga.json", " ", err)
+	if err := conf.ReadConfig("../saratoga/saratoga.json"); err != nil {
+		emsg := "Cannot open or parse saratoga.json Readconf error: " + err.Error()
+		t.Fatal(emsg)
 		return
 	}
-
 	// fmt.Println("Global Settings: ", Cmdptr.Global)
 	var dat Dinfo
 	// Load up the Data Structure

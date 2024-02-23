@@ -6,11 +6,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"net"
 	"reflect"
 	"strings"
 
-	"github.com/charlesetsmith/saratoga/frames"
 	"github.com/charlesetsmith/saratoga/holes"
 	"github.com/charlesetsmith/saratoga/sarflags"
 	"github.com/charlesetsmith/saratoga/timestamp"
@@ -337,14 +335,4 @@ func (s Status) ShortPrint() string {
 	sflag += fmt.Sprintf("  inrespto:%d\n", s.Inrespto)
 	sflag += fmt.Sprintf("  numb holes:%d", len(s.Holes))
 	return sflag
-}
-
-// Send a status out the UDP connection
-func (s *Status) UDPWrite(conn *net.UDPConn) string {
-	return frames.UDPWrite(s, conn)
-}
-
-// Data Reciever handler
-func (s Status) RxHandler(conn *net.UDPConn) string {
-	return "success"
 }

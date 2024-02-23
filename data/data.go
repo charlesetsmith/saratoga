@@ -6,11 +6,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"net"
 	"reflect"
 	"strings"
 
-	"github.com/charlesetsmith/saratoga/frames"
 	"github.com/charlesetsmith/saratoga/sarflags"
 	"github.com/charlesetsmith/saratoga/timestamp"
 )
@@ -282,17 +280,4 @@ func (d Data) ShortPrint() string {
 	sflag += fmt.Sprintf("  offset:%d,", d.Offset)
 	sflag += fmt.Sprintf("  paylen:%d", len(d.Payload))
 	return sflag
-}
-
-// Send a data out the UDP connection
-func (d *Data) UDPWrite(conn *net.UDPConn) string {
-	return frames.UDPWrite(d, conn)
-}
-
-// Data Reciever handler
-/*
- * Lets get rid of gocui
- */
-func (d Data) RxHandler(conn *net.UDPConn) string {
-	return "success"
 }

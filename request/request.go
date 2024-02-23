@@ -6,11 +6,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"net"
 	"reflect"
 	"strings"
 
-	"github.com/charlesetsmith/saratoga/frames"
 	"github.com/charlesetsmith/saratoga/sarflags"
 )
 
@@ -154,13 +152,4 @@ func (r Request) ShortPrint() string {
 	sflag += fmt.Sprintf("  filename:%s\n", r.Fname)
 	sflag += fmt.Sprintf("  auth:%s", r.Auth)
 	return sflag
-}
-
-// Send a request out the UDP connection
-func (r *Request) UDPWrite(conn *net.UDPConn) string {
-	return frames.UDPWrite(r, conn)
-}
-
-func (r Request) RxHandler(conn *net.UDPConn) string {
-	return "success"
 }

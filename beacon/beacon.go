@@ -15,7 +15,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/charlesetsmith/saratoga/frames"
 	"github.com/charlesetsmith/saratoga/sarflags"
 	"github.com/charlesetsmith/saratoga/timestamp"
 )
@@ -396,21 +395,4 @@ func (b *Beacon) NewPeer(from *net.UDPAddr) bool {
 	defer pmu.Unlock()
 	Peers = append(Peers, *newp)
 	return true
-}
-
-// Send a beacon out the UDP connection
-func (b *Beacon) UDPWrite(conn *net.UDPConn) string {
-	return frames.UDPWrite(b, conn)
-}
-
-// Handle the received beacon
-func (b *Beacon) RxHandler(conn *net.UDPConn) string {
-	/*
-		if b.NewPeer(conn) {
-			sarwin.MsgPrintln(g, "yellow_black", "Beacon Received Added/Changed Peer ", conn.RemoteAddr().String())
-		} else {
-			sarwin.MsgPrintln(g, "yellow_black", "Beacon Received from peer ", conn.RemoteAddr().String(), " previously added")
-		}
-	*/
-	return "success"
 }

@@ -3,6 +3,8 @@
 package sarnet
 
 import (
+	"bytes"
+	"encoding/gob"
 	"errors"
 	"log"
 	"net"
@@ -87,6 +89,69 @@ func SetMulticastLoop(conn net.PacketConn) error {
 		return err
 	}
 	return nil
+}
+
+// Code from github - See https://holwech.github.io/blog/Creating-a-simple-UDP-module
+
+func broadcast(send chan CommData, localIP string, port string) {
+	log.Fatal("COMM: Broadcasting message to ", broadcast_addr, port)
+	broadcastAddress, err := net.ResolveUDPAddr("udp", broadcast_addr+port)
+	log.Fatal("ResolvingUDPAddr in Broadcast failed.", err)
+	localAddress, err := net.ResolveUDPAddr("udp", GetLocalIP())
+	connection, err := net.DialUDP("udp", localAddress, broadcastAddress)
+	log.Fatal("DialUDP in Broadcast failed.", err)
+
+	localhostAddress, err := net.ResolveUDPAddr("udp", "localhost"+port)
+	log.Fatal("ResolvingUDPAddr in Broadcast localhost failed.", err)
+	lConnection, err := net.DialUDP("udp", localAddress, localhostAddress)
+	log.Fatal("DialUDP in Broadcast localhost failed.", err)
+	defer connection.Close()
+
+	var buffer bytes.Buffer
+	encoder := gob.NewEncoder(&buffer)
+	for {
+		message := <-send
+		err := encoder.Encode(message)
+		log.Fatal("Encode error in broadcast: ", err)
+		_, err = connection.Write(buffer.Bytes())
+		if err != nil {
+			_, err = lConnection.Write(buffer.Bytes())
+			log.Fatal("Write in broadcast localhost failed", err)
+		}
+		buffer.Reset()
+	}
+}
+
+func listen(receive chan CommData, port string) {
+	localAddress, err := net.ResolveUDPAddr("udp", port)
+	if err != nil {
+		log.Fatal(err, ":Cant resolve UDP Address ", port)
+	}
+	connection, err := net.ListenUDP("udp", localAddress)
+	defer connection.Close()
+	var message CommData
+
+	for {
+		inputBytes := make([]byte, 4096)
+		length, _, err := connection.ReadFromUDP(inputBytes)
+		if err != nil {
+			log.Fatal(err, ":Cant ReadFromUDP")
+		}
+		buffer := bytes.NewBuffer(inputBytes[:length])
+		decoder := gob.NewDecoder(buffer)
+		err = decoder.Decode(&message)
+		if message.Key == com_id {
+			receive <- message
+		}
+	}
+}
+
+func Init(readPort string, writePort string) (<-chan frame.Frame, chan<- frame.Frame) {
+	receive := make(chan frame.Frame, 10)
+	send := make(chan Frame, 10)
+	go listen(receive, readPort)
+	go broadcast(send, writePort)
+	return receive, send
 }
 
 /*

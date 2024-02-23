@@ -6,13 +6,12 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"net"
 	"os"
 	"reflect"
 	"strings"
 
 	"github.com/charlesetsmith/saratoga/dirent"
-	"github.com/charlesetsmith/saratoga/frames"
+	"github.com/charlesetsmith/saratoga/fileio"
 	"github.com/charlesetsmith/saratoga/sarflags"
 )
 
@@ -154,7 +153,7 @@ func (m *MetaData) New(flags string, info interface{}) error {
 		// Make sure we dont try and calc a checksum of a named pipe (it will wait forever)
 		var checksum []byte
 
-		if checksum, err = frames.Checksum(csumtype, fname); err != nil {
+		if checksum, err = fileio.Checksum(csumtype, fname); err != nil {
 			return err
 		}
 		csumlen := len(checksum)
@@ -200,7 +199,7 @@ func (m *MetaData) Make(header uint32, info interface{}) error {
 	if sarflags.GetStr(m.Header, "transfer") != "stream" {
 		var checksum []byte
 		csumtype := sarflags.GetStr(m.Header, "csumtype")
-		if checksum, err = frames.Checksum(csumtype, fname); err != nil {
+		if checksum, err = fileio.Checksum(csumtype, fname); err != nil {
 			return err
 		}
 		csumlen := len(checksum)
@@ -289,14 +288,4 @@ func (m MetaData) ShortPrint() string {
 	}
 	sflag += m.Dir.ShortPrint()
 	return sflag
-}
-
-// Send a metadata out the UDP connection
-func (m *MetaData) UDPWrite(conn *net.UDPConn) string {
-	return frames.UDPWrite(m, conn)
-}
-
-// Data Reciever handler
-func (m MetaData) RxHandler(conn *net.UDPConn) string {
-	return "success"
 }

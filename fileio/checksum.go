@@ -1,6 +1,6 @@
 // Checksum Handling of Files
 
-package frames
+package fileio
 
 import (
 	"crypto/md5"

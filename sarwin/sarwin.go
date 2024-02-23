@@ -25,6 +25,7 @@ import (
 	"github.com/charlesetsmith/saratoga/metadata"
 	"github.com/charlesetsmith/saratoga/request"
 	"github.com/charlesetsmith/saratoga/sarflags"
+	"github.com/charlesetsmith/saratoga/sarnet"
 	"github.com/charlesetsmith/saratoga/status"
 	"github.com/charlesetsmith/saratoga/timestamp"
 )
@@ -933,7 +934,7 @@ func WriteErrStatus(g *gocui.Gui, flags string, session uint32, conn *net.UDPCon
 		// if err := st.New(flags, session, 0, 0, nil); err != nil {
 		return "badstatus"
 	}
-	err := frames.UDPWrite(&st, conn)
+	err := sarnet.UDPWrite(&st, conn)
 	PacketPrintln(g, "cyan_black", "Tx ", st.ShortPrint())
 	return err
 }
@@ -1160,7 +1161,7 @@ func (t *Transfer) WriteStatus(g *gocui.Gui, sflags string) string {
 			MsgPrintln(g, "cyan_black", "Responder Bad Status:", err, frames.Print(&st))
 			return "badstatus"
 		}
-		if e := frames.UDPWrite(&st, t.Conn); e != "success" {
+		if e := sarnet.UDPWrite(&st, t.Conn); e != "success" {
 			//sarwin.MsgPrintln(g, "cyan_black", "Responder cant write Status:", e, frames.Print(&st),
 			//	"to", conn.RemoteAddr().String())
 			return e
@@ -2440,7 +2441,7 @@ func Run(g *gocui.Gui, name string) bool {
 		if key == vals[0] {
 			fn, ok := cmdhandler[key]
 			if ok {
-				fn(g, vals)
+				go fn(g, vals)
 				return true
 			}
 			ErrPrintln(g, "red_black", "Invalid command:", vals[0])

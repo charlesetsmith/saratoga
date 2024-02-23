@@ -176,7 +176,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 		header := binary.BigEndian.Uint32(frame[:4])
 		// Check the version
 		if sarflags.GetStr(header, "version") != "v1" { // Make sure we are Version 1
-			// If a bad version received then send back a Status to the client
+			// If a bad version received then send back a Status errcode to the initiator
 			var st status.Status
 			sinfo := status.Sinfo{Session: 0, Progress: 0, Inrespto: 0, Holes: nil}
 			sarwin.ErrPrintln(g, "red_black", "Not Saratoga Version 1 Frame from ",
@@ -184,7 +184,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 			if frames.New(&st, "errcode=badpacket", &sinfo) != nil {
 				sarwin.ErrPrintln(g, "red_black", "Cannot create badpacket status")
 			}
-			// OK Send it out the connection
+			// Send it out the connection
 			err := st.UDPWrite(conn)
 			if err != "success" {
 				sarwin.ErrPrintln(g, "red_black", err+" unable to send status")
@@ -207,17 +207,10 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 				continue
 			}
 			// Handle the beacon
-			/*
-				if errcode := rxb.RxHandler(conn); errcode != "success" {
-					sarwin.ErrPrintln(g, "red_black", "Bad Beacon:", errcode, "  from ",
-						sarnet.UDPinfo(remoteAddr))
-				}
-			*/
 			// Create or update the Peer table
-			// sarwin.MsgPrintln(g, "blue_black", "Beacon from ", conn.RemoteAddr().String())
 			sarwin.MsgPrintln(g, "blue_black", "Beacon from ", sarnet.UDPinfo(remoteAddr))
 			if rxb.NewPeer(remoteAddr) {
-				sarwin.MsgPrintln(g, "green_black", "Received new or updated Peer from ", sarnet.UDPinfo(remoteAddr))
+				sarwin.MsgPrintln(g, "green_black", "New or updated Peer: ", sarnet.UDPinfo(remoteAddr))
 			}
 			sarwin.PacketPrintln(g, "green_black", "Listen Rx ", rxb.ShortPrint())
 			continue
