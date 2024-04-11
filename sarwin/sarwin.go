@@ -20,7 +20,6 @@ import (
 
 	"github.com/charlesetsmith/saratoga/beacon"
 	"github.com/charlesetsmith/saratoga/dirent"
-	"github.com/charlesetsmith/saratoga/frames"
 	"github.com/charlesetsmith/saratoga/holes"
 	"github.com/charlesetsmith/saratoga/metadata"
 	"github.com/charlesetsmith/saratoga/request"
@@ -662,24 +661,6 @@ func prusage(cf string) string {
 	return "Invalid Command"
 }
 
-// removeIndex -- Remove an entry in a slice of strings by index #
-func removeIndex(s []string, index int) []string {
-	ret := make([]string, 0)
-	ret = append(ret, s[:index]...)
-	return append(ret, s[index+1:]...)
-}
-
-// removeValue -- Remove all entries in slice of strings matching val
-func removeValue(s []string, val string) []string {
-	for i := 0; i < len(s); i++ {
-		if s[i] == val {
-			s = removeIndex(s, i)
-			s = removeValue(s, val) // Call me again to remove dupes
-		}
-	}
-	return s
-}
-
 // Only append to a string slice if it is unique
 /* THIS IS NOT USED YET
 func appendunique(slice []string, i string) []string {
@@ -696,37 +677,34 @@ func appendunique(slice []string, i string) []string {
 
 // All of the different command line input handlers
 // Send count beacons to host
-func sendbeacons(g *gocui.Gui, flags string, count uint, interval uint, host string, port int) {
+func sendbeacons(g *gocui.Gui, flags string, count uint, interval uint, addr *net.UDPAddr) {
 	// We have a hostname maybe with multiple addresses
-	var addrs []string
 	var err error
-	var txb beacon.Beacon // The assembled beacon to transmit
+	var txb beacon.Beacon // The assembled beacon to transmita
+	var conn *net.UDPConn
 	b := &txb
 
 	errflag := make(chan string, 1) // The return channel holding the saratoga errflag
 
-	if addrs, err = net.LookupHost(host); err != nil {
-		MsgPrintln(g, "red_black", "Cannot resolve hostname:", err)
-		return
-	}
-	// Loop thru the address(s) for the host and send beacons to them
-	for _, addr := range addrs {
-		MsgPrintln(g, "cyan_black", "Sending beacon to ", addr)
-		binfo := beacon.Binfo{Freespace: 0, Eid: ""}
-		var err error
-		if err = frames.New(b, flags, &binfo); err == nil {
-			go txb.Send(addr, port, count, interval, errflag)
-			errcode := <-errflag
-			if errcode != "success" {
-				ErrPrintln(g, "red_black", "Error:", errcode,
-					"Unable to send beacon to ", addr)
-			} else {
-				PacketPrintln(g, "cyan_black", "Tx ", b.ShortPrint())
-			}
+	MsgPrintln(g, "cyan_black", "Sending beacon to ", addr.String())
+	binfo := beacon.Binfo{Freespace: 0, Eid: ""}
+	if err = txb.New(flags, &binfo); err == nil {
+		if conn, err = net.DialUDP("udp", nil, addr); err != nil {
+			ErrPrintln(g, "red_black", "Error:", err,
+				"Unable to Dial", addr.String())
 			return
 		}
-		ErrPrintln(g, "red_black", "cannot create beacon in txb.New:", err.Error())
+		txb.Sendmore(conn, count, interval, errflag)
+		errcode := <-errflag
+		if errcode != "success" {
+			ErrPrintln(g, "red_black", "Error:", errcode,
+				"Unable to send beacon to ", addr)
+			return
+		}
+		PacketPrintln(g, "cyan_black", "Tx ", b.ShortPrint())
+		return
 	}
+	ErrPrintln(g, "red_black", "cannot create beacon in txb.New:", err.Error())
 }
 
 /* ********************************************************************************* */
@@ -850,7 +828,7 @@ func stpaylen(flags string) int {
 // Ttypes - Transfer types
 var Ttypes = []string{"get", "getrm", "getdir", "put", "putblind", "putrm", "rm", "rmdir"}
 
-// Transfer direction we are a sender or receiver
+// Transfer direction we are an initiator of a transfer or a respondant to a request for a transfer
 const Initiator bool = true
 const Responder bool = false
 
@@ -861,10 +839,9 @@ var smu sync.Mutex
 var sessionid uint32
 
 type Transfer struct {
-	Direction  bool                // Am I the Initiator or Responder end of the connection
+	Direction  bool                // Am I the Initiator of; or Responder to a transfer
 	Session    uint32              // Session ID - This is the unique key
-	Peer       net.IP              // IP Address of the peer
-	Conn       *net.UDPConn        // The connection to the remote peer
+	Conn       *net.UDPConn        // The connection to the remote peer holds ip address and port of the peer
 	Ttype      string              // Transfer type "get,getrm,put,putrm,putblind,rm"
 	Tstamp     timestamp.Timestamp // Latest timestamp received from Data
 	Tstamptype string              // Timestamp type "localinterp,posix32,posix64,posix32_32,posix64_32,epoch2000_32"
@@ -897,107 +874,107 @@ var Transfers = []Transfer{}
 
 // Lookup - Return a pointer to the transfer if we find it in Transfers, nil otherwise
 func Lookup(direction bool, session uint32, peer string) *Transfer {
-	var addr net.IP
-	if addr = net.ParseIP(peer); addr == nil { // Do we have a valid IP Address
-		return nil
-	}
-	for _, i := range Transfers {
-		remaddr := net.ParseIP(i.Conn.RemoteAddr().String())
+	for _, t := range Transfers {
 		// Check if direction (Initiator or Responder), session # and IP address match in our current
 		// list of transfers (if so then return a pointer to it)
-		if direction == i.Direction && session == i.Session && addr.Equal(remaddr) {
-			return &i
+
+		if direction == t.Direction && session == t.Session && t.Conn.RemoteAddr().String() == peer {
+			return &t
 		}
 	}
 	return nil
 }
 
 // Lookup a host & session and return transfer pointer or nil if it does not exist
-func Match(addr, session string) *Transfer {
-	ses, err := strconv.Atoi(session)
+func Match(addr string, session uint32) *Transfer {
 	for i := len(Transfers) - 1; i >= 0; i-- {
-		if err == nil && addr == Transfers[i].Conn.RemoteAddr().String() && uint32(ses) == Transfers[i].Session {
+		if addr == Transfers[i].Conn.RemoteAddr().String() && session == Transfers[i].Session {
 			return &Transfers[i]
 		}
 	}
 	return nil
 }
 
-// WriteErrStatus - Send an error status
-func WriteErrStatus(g *gocui.Gui, flags string, session uint32, conn *net.UDPConn, remoteAddr *net.UDPAddr) string {
-	if sarflags.FlagValue(flags, "errcode") == "success" { // Dont send success that is silly
-		return "success"
-	}
-	var st status.Status
-	sinfo := status.Sinfo{Session: session, Progress: 0, Inrespto: 0, Holes: nil}
-	if err := frames.New(&st, flags, &sinfo); err != nil {
-		// if err := st.New(flags, session, 0, 0, nil); err != nil {
-		return "badstatus"
-	}
-	err := sarnet.UDPWrite(&st, conn)
-	PacketPrintln(g, "cyan_black", "Tx ", st.ShortPrint())
-	return err
-}
-
 // CNew - Add a new transfer to the Transfers list
-func NewInitiator(g *gocui.Gui, ttype string, ip string, fname string, c *sarflags.Cliflags) (*Transfer, error) {
-	// screen.Fprintln(g,  "red_black", "Addtran for ", ip, " ", fname, " ", flags)
-	if addr := net.ParseIP(ip); addr != nil { // We have a valid IP Address
-		for _, i := range Transfers { // Don't add duplicates (ie dont try act on same fname)
-			if addr.Equal(i.Peer) && fname == i.Filename { // We can't write to same file
-				emsg := fmt.Sprintf("Initiator Transfer for %s to %s is currently in progress, cannnot add transfer",
-					fname, i.Peer.String())
-				ErrPrintln(g, "red_black", emsg)
-				return nil, errors.New(emsg)
+func NewInitiator(g *gocui.Gui, ttype string, peer *net.UDPAddr, fname string, c *sarflags.Cliflags) (*Transfer, error) {
+	// screen.Fprintln(g,  "red_black", "Addtran for ", ip.String(), " ", fname, " ", flags)
+	for _, i := range Transfers { // Don't add duplicates (ie dont try act on same fname)
+		// Make sure we have connections to all the current Transfers
+		if i.Conn == nil {
+			emsg := "No connection exists to peer: " + peer.String()
+			ErrPrintln(g, "red_black", emsg)
+			// Remove the transfer as we have no connection to a peer
+			if err := i.Remove(); err != nil {
+				ErrPrintln(g, "red_black", "Can't remove transfer of", i.Session)
 			}
+			return nil, errors.New(emsg)
 		}
-
-		// Lock it as we are going to add a new transfer slice
-		Trmu.Lock()
-		defer Trmu.Unlock()
-		t := new(Transfer)
-		t.Direction = Initiator
-		t.Ttype = ttype
-		t.Tstamptype = c.Timestamp
-		t.Session = newsession()
-		t.Peer = addr
-		t.Filename = fname
-
-		// Copy the FLAGS to t.cliflags
-		var err error
-		if t.Cliflags, err = c.CopyCliflags(); err != nil {
-			panic(err)
+		if peer.String() == i.Conn.RemoteAddr().String() && fname == i.Filename { // We can't write to same file
+			emsg := fmt.Sprintf("Initiator Transfer for %s to %s is currently in progress, cannnot add transfer",
+				fname, peer.String())
+			ErrPrintln(g, "red_black", emsg)
+			return nil, errors.New(emsg)
 		}
-		msg := fmt.Sprintf("Initiator Added %s Transfer to %s %s",
-			t.Ttype, t.Peer.String(), t.Filename)
-		Transfers = append(Transfers, *t)
-		MsgPrintln(g, "green_black", msg)
-		return t, nil
 	}
-	ErrPrintln(g, "red_black", "Initiator Transfer not added, invalid IP address ", ip)
-	return nil, errors.New("invalid IP Address")
+
+	// Lock it as we are going to add a new transfer slice
+	Trmu.Lock()
+	defer Trmu.Unlock()
+	t := new(Transfer)
+	t.Direction = Initiator
+	t.Ttype = ttype
+	t.Tstamptype = c.Timestamp
+	t.Session = newsession()
+
+	var err error
+	// Dial the peer to create the connection
+	if t.Conn, err = net.DialUDP("udp", nil, peer); err != nil {
+		ErrPrintln(g, "red_black", "Cannot dial peer "+peer.String()+" "+err.Error())
+	}
+
+	t.Filename = fname
+
+	// Copy the FLAGS to t.cliflags
+	if t.Cliflags, err = c.CopyCliflags(); err != nil {
+		panic(err)
+	}
+	msg := fmt.Sprintf("Initiator Added %s Transfer to %s %s",
+		t.Ttype, t.Conn.RemoteAddr().String(), t.Filename)
+	Transfers = append(Transfers, *t)
+	MsgPrintln(g, "green_black", msg)
+	return t, nil
 }
 
 // New - Add a new transfer to the Transfers list upon receipt of a request
 // when we receive a request we are therefore a "server"
-func NewResponder(g *gocui.Gui, r request.Request, ip string) error {
+func NewResponder(g *gocui.Gui, r request.Request, peer string) error {
 
 	var err error
-	var addr net.IP
-	if addr = net.ParseIP(ip); addr == nil { // Do we have a valid IP Address
-		ErrPrintln(g, "red_black", "Transfer not added, invalid IP address ", ip)
-		return errors.New(" invalid IP Address")
-	}
-	if Lookup(Responder, r.Session, ip) != nil {
+	if Lookup(Responder, r.Session, peer) != nil {
 		emsg := fmt.Sprintf("Transfer %s for session %d to %s is currently in progress, cannnot duplicate transfer",
-			Directions[Responder], r.Session, ip)
+			Directions[Responder], r.Session, peer)
 		ErrPrintln(g, "red_black", emsg)
 		return errors.New(emsg)
 	}
-	// Lock it as we are going to add a new transfer
+	var udpaddr *net.UDPAddr
+	if udpaddr, err = net.ResolveUDPAddr("udp", peer); err != nil {
+		return err
+	}
+
+	var tc *net.UDPConn
+	// Dial the peer to create the connection
+	if tc, err = net.DialUDP("udp", nil, udpaddr); err != nil {
+		ErrPrintln(g, "red_black", "Cannot dial peer "+udpaddr.String()+" "+err.Error())
+		return err
+	}
+
+	// Create the transfer record
 	Trmu.Lock()
 	defer Trmu.Unlock()
 	t := new(Transfer)
+
+	t.Conn = tc
+	// Lock it as we are going to add a new transfer
 	t.Direction = Responder // We are the Responder
 	t.Session = r.Session
 	// The Header flags set for the transfer
@@ -1008,7 +985,6 @@ func NewResponder(g *gocui.Gui, r request.Request, ip string) error {
 	t.Stream = sarflags.GetStr(r.Header, "stream")         // Denotes a named pipe
 	t.Descriptor = sarflags.GetStr(r.Header, "descriptor") // What descriptor we use for the transfer
 
-	t.Peer = addr
 	t.Havemeta = false
 	t.Framecount = 0 // No data yet. count of data frames
 	t.Csumtype = ""  // We don't know checksum type until we get a metadata
@@ -1030,6 +1006,7 @@ func NewResponder(g *gocui.Gui, r request.Request, ip string) error {
 		// Find the file metadata to get it's properties
 		t.Fileinfo = new(dirent.FileMetaData)
 		if err = t.Fileinfo.FileMeta(t.Filename); err != nil {
+			t.Conn.Close()
 			return err
 		}
 		if t.Fileinfo.IsDir {
@@ -1051,21 +1028,18 @@ func NewResponder(g *gocui.Gui, r request.Request, ip string) error {
 	}
 	t.Dir = new(dirent.DirEnt)
 	if err = t.Dir.New(flags, t.Filename); err != nil {
+		t.Conn.Close()
 		return err
 	}
 	t.Curfills = nil
 	if t.Cliflags, err = sarflags.Cliflag.CopyCliflags(); err != nil {
+		t.Conn.Close()
 		return errors.New("cannot copy CLI flags for transfer")
 	}
-
-	// conn * net.UDPConn // The connection to the remote peer
-	// fp * os.File       // File pointer for local file
-	// frames    [][]byte           // Frames to process
-	// holes     holes.Holes        // Holes to process
 	t.Data = nil // Buffered data
 
 	msg := fmt.Sprintf("Added %s Transfer to %s session %d",
-		Directions[t.Direction], ip, r.Session)
+		Directions[t.Direction], peer, r.Session)
 	Transfers = append(Transfers, *t)
 	MsgPrintln(g, "green_black", msg)
 	return nil
@@ -1119,11 +1093,12 @@ func Info(g *gocui.Gui, ttype string) {
 // Our connection to the client is conn
 // We assemble Status using sflags
 // We transmit status immediately
-// We send back a string holding the status error code or "success" keeps transfer alive
+// We send back a string holding the status error code or "success" keeps transfer alivea
 func (t *Transfer) WriteStatus(g *gocui.Gui, sflags string) string {
 
-	if t.Conn != nil {
-		MsgPrintln(g, "cyan_black", "Responder Connection from ", t.Conn.RemoteAddr().String())
+	if t.Conn == nil {
+		MsgPrintln(g, "cyan_black", "No Connection to write to")
+		return "badstatus"
 	}
 	MsgPrintln(g, "cyan_black", "Responder Assemble & Send status to ", t.Conn.RemoteAddr().String())
 	var maxholes = stpaylen(sflags) // Work out maximum # holes we can put in a single status frame
@@ -1157,19 +1132,17 @@ func (t *Transfer) WriteStatus(g *gocui.Gui, sflags string) string {
 		var st status.Status
 		h := t.Curfills.Getholes()
 		sinfo := status.Sinfo{Session: t.Session, Progress: t.Progress, Inrespto: t.Inrespto, Holes: h}
-		if err := frames.New(&st, flags, &sinfo); err != nil {
-			MsgPrintln(g, "cyan_black", "Responder Bad Status:", err, frames.Print(&st))
+		if st.New(flags, &sinfo) != nil {
+			ErrPrintln(g, "red_black", "Cannot asemble status")
 			return "badstatus"
 		}
-		if e := sarnet.UDPWrite(&st, t.Conn); e != "success" {
-			//sarwin.MsgPrintln(g, "cyan_black", "Responder cant write Status:", e, frames.Print(&st),
-			//	"to", conn.RemoteAddr().String())
-			return e
-		} else {
-			PacketPrintln(g, "cyan_black", "Tx ", st.ShortPrint())
-			MsgPrintln(g, "cyan_black", "Responder Sent Status:", frames.Print(&st),
-				" to ", t.Conn.RemoteAddr().String())
+		if se := st.Send(t.Conn); se != nil {
+			ErrPrintln(g, "red_black", se.Error())
+			return "badstatus"
 		}
+		PacketPrintln(g, "cyan_black", "Tx ", st.ShortPrint())
+		MsgPrintln(g, "cyan_black", "Responder Sent Status:", st.Print(),
+			" to ", t.Conn.RemoteAddr().String())
 	}
 	return "success"
 }
@@ -1249,12 +1222,12 @@ func (t *Transfer) Do(g *gocui.Gui, e chan error) {
 // Beacon CLI Info
 // beacon <off|V4|V6i|ipaddr> [count]
 type Beaconcmd struct {
-	flags    string   // Header Flags set for beacons
-	count    uint     // How many beacons to send 0|1 == 1
-	interval uint     // interval in seconds between beacons 0|1 == 1
-	v4mcast  bool     // Sending beacons to V4 Multicast
-	v6mcast  bool     // Sending beacons to V6 Multicast
-	host     []string // Send unicast beacon to List of hosts
+	flags    string        // Header Flags set for beacons
+	count    uint          // How many beacons to send 0|1 == 1
+	interval uint          // interval in seconds between beacons 0|1 == 1
+	v4mcast  bool          // Sending beacons to V4 Multicast
+	v6mcast  bool          // Sending beacons to V6 Multicast
+	hosts    []net.UDPAddr // List of addresses to send beacons to
 }
 
 var clibeacon Beaconcmd
@@ -1287,13 +1260,13 @@ func cmdBeacon(g *gocui.Gui, args []string) {
 				if clibeacon.v6mcast {
 					MsgPrintln(g, "yellow_black", "Sending IPv6 multicast beacons")
 				}
-				if len(clibeacon.host) > 0 {
+				if len(clibeacon.hosts) > 0 {
 					MsgPrintln(g, "cyan_black", "Sending beacons to:")
-					for _, i := range clibeacon.host {
-						MsgPrintln(g, "cyan_black", "\t", i)
+					for _, h := range clibeacon.hosts {
+						MsgPrintln(g, "cyan_black", "\t", h.String())
 					}
 				}
-				if !clibeacon.v4mcast && !clibeacon.v6mcast && len(clibeacon.host) == 0 {
+				if !clibeacon.v4mcast && !clibeacon.v6mcast && len(clibeacon.hosts) == 0 {
 					MsgPrintln(g, "yellow_black", "No beacons currently being sent")
 				}
 				return
@@ -1311,7 +1284,7 @@ func cmdBeacon(g *gocui.Gui, args []string) {
 					clibeacon.interval = sarflags.Cliflag.Timeout.Binterval
 					MsgPrintln(g, "green_black", "Beacons Disabled")
 					// remove and disable all beacons
-					clibeacon.host = nil
+					clibeacon.hosts = nil
 					return
 				case "v4":
 					// V4 Multicast
@@ -1320,7 +1293,8 @@ func cmdBeacon(g *gocui.Gui, args []string) {
 					clibeacon.v4mcast = true
 					clibeacon.count = 1
 					// Start up the beacon client sending count IPv4 beacons
-					go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, sarflags.Cliflag.V4Multicast, sarflags.Cliflag.Port)
+					addr := sarnet.UDPAddress(sarflags.Cliflag.V4Multicast)
+					go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, addr)
 					return
 				case "v6":
 					// V6 Multicast
@@ -1328,8 +1302,9 @@ func cmdBeacon(g *gocui.Gui, args []string) {
 					clibeacon.flags = sarflags.Setglobal("beacon", sarflags.Cliflag)
 					clibeacon.v6mcast = true
 					clibeacon.count = 1
+					addr := sarnet.UDPAddress(sarflags.Cliflag.V6Multicast)
 					// Start up the beacon client sending count IPv6 beacons
-					go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, sarflags.Cliflag.V6Multicast, sarflags.Cliflag.Port)
+					go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, addr)
 					return
 				default:
 					// beacon <count> or beacon <ipaddr>
@@ -1339,43 +1314,42 @@ func cmdBeacon(g *gocui.Gui, args []string) {
 						if clibeacon.count == 0 {
 							clibeacon.count = 1
 						}
-					} else {
-						// We have an IP Address so send it a beacon
-						if net.ParseIP(args[1]) != nil {
-							MsgPrintln(g, "green_black", "Sending ", clibeacon.count, " beacons to ", args[1])
-							go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, args[1], sarflags.Cliflag.Port)
-							return
-						} else {
-							ErrPrintln(g, "red_black", "Invalid IP Address:", args[1])
-							ErrPrintln(g, "red_black", prusage("beacon"))
-							return
-						}
+						return
 					}
+					// We have an IP Address so send it a beacon
+					if addr := sarnet.UDPAddress(args[1]); addr != nil {
+						MsgPrintln(g, "green_black", "Sending ", clibeacon.count, " beacons to ", addr.String())
+						go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, addr)
+						return
+					}
+					ErrPrintln(g, "red_black", "Invalid IP Address:", args[1])
+					ErrPrintln(g, "red_black", prusage("beacon"))
+					return
 				}
 			}
 			// Otherwise we have more args than 1 so send the beacon from the first arg
-			if net.ParseIP(args[1]) != nil {
-				MsgPrintln(g, "green_black", "Sending ", clibeacon.count, " beacons to ", args[1])
-				go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, args[1], sarflags.Cliflag.Port)
+			if addr := sarnet.UDPAddress(args[1]); addr != nil {
+				MsgPrintln(g, "green_black", "Sending ", clibeacon.count, " beacons to ", addr.String())
+				go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, addr)
+				return
 			}
 			if args[1] == "off" {
 				disable = true
 			}
 		default:
-			if net.ParseIP(args[argcnt]) != nil {
+			if addr := sarnet.UDPAddress(args[argcnt]); addr != nil {
 				if disable {
 					// Remove the host from the list
-					clibeacon.host = removeValue(clibeacon.host, args[argcnt])
-				} else {
-					// Send the beacons to the host
-					MsgPrintln(g, "green_black", "Sending ", clibeacon.count, " beacons to ", args[argcnt])
-					go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, args[argcnt], sarflags.Cliflag.Port)
+					clibeacon.hosts = sarnet.RemoveUDPAddrValue(clibeacon.hosts, addr)
+					return
 				}
-			} else {
-				ErrPrintln(g, "red_black", "Invalid IP Address:", args[argcnt])
-				ErrPrintln(g, "red_black", prusage("beacon"))
+				// Send the beacons to the host
+				MsgPrintln(g, "green_black", "Sending ", clibeacon.count, " beacons to ", addr.String())
+				go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, addr)
 				return
 			}
+			ErrPrintln(g, "red_black", "Invalid IP Address:", args[argcnt])
+			ErrPrintln(g, "red_black", prusage("beacon"))
 		}
 	}
 }
@@ -1506,20 +1480,12 @@ func cmdExit(g *gocui.Gui, args []string) {
 	}
 }
 
-// MORE WORK TO DO HERE!!!!! USE TRANSFERS LIST
-// cmdFiiles -- show currently open files
+// cmdFiiles -- show currently open files and transfers in progress
 func cmdFiles(g *gocui.Gui, args []string) {
-	var flist []string
 
 	switch len(args) {
 	case 1:
-		if len(flist) == 0 {
-			MsgPrintln(g, "green_black", "No currently open files")
-			return
-		}
-		for _, i := range flist {
-			MsgPrintln(g, "green_black", i)
-		}
+		Info(g, "")
 		return
 	case 2:
 		if args[1] == "?" { // usage
@@ -1576,8 +1542,11 @@ func cmdGet(g *gocui.Gui, args []string) {
 		}
 	case 3:
 		// var t transfer.CTransfer
-		if _, err := NewInitiator(g, "get", args[1], args[2], sarflags.Cliflag); err != nil {
-			return
+
+		if udpad := sarnet.UDPAddress(args[1]); udpad != nil {
+			if _, err := NewInitiator(g, "get", udpad, args[2], sarflags.Cliflag); err != nil {
+				return
+			}
 		}
 		return
 	}
@@ -1597,9 +1566,13 @@ func cmdGetdir(g *gocui.Gui, args []string) {
 			return
 		}
 	case 3:
-		if _, err := NewInitiator(g, "getdir", args[1], args[2], sarflags.Cliflag); err != nil {
-			MsgPrintln(g, "magenta_black", prhelp("getdir"))
-			ErrPrintln(g, "green_black", prusage("getdir"))
+		if udpad := sarnet.UDPAddress(args[1]); udpad != nil {
+			if _, err := NewInitiator(g, "getdir", udpad, args[2], sarflags.Cliflag); err != nil {
+				MsgPrintln(g, "magenta_black", prhelp("getdir"))
+				ErrPrintln(g, "green_black", prusage("getdir"))
+			}
+		} else {
+			ErrPrintln(g, "green_black", "Invalid IP Address:", args[1])
 		}
 		return
 	}
@@ -1619,10 +1592,13 @@ func cmdGetrm(g *gocui.Gui, args []string) {
 			return
 		}
 	case 3:
-		if _, err := NewInitiator(g, "getrm", args[1], args[2], sarflags.Cliflag); err != nil {
-			MsgPrintln(g, "magenta_black", prhelp("getrm"))
-			ErrPrintln(g, "green_black", prusage("getrm"))
-			return
+		if udpad := sarnet.UDPAddress(args[1]); udpad != nil {
+			if _, err := NewInitiator(g, "getrm", udpad, args[2], sarflags.Cliflag); err != nil {
+				MsgPrintln(g, "magenta_black", prhelp("getrm"))
+				ErrPrintln(g, "green_black", prusage("getrm"))
+			}
+		} else {
+			ErrPrintln(g, "green_black", "Invalid IP Address:", args[1])
 		}
 		return
 	}
@@ -1843,23 +1819,27 @@ func cmdPut(g *gocui.Gui, args []string) {
 			return
 		}
 	case 3:
-		if t, err := NewInitiator(g, "put", args[1], args[2], sarflags.Cliflag); err == nil && t != nil {
-			errflag := make(chan error, 1) // The return channel holding the saratoga errflag
-			go t.Do(g, errflag)            // Actually do the transfer
-			errcode := <-errflag
-			if errcode != nil {
-				ErrPrintln(g, "red_black", "Error:", errcode,
-					" Unable to send file:", t.Print())
-				if derr := t.Remove(); derr != nil {
-					MsgPrintln(g, "red_black", "Unable to remove transfer:", t.Print())
+		if udpad := sarnet.UDPAddress(args[1]); udpad != nil {
+			if t, err := NewInitiator(g, "put", udpad, args[2], sarflags.Cliflag); err == nil && t != nil {
+				errflag := make(chan error, 1) // The return channel holding the saratoga errflag
+				go t.Do(g, errflag)            // Actually do the transfer
+				errcode := <-errflag
+				if errcode != nil {
+					ErrPrintln(g, "red_black", "Error:", errcode,
+						" Unable to send file:", t.Print())
+					if derr := t.Remove(); derr != nil {
+						MsgPrintln(g, "red_black", "Unable to remove transfer:", t.Print())
+					}
 				}
+				MsgPrintln(g, "green_black", "put completed closing channel")
+				close(errflag)
+				return
 			}
-			MsgPrintln(g, "green_black", "put completed closing channel")
-			close(errflag)
-		} else {
-			MsgPrintln(g, "red_black", "Cannot add transfer:", err.Error())
+			MsgPrintln(g, "magenta_black", prhelp("getrm"))
+			ErrPrintln(g, "green_black", prusage("getrm"))
+			return
 		}
-		return
+		ErrPrintln(g, "green_black", "Invalid IP Address:", args[1])
 	}
 	ErrPrintln(g, "red_black", prusage("put"))
 }
@@ -1868,11 +1848,9 @@ func cmdPut(g *gocui.Gui, args []string) {
 // blind send a file to a destination not expecting return _status_ from Responder
 func cmdPutblind(g *gocui.Gui, args []string) {
 
-	errflag := make(chan error, 1) // The return channel holding the saratoga errflag
-
 	switch len(args) {
 	case 1:
-		Info(g, "putrm")
+		Info(g, "putblind")
 		return
 	case 2:
 		if args[1] == "?" {
@@ -1882,17 +1860,27 @@ func cmdPutblind(g *gocui.Gui, args []string) {
 		}
 	case 3:
 		// We send the Metadata and do not bother with request/status exchange
-		if t, err := NewInitiator(g, "putblind", args[1], args[2], sarflags.Cliflag); err == nil && t != nil {
-			go t.Do(g, errflag)
-			errcode := <-errflag
-			if errcode != nil {
-				ErrPrintln(g, "red_black", "Error:", errcode,
-					"Unable to send file:", t.Print())
+		if udpad := sarnet.UDPAddress(args[1]); udpad != nil {
+			if t, err := NewInitiator(g, "putblind", udpad, args[2], sarflags.Cliflag); err == nil && t != nil {
+				errflag := make(chan error, 1) // The return channel holding the saratoga errflag
+				go t.Do(g, errflag)            // Actually do the transfer
+				errcode := <-errflag
+				if errcode != nil {
+					ErrPrintln(g, "red_black", "Error:", errcode,
+						" Unable to send file:", t.Print())
+					if derr := t.Remove(); derr != nil {
+						MsgPrintln(g, "red_black", "Unable to remove transfer:", t.Print())
+					}
+				}
+				MsgPrintln(g, "green_black", "putblind completed closing channel")
+				close(errflag)
+				return
 			}
-		} else {
-			ErrPrintln(g, "red_black", "Cannot create Transfer:", error.Error(err))
+			MsgPrintln(g, "magenta_black", prhelp("putblind"))
+			ErrPrintln(g, "green_black", prusage("putblind"))
+			return
 		}
-		return
+		ErrPrintln(g, "green_black", "Invalid IP Address:", args[1])
 	}
 	ErrPrintln(g, "red_black", prusage("putblind"))
 }
@@ -1900,8 +1888,6 @@ func cmdPutblind(g *gocui.Gui, args []string) {
 // Initiator _put_
 // send a file file to a remote destination then remove it from the origin
 func cmdPutrm(g *gocui.Gui, args []string) {
-
-	errflag := make(chan error, 1) // The return channel holding the saratoga errflag
 
 	switch len(args) {
 	case 1:
@@ -1915,18 +1901,26 @@ func cmdPutrm(g *gocui.Gui, args []string) {
 		}
 	case 3:
 		// var t *transfer.Transfer
-		if t, err := NewInitiator(g, "putrm", args[1], args[2], sarflags.Cliflag); err == nil && t != nil {
-			go t.Do(g, errflag)
-			errcode := <-errflag
-			if errcode != nil {
-				ErrPrintln(g, "red_black", "Error:", errcode,
-					" Unable to send file:", t.Print())
-			} else {
-				MsgPrintln(g, "red_black",
-					"Put and now removing (NOT) (ADD MORE CODE  HERE!!!!) file:", t.Print())
+		if udpad := sarnet.UDPAddress(args[1]); udpad != nil {
+			if t, err := NewInitiator(g, "putrm", udpad, args[2], sarflags.Cliflag); err == nil && t != nil {
+				errflag := make(chan error, 1) // The return channel holding the saratoga errflag
+				go t.Do(g, errflag)            // Actually do the transfer
+				errcode := <-errflag
+				if errcode != nil {
+					ErrPrintln(g, "red_black", "Error:", errcode,
+						" Unable to send file:", t.Print())
+					if derr := t.Remove(); derr != nil {
+						MsgPrintln(g, "red_black", "Unable to remove transfer:", t.Print())
+					}
+				}
+				MsgPrintln(g, "green_black", "putrm completed closing channel")
+				close(errflag)
+				MsgPrintln(g, "red_black", "Put and now removing (NOT) (ADD MORE CODE  HERE!!!!) file:", t.Print())
+				return
 			}
+			ErrPrintln(g, "green_black", "Invalid IP Address:", args[1])
 		}
-		return
+		ErrPrintln(g, "red_black", prusage("putblind"))
 	}
 	ErrPrintln(g, "red_black", prusage("putrm"))
 }
@@ -1975,11 +1969,27 @@ func cmdRm(g *gocui.Gui, args []string) {
 			return
 		}
 	case 3:
-		if _, err := NewInitiator(g, "rm", args[1], args[2], sarflags.Cliflag); err != nil {
+		if udpad := sarnet.UDPAddress(args[1]); udpad != nil {
+			if t, err := NewInitiator(g, "rm", udpad, args[2], sarflags.Cliflag); err == nil && t != nil {
+				errflag := make(chan error, 1) // The return channel holding the saratoga errflag
+				go t.Do(g, errflag)            // Actually do the transfer
+				errcode := <-errflag
+				if errcode != nil {
+					ErrPrintln(g, "red_black", "Error:", errcode,
+						" Unable to remove file:", t.Print())
+					if derr := t.Remove(); derr != nil {
+						MsgPrintln(g, "red_black", "Unable to remove transfer:", t.Print())
+					}
+				}
+				MsgPrintln(g, "green_black", "rm completed closing channel")
+				close(errflag)
+				return
+			}
 			MsgPrintln(g, "magenta_black", prhelp("rm"))
-			ErrPrintln(g, "red_black", prusage("rm"))
+			ErrPrintln(g, "green_black", prusage("rm"))
 			return
 		}
+		ErrPrintln(g, "green_black", "Invalid IP Address:", args[1])
 	}
 	ErrPrintln(g, "red_black", prusage("rm"))
 }
@@ -1999,11 +2009,27 @@ func cmdRmdir(g *gocui.Gui, args []string) {
 			return
 		}
 	case 3:
-		if _, err := NewInitiator(g, "rmdir", args[1], args[2], sarflags.Cliflag); err != nil {
+		if udpad := sarnet.UDPAddress(args[1]); udpad != nil {
+			if t, err := NewInitiator(g, "rmdir", udpad, args[2], sarflags.Cliflag); err == nil && t != nil {
+				errflag := make(chan error, 1) // The return channel holding the saratoga errflag
+				go t.Do(g, errflag)            // Actually do the transfer
+				errcode := <-errflag
+				if errcode != nil {
+					ErrPrintln(g, "red_black", "Error:", errcode,
+						" Unable to remove file:", t.Print())
+					if derr := t.Remove(); derr != nil {
+						MsgPrintln(g, "red_black", "Unable to remove transfer:", t.Print())
+					}
+				}
+				MsgPrintln(g, "green_black", "rmdir completed closing channel")
+				close(errflag)
+				return
+			}
 			MsgPrintln(g, "magenta_black", prhelp("rmdir"))
-			ErrPrintln(g, "red_black", prusage("rmdir"))
+			ErrPrintln(g, "green_black", prusage("rmdir"))
 			return
 		}
+		ErrPrintln(g, "green_black", "Invalid IP Address:", args[1])
 	}
 	ErrPrintln(g, "red_black", prusage("rmdir"))
 }
@@ -2024,15 +2050,16 @@ func cmdRmtran(g *gocui.Gui, args []string) {
 	case 4:
 		ttype := args[1]
 		addr := args[2]
-		fname := args[3]
-		if t := Match(addr, fname); t != nil {
-			if err := t.Remove(); err != nil {
-				MsgPrintln(g, "red_black", err.Error())
+		// We are unsigned so Atoi does not cut it
+		if session, err := strconv.ParseUint(args[3], 10, 32); err == nil {
+			if t := Match(addr, uint32(session)); t != nil {
+				if err := t.Remove(); err != nil {
+					MsgPrintln(g, "red_black", err.Error())
+				}
+				return
 			}
-		} else {
-			MsgPrintln(g, "red_black", "No such transfer:", ttype, " ", addr, " ", fname)
+			MsgPrintln(g, "red_black", "No such transfer:", ttype, " ", addr, " ", args[2])
 		}
-		return
 	}
 	ErrPrintln(g, "red_black", prusage("rmtran"))
 }

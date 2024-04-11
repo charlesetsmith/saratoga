@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"net"
 	"reflect"
 	"strings"
 
@@ -152,4 +153,22 @@ func (r Request) ShortPrint() string {
 	sflag += fmt.Sprintf("  filename:%s\n", r.Fname)
 	sflag += fmt.Sprintf("  auth:%s", r.Auth)
 	return sflag
+}
+
+/* Send a request to an address on the connection */
+func (r Request) Send(conn *net.UDPConn, to *net.UDPAddr) error {
+	var err error
+	var buf []byte
+	var wlen int
+
+	if buf, err = r.Encode(); err != nil {
+		return err
+	}
+	if wlen, err = conn.WriteTo(buf, to); err != nil {
+		return err
+	}
+	if wlen != len(buf) {
+		return fmt.Errorf("Request sent (%d) to %s != frame size (%d)", wlen, to.String(), len(buf))
+	}
+	return nil
 }

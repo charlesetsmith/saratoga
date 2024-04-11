@@ -2,16 +2,21 @@
 
 package frames
 
+import (
+	"net"
+)
+
 // Frame - Handler for different frames
 //
 //	beacon, data, metadata, request, status
 type Frame interface {
-	Encode() ([]byte, error)        // Encode from frame struct into []bytes
-	Decode([]byte) error            // Decode from []bytes into frame struct (beacon, request, data, metadata, status)
-	Print() string                  // Print out contents of some type of frame
-	ShortPrint() string             // Quick summary print out of some type of frame
-	New(string, interface{}) error  // Create New Frame with flags & info via interface
-	Make(uint32, interface{}) error // Make New Frame with header & info via interface
+	Encode() ([]byte, error)               // Encode from frame struct into []bytes
+	Decode([]byte) error                   // Decode from []bytes into frame struct (beacon, request, data, metadata, status)
+	Print() string                         // Print out contents of some type of frame
+	ShortPrint() string                    // Quick summary print out of some type of frame
+	New(string, interface{}) error         // Create New Frame with flags & info via interface
+	Make(uint32, interface{}) error        // Make New Frame with header & info via interface
+	Send(*net.UDPConn, *net.UDPAddr) error // Send a Frame to the remote peer
 }
 
 // Decode a frame into its structure via Frame interface
@@ -40,4 +45,8 @@ func New(f Frame, header string, info interface{}) error {
 
 func Make(f Frame, header uint32, info interface{}) error {
 	return f.Make(header, info)
+}
+
+func Send(f Frame, conn *net.UDPConn, a *net.UDPAddr) error {
+	return f.Send(conn, a)
 }

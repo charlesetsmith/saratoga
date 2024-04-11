@@ -9,7 +9,6 @@ import (
 	"net"
 	"os"
 	"reflect"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -292,39 +291,34 @@ func (b Beacon) ShortPrint() string {
 	return sflag
 }
 
-// Send - Send a IPv4 or IPv6 beacon to a server
-func (b *Beacon) Send(addr string, port int, count uint, interval uint, errflag chan string) {
+/* Send a data to an address on the connection */
+func (b Beacon) Send(conn *net.UDPConn) error {
+	var err error
+	var buf []byte
+	var wlen int
 
-	var eid string     // Is IPv4:Socket.PID or [IPv6]:Socket.PID
-	var newaddr string // Wrap IPv6 address in [ ]
+	if buf, err = b.Encode(); err != nil {
+		return err
+	}
+	if wlen, err = conn.Write(buf); err != nil {
+		return err
+	}
+	if wlen != len(buf) {
+		return fmt.Errorf("Beacon sent (%d) to %s != frame size (%d)",
+			wlen, conn.RemoteAddr().String(), len(buf))
+	}
+	return nil
+}
+
+// Sendmore - Send beacon(s) to a peer at interval seconds
+func (b *Beacon) Sendmore(conn *net.UDPConn, count uint, interval uint, errflag chan string) {
+
+	var eid string // Is IPv4:Socket.PID or [IPv6]:Socket.PID
 
 	txb := b // As this is called as a go routine and we need to alter the eid so make a copy
 
-	// EID is <thishostIP>-<PID>
-	if ad := net.ParseIP(addr); ad != nil {
-		eid = fmt.Sprintf("%s-%d", ad.String(), os.Getpid())
-	} else {
-		errflag <- "unknownid"
-		return
-	}
+	eid = fmt.Sprintf("%s-%d", conn.LocalAddr().String(), os.Getpid())
 	txb.Eid = eid
-
-	// Assemble the beacon frame from the beacon struct
-	var frame []byte
-	var err error
-
-	if frame, err = txb.Encode(); err != nil {
-		errflag <- "badpacket"
-		return
-	}
-
-	// Set up the connection
-	udpad := newaddr + ":" + strconv.Itoa(port)
-	conn, err := net.Dial("udp", udpad)
-	if err != nil {
-		errflag <- "cantsend"
-		return
-	}
 
 	// Make sure we have at least 1 beacon going out
 	if count == 0 {
@@ -334,7 +328,7 @@ func (b *Beacon) Send(addr string, port int, count uint, interval uint, errflag 
 
 	var i uint
 	for i = 0; i < count; i++ {
-		if _, err := conn.Write(frame); err != nil {
+		if err := txb.Send(conn); err != nil {
 			errflag <- "cantsend"
 		}
 

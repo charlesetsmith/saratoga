@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"net"
 	"reflect"
 	"strings"
 
@@ -280,4 +281,22 @@ func (d Data) ShortPrint() string {
 	sflag += fmt.Sprintf("  offset:%d,", d.Offset)
 	sflag += fmt.Sprintf("  paylen:%d", len(d.Payload))
 	return sflag
+}
+
+/* Send a data to an address on the connection */
+func (d Data) Send(conn *net.UDPConn, to *net.UDPAddr) error {
+	var err error
+	var buf []byte
+	var wlen int
+
+	if buf, err = d.Encode(); err != nil {
+		return err
+	}
+	if wlen, err = conn.WriteTo(buf, to); err != nil {
+		return err
+	}
+	if wlen != len(buf) {
+		return fmt.Errorf("Data sent (%d) to %s != frame size (%d)", wlen, to.String(), len(buf))
+	}
+	return nil
 }

@@ -3,8 +3,8 @@
 package sarnet
 
 import (
-	"bytes"
-	"encoding/gob"
+	// "bytes"
+	// "encoding/gob"
 	"errors"
 	"log"
 	"net"
@@ -37,14 +37,46 @@ func isIPv6(address string) bool {
 	return strings.Count(address, ":") >= 2
 }
 
+// Returns the ipv4 or ipv6 resolved UDPAddr with Port
+func UDPAddress(s string) *net.UDPAddr {
+	var a string
+
+	if isIPv6(s) {
+		a = "[" + s + "]:" + strconv.Itoa(Port)
+	} else if isIPv4(s) {
+		a = s + ":" + strconv.Itoa(Port)
+	} else {
+		return nil
+	}
+	if udpad, err := net.ResolveUDPAddr("udp", a); err != nil {
+		return udpad
+	}
+	return nil
+}
+
 // UDPinfo - Return string of IP Address and Port #
 func UDPinfo(addr *net.UDPAddr) string {
 	if strings.Contains(addr.IP.String(), ":") { // IPv6
-		a := "[" + addr.IP.String() + "]:" + strconv.Itoa(addr.Port)
-		return a
+		return "[" + addr.IP.String() + "]:" + strconv.Itoa(addr.Port)
 	}
 	// IPv4 Address
-	a := addr.IP.String() + ":" + strconv.Itoa(addr.Port)
+	return addr.IP.String() + ":" + strconv.Itoa(addr.Port)
+}
+
+func removeUDPAddrIndex(a []net.UDPAddr, index int) []net.UDPAddr {
+	ret := make([]net.UDPAddr, 0)
+	ret = append(ret, a[:index]...)
+	return append(ret, a[index+1:]...)
+}
+
+// removeUDPAddrValue -- Remove all entries in slice of strings matching val
+func RemoveUDPAddrValue(a []net.UDPAddr, val *net.UDPAddr) []net.UDPAddr {
+	for i := 0; i < len(a); i++ {
+		if a[i].String() == val.String() {
+			a = removeUDPAddrIndex(a, i)
+			a = RemoveUDPAddrValue(a, val) // Too recurse is divine. Call me again to remove dupes
+		}
+	}
 	return a
 }
 
@@ -92,7 +124,7 @@ func SetMulticastLoop(conn net.PacketConn) error {
 }
 
 // Code from github - See https://holwech.github.io/blog/Creating-a-simple-UDP-module
-
+/*
 func broadcast(send chan CommData, localIP string, port string) {
 	log.Fatal("COMM: Broadcasting message to ", broadcast_addr, port)
 	broadcastAddress, err := net.ResolveUDPAddr("udp", broadcast_addr+port)
@@ -154,7 +186,6 @@ func Init(readPort string, writePort string) (<-chan frame.Frame, chan<- frame.F
 	return receive, send
 }
 
-/*
 func mcastOpen(bindAddr net.IP, port int, ifname string) (*ipv4.PacketConn, *net.UDPConn, error) {
 	s, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_DGRAM, syscall.IPPROTO_UDP)
 	if err != nil {

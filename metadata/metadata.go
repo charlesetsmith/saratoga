@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"reflect"
 	"strings"
@@ -288,4 +289,22 @@ func (m MetaData) ShortPrint() string {
 	}
 	sflag += m.Dir.ShortPrint()
 	return sflag
+}
+
+/* Send a data to an address on the connection */
+func (m MetaData) Send(conn *net.UDPConn, to *net.UDPAddr) error {
+	var err error
+	var buf []byte
+	var wlen int
+
+	if buf, err = m.Encode(); err != nil {
+		return err
+	}
+	if wlen, err = conn.WriteTo(buf, to); err != nil {
+		return err
+	}
+	if wlen != len(buf) {
+		return fmt.Errorf("MetaData sent (%d) to %s != frame size (%d)", wlen, to.String(), len(buf))
+	}
+	return nil
 }

@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"net"
 	"reflect"
 	"strings"
 
@@ -335,4 +336,23 @@ func (s Status) ShortPrint() string {
 	sflag += fmt.Sprintf("  inrespto:%d\n", s.Inrespto)
 	sflag += fmt.Sprintf("  numb holes:%d", len(s.Holes))
 	return sflag
+}
+
+/* Send a data to an address on the connection */
+func (s Status) Send(conn *net.UDPConn) error {
+	var err error
+	var buf []byte
+	var wlen int
+
+	if buf, err = s.Encode(); err != nil {
+		return err
+	}
+	if wlen, err = conn.Write(buf); err != nil {
+		return err
+	}
+	if wlen != len(buf) {
+		return fmt.Errorf("Status sent (%d) to %s != frame size (%d)",
+			wlen, conn.RemoteAddr().String(), len(buf))
+	}
+	return nil
 }
