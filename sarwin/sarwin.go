@@ -841,7 +841,8 @@ var sessionid uint32
 type Transfer struct {
 	Direction  bool                // Am I the Initiator of; or Responder to a transfer
 	Session    uint32              // Session ID - This is the unique key
-	Conn       *net.UDPConn        // The connection to the remote peer holds ip address and port of the peer
+	Conn       *net.UDPConn        // The connection to the remote peer
+	Peer       *net.UDPAddr        // ip address and port of the peer
 	Ttype      string              // Transfer type "get,getrm,put,putrm,putblind,rm"
 	Tstamp     timestamp.Timestamp // Latest timestamp received from Data
 	Tstamptype string              // Timestamp type "localinterp,posix32,posix64,posix32_32,posix64_32,epoch2000_32"
@@ -878,7 +879,7 @@ func Lookup(direction bool, session uint32, peer string) *Transfer {
 		// Check if direction (Initiator or Responder), session # and IP address match in our current
 		// list of transfers (if so then return a pointer to it)
 
-		if direction == t.Direction && session == t.Session && t.Conn.RemoteAddr().String() == peer {
+		if direction == t.Direction && session == t.Session && t.Peer.String() == peer {
 			return &t
 		}
 	}
@@ -925,6 +926,7 @@ func NewInitiator(g *gocui.Gui, ttype string, peer *net.UDPAddr, fname string, c
 	t.Ttype = ttype
 	t.Tstamptype = c.Timestamp
 	t.Session = newsession()
+	t.Peer = peer
 
 	var err error
 	// Dial the peer to create the connection
@@ -939,7 +941,7 @@ func NewInitiator(g *gocui.Gui, ttype string, peer *net.UDPAddr, fname string, c
 		panic(err)
 	}
 	msg := fmt.Sprintf("Initiator Added %s Transfer to %s %s",
-		t.Ttype, t.Conn.RemoteAddr().String(), t.Filename)
+		t.Ttype, t.Peer.String(), t.Filename)
 	Transfers = append(Transfers, *t)
 	MsgPrintln(g, "green_black", msg)
 	return t, nil
@@ -974,6 +976,7 @@ func NewResponder(g *gocui.Gui, r request.Request, peer string) error {
 	t := new(Transfer)
 
 	t.Conn = tc
+	t.Peer = udpaddr
 	// Lock it as we are going to add a new transfer
 	t.Direction = Responder // We are the Responder
 	t.Session = r.Session
@@ -1057,7 +1060,7 @@ func Info(g *gocui.Gui, ttype string) {
 	if len(tinfo) > 0 {
 		var maxaddrlen, maxfname int // Work out the width for the table
 		for key := range tinfo {
-			if len(tinfo[key].Conn.RemoteAddr().String()) > maxaddrlen {
+			if len(tinfo[key].Peer.String()) > maxaddrlen {
 				maxaddrlen = len(tinfo[key].Conn.RemoteAddr().String())
 			}
 			if len(tinfo[key].Filename) > maxfname {
@@ -1100,7 +1103,7 @@ func (t *Transfer) WriteStatus(g *gocui.Gui, sflags string) string {
 		MsgPrintln(g, "cyan_black", "No Connection to write to")
 		return "badstatus"
 	}
-	MsgPrintln(g, "cyan_black", "Responder Assemble & Send status to ", t.Conn.RemoteAddr().String())
+	MsgPrintln(g, "cyan_black", "Responder Assemble & Send status to ", t.Peer.String())
 	var maxholes = stpaylen(sflags) // Work out maximum # holes we can put in a single status frame
 
 	errf := sarflags.FlagValue(sflags, "errcode")
@@ -1136,13 +1139,13 @@ func (t *Transfer) WriteStatus(g *gocui.Gui, sflags string) string {
 			ErrPrintln(g, "red_black", "Cannot asemble status")
 			return "badstatus"
 		}
-		if se := st.Send(t.Conn); se != nil {
+		if se := st.Send(t.Conn, t.Peer); se != nil {
 			ErrPrintln(g, "red_black", se.Error())
 			return "badstatus"
 		}
 		PacketPrintln(g, "cyan_black", "Tx ", st.ShortPrint())
 		MsgPrintln(g, "cyan_black", "Responder Sent Status:", st.Print(),
-			" to ", t.Conn.RemoteAddr().String())
+			" to ", t.Peer.String())
 	}
 	return "success"
 }
@@ -1178,13 +1181,13 @@ func (t *Transfer) Remove() error {
 	defer Trmu.Unlock()
 
 	for i := len(Transfers) - 1; i >= 0; i-- {
-		if Lookup(t.Direction, t.Session, t.Conn.RemoteAddr().String()) != nil {
+		if Lookup(t.Direction, t.Session, t.Peer.String()) != nil {
 			Transfers = append(Transfers[:i], Transfers[i+1:]...)
 			return nil
 		}
 	}
 	emsg := fmt.Sprintf("Cannot remove %s Transfer for session %d to %s",
-		Directions[t.Direction], t.Session, t.Conn.RemoteAddr().String())
+		Directions[t.Direction], t.Session, t.Peer.String())
 	return errors.New(emsg)
 }
 
@@ -1192,7 +1195,7 @@ func (t *Transfer) Remove() error {
 func (t *Transfer) FmtPrint(sfmt string) string {
 	return fmt.Sprintf(sfmt, "Initiator",
 		t.Ttype,
-		t.Conn.RemoteAddr().String(),
+		t.Peer.String(),
 		t.Filename)
 }
 
@@ -1200,7 +1203,7 @@ func (t *Transfer) FmtPrint(sfmt string) string {
 func (t *Transfer) Print() string {
 	return fmt.Sprintf("%s|%s|%s|%s", Directions[t.Direction],
 		t.Ttype,
-		t.Conn.RemoteAddr().String(),
+		t.Peer.String(),
 		t.Filename)
 }
 

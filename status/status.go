@@ -339,7 +339,7 @@ func (s Status) ShortPrint() string {
 }
 
 /* Send a data to an address on the connection */
-func (s Status) Send(conn *net.UDPConn) error {
+func (s Status) Send(conn *net.UDPConn, to *net.UDPAddr) error {
 	var err error
 	var buf []byte
 	var wlen int
@@ -347,12 +347,11 @@ func (s Status) Send(conn *net.UDPConn) error {
 	if buf, err = s.Encode(); err != nil {
 		return err
 	}
-	if wlen, err = conn.Write(buf); err != nil {
+	if wlen, err = conn.WriteTo(buf, to); err != nil {
 		return err
 	}
 	if wlen != len(buf) {
-		return fmt.Errorf("Status sent (%d) to %s != frame size (%d)",
-			wlen, conn.RemoteAddr().String(), len(buf))
+		return fmt.Errorf("status sent (%d) to %s != frame size (%d)", wlen, to.String(), len(buf))
 	}
 	return nil
 }

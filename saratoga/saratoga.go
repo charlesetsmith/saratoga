@@ -110,7 +110,7 @@ func datrxhandler(g *gocui.Gui, d data.Data, conn *net.UDPConn, remoteAddr *net.
 				return "badstatus"
 			}
 			// Send it out the connection to the peer
-			if err := st.Send(conn); err != nil {
+			if err := st.Send(conn, remoteAddr); err != nil {
 				sarwin.ErrPrintln(g, "red_black", err.Error())
 				return "badstatus"
 			}
@@ -198,7 +198,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 				sarwin.ErrPrintln(g, "red_black", "Cannot create badpacket status")
 			}
 			// Send it out the connection
-			if err := st.Send(conn); err != nil {
+			if err := st.Send(conn, remoteAddr); err != nil {
 				sarwin.ErrPrintln(g, "red_black", err.Error())
 			}
 			continue
@@ -253,7 +253,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 					continue
 				}
 				// Send it out the connection
-				if err := st.Send(conn); err != nil {
+				if err := st.Send(conn, remoteAddr); err != nil {
 					sarwin.ErrPrintln(g, "red_black", err.Error())
 				}
 				// Just send an error status back, dont create a transfer
@@ -285,7 +285,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 					continue
 				}
 				// Send it out the connection
-				if err := st.Send(conn); err != nil {
+				if err := st.Send(conn, remoteAddr); err != nil {
 					sarwin.ErrPrintln(g, "red_black", err.Error())
 				}
 				sarwin.ErrPrintln(g, "red_black", "Bad Data:", rxerr, " from ",
@@ -307,7 +307,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 				if st.New(stheader, &sinfo) != nil {
 					sarwin.ErrPrintln(g, "red_black", "Cannot asemble status")
 				}
-				if se := st.Send(conn); se != nil {
+				if se := st.Send(conn, remoteAddr); se != nil {
 					sarwin.ErrPrintln(g, "red_black", se.Error())
 				}
 			}
@@ -327,7 +327,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 				if st.New(stheader, &sinfo) != nil {
 					sarwin.ErrPrintln(g, "red_black", "Cannot assemble status")
 				}
-				if se := st.Send(conn); se != nil {
+				if se := st.Send(conn, remoteAddr); se != nil {
 					sarwin.ErrPrintln(g, "red_black", se.Error())
 				}
 				sarwin.ErrPrintln(g, "red_black", "Bad MetaData:", rxerr, " from ",
@@ -345,7 +345,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 				if st.New(stheader, &sinfo) != nil {
 					sarwin.ErrPrintln(g, "red_black", "Cannot assemble status")
 				}
-				if se := st.Send(conn); se != nil {
+				if se := st.Send(conn, remoteAddr); se != nil {
 					sarwin.ErrPrintln(g, "red_black", se.Error())
 				}
 				sarwin.ErrPrintln(g, "red_black", "Bad Metadata:", rxerr, " from ",
@@ -366,7 +366,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 				if st.New(stheader, &sinfo) != nil {
 					sarwin.ErrPrintln(g, "red_black", "Cannot assemble status")
 				}
-				if se := st.Send(conn); se != nil {
+				if se := st.Send(conn, remoteAddr); se != nil {
 					sarwin.ErrPrintln(g, "red_black", se.Error())
 				}
 				sarwin.ErrPrintln(g, "red_black", "Bad Status:", rxerr, " from ",
@@ -383,7 +383,7 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 				if st.New(stheader, &sinfo) != nil {
 					sarwin.ErrPrintln(g, "red_black", "Cannot assemble status")
 				}
-				if se := st.Send(conn); se != nil {
+				if se := st.Send(conn, remoteAddr); se != nil {
 					sarwin.ErrPrintln(g, "red_black", se.Error())
 				}
 				sarwin.ErrPrintln(g, "red_black", "Bad Status:", errcode, " from ",
