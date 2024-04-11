@@ -37,7 +37,8 @@ func isIPv6(address string) bool {
 	return strings.Count(address, ":") >= 2 // (::)
 }
 
-// Returns the ipv4 or ipv6 resolved UDPAddr with Port
+// Given a valid IPv4 or IPv6 address
+// Returns the ipv4 or ipv6 resolved UDPAddr with the saratoga Port ready to "dial"
 func UDPAddress(s string) (*net.UDPAddr, error) {
 	var a string
 
@@ -57,14 +58,10 @@ func UDPAddress(s string) (*net.UDPAddr, error) {
 
 // UDPinfo - Return string of IP Address and Port #
 func UDPinfo(addr *net.UDPAddr) string {
+	if addr == nil {
+		return ""
+	}
 	return addr.String()
-	/*
-		if strings.Contains(addr.IP.String(), ":") { // IPv6
-			return "[" + addr.IP.String() + "]:" + strconv.Itoa(addr.Port)
-		}
-		// IPv4 Address
-		return addr.IP.String() + ":" + strconv.Itoa(addr.Port)
-	*/
 }
 
 func removeUDPAddrIndex(a []net.UDPAddr, index int) []net.UDPAddr {
@@ -73,7 +70,7 @@ func removeUDPAddrIndex(a []net.UDPAddr, index int) []net.UDPAddr {
 	return append(ret, a[index+1:]...)
 }
 
-// removeUDPAddrValue -- Remove all entries in slice of strings matching val
+// removeUDPAddrValue -- Remove all entries in slice of UDPAddr matching val
 func RemoveUDPAddrValue(a []net.UDPAddr, val *net.UDPAddr) []net.UDPAddr {
 	for i := 0; i < len(a); i++ {
 		if a[i].String() == val.String() {
@@ -126,6 +123,8 @@ func SetMulticastLoop(conn net.PacketConn) error {
 	}
 	return nil
 }
+
+// ****************************************************************************************************
 
 // Code from github - See https://holwech.github.io/blog/Creating-a-simple-UDP-module
 /*

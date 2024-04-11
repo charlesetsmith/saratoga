@@ -1,5 +1,6 @@
 // Client Transfer
-
+// THIS CODE IS IS NOW ALL DEPRECATED!!!!
+// GRAB SOME IDEAS FROM IIT BUT DONT USE IT OR TRY TO FIX IIT
 package transfer
 
 import (
@@ -73,7 +74,7 @@ func readstatus(g *gocui.Gui, t *Transfer, dflags string, conn *net.UDPConn, add
 		// Process the received frame and make sure it is a status
 		if sarflags.GetStr(header, "frametype") == "status" {
 			var st status.Status
-			if rxerr := frames.Decode(&st, rframe); rxerr != nil {
+			if rxerr := st.Decode(rframe); rxerr != nil {
 				sarwin.ErrPrintln(g, "red_black", "Could not decode status frame")
 				errflag <- "badpacket"
 				return
@@ -103,7 +104,7 @@ func readstatus(g *gocui.Gui, t *Transfer, dflags string, conn *net.UDPConn, add
 		}
 		// We have "success" so Decode into a Status
 		var st status.Status
-		if err := frames.Decode(&st, rframe); err != nil {
+		if err := st.Decode(rframe); err != nil {
 			sarwin.ErrPrintln(g, "red_black", "Client read Bad Status with error:", err)
 			errflag <- "badstatus"
 			return
@@ -179,10 +180,9 @@ func senddata(g *gocui.Gui, t *Transfer, dflags string, conn *net.UDPConn, addr 
 
 	fcount := 0
 	eod := false
-	flags := replaceflag(dflags, "eod=no")
-	if fv := flagvalue(dflags, "reqtstamp"); fv != "no" && fv != "" {
-		timetype := "reqtstamp=" + fv // Set it to the appropriate timestamp type to use
-		flags = replaceflag(flags, timetype)
+	flags := sarflags.ReplaceFlag(dflags, "eod", "no")
+	if fv := sarflags.FlagValue(dflags, "reqtstamp"); fv != "no" && fv != "" {
+		flags = sarflags.ReplaceFlag(flags, "reqtstamp", fv)
 	}
 
 	// Allocate a read buffer for a data frame
@@ -199,15 +199,15 @@ func senddata(g *gocui.Gui, t *Transfer, dflags string, conn *net.UDPConn, addr 
 			return
 		}
 		if err == io.EOF { // We have read in the whole file
-			flags = replaceflag(flags, "eod=yes")
+			flags = sarflags.ReplaceFlag(flags, "eod", "yes")
 			eod = true
 		}
 		fcount++
 		if fcount == 100 || eod { // We want a status back after every 100 frames sent and at the end
-			flags = replaceflag(flags, "reqstatus=yes")
+			flags = sarflags.ReplaceFlag(flags, "reqstatus", "yes")
 			fcount = 0
 		} else {
-			flags = replaceflag(flags, "reqstatus=no")
+			flags = sarflags.ReplaceFlag(flags, "reqstatus", "no")
 		}
 
 		// OK so create the data frame and send it
@@ -282,12 +282,12 @@ var clienthandler = map[string]clientfunc{
 
 // client put a file to server
 // Engine - Send Request, Send Metadata, Wait for Status
-// 		Loop Sending Data and receiving intermittant Status
-// 		Resend Metadata if Requested in Status
-// 		Status is requested in Data every status timer secs
-//		or Datacnt Data frames sent, whichever comes first
-//		Abort with error if Rx Status errcode != "success"
 //
+//	Loop Sending Data and receiving intermittant Status
+//	Resend Metadata if Requested in Status
+//	Status is requested in Data every status timer secs
+//	or Datacnt Data frames sent, whichever comes first
+//	Abort with error if Rx Status errcode != "success"
 func cput(t *Transfer, g *gocui.Gui, errflag chan string) {
 	var err error
 	var fp *os.File
