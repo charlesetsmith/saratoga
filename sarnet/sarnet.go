@@ -29,38 +29,42 @@ const IPv6Multicast string = "FF02::6c"
 
 // Return if address type is IPv4
 func isIPv4(address string) bool {
-	return strings.Count(address, ":") < 2
+	return strings.Count(address, ".") == 3
 }
 
 // Return if address type is IPv6
 func isIPv6(address string) bool {
-	return strings.Count(address, ":") >= 2
+	return strings.Count(address, ":") >= 2 // (::)
 }
 
 // Returns the ipv4 or ipv6 resolved UDPAddr with Port
-func UDPAddress(s string) *net.UDPAddr {
+func UDPAddress(s string) (*net.UDPAddr, error) {
 	var a string
 
 	if isIPv6(s) {
-		a = "[" + s + "]:" + strconv.Itoa(Port)
+		a = "[" + s + "]"
 	} else if isIPv4(s) {
-		a = s + ":" + strconv.Itoa(Port)
+		a = s
 	} else {
-		return nil
+		return nil, errors.New("Invalid IPAddress:" + s)
 	}
-	if udpad, err := net.ResolveUDPAddr("udp", a); err != nil {
-		return udpad
+	a = a + ":" + strconv.Itoa(Port)
+	if udpad, err := net.ResolveUDPAddr("udp", a); err == nil {
+		return udpad, nil
 	}
-	return nil
+	return nil, errors.New("Cannot ResolveUDPAddr: " + a)
 }
 
 // UDPinfo - Return string of IP Address and Port #
 func UDPinfo(addr *net.UDPAddr) string {
-	if strings.Contains(addr.IP.String(), ":") { // IPv6
-		return "[" + addr.IP.String() + "]:" + strconv.Itoa(addr.Port)
-	}
-	// IPv4 Address
-	return addr.IP.String() + ":" + strconv.Itoa(addr.Port)
+	return addr.String()
+	/*
+		if strings.Contains(addr.IP.String(), ":") { // IPv6
+			return "[" + addr.IP.String() + "]:" + strconv.Itoa(addr.Port)
+		}
+		// IPv4 Address
+		return addr.IP.String() + ":" + strconv.Itoa(addr.Port)
+	*/
 }
 
 func removeUDPAddrIndex(a []net.UDPAddr, index int) []net.UDPAddr {

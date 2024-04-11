@@ -1293,8 +1293,9 @@ func cmdBeacon(g *gocui.Gui, args []string) {
 					clibeacon.v4mcast = true
 					clibeacon.count = 1
 					// Start up the beacon client sending count IPv4 beacons
-					addr := sarnet.UDPAddress(sarflags.Cliflag.V4Multicast)
-					go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, addr)
+					if addr, err := sarnet.UDPAddress(sarflags.Cliflag.V4Multicast); err == nil {
+						go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, addr)
+					}
 					return
 				case "v6":
 					// V6 Multicast
@@ -1302,9 +1303,10 @@ func cmdBeacon(g *gocui.Gui, args []string) {
 					clibeacon.flags = sarflags.Setglobal("beacon", sarflags.Cliflag)
 					clibeacon.v6mcast = true
 					clibeacon.count = 1
-					addr := sarnet.UDPAddress(sarflags.Cliflag.V6Multicast)
-					// Start up the beacon client sending count IPv6 beacons
-					go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, addr)
+					if addr, err := sarnet.UDPAddress(sarflags.Cliflag.V6Multicast); err == nil {
+						// Start up the beacon client sending count IPv6 beacons
+						go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, addr)
+					}
 					return
 				default:
 					// beacon <count> or beacon <ipaddr>
@@ -1317,7 +1319,7 @@ func cmdBeacon(g *gocui.Gui, args []string) {
 						return
 					}
 					// We have an IP Address so send it a beacon
-					if addr := sarnet.UDPAddress(args[1]); addr != nil {
+					if addr, err := sarnet.UDPAddress(args[1]); err == nil {
 						MsgPrintln(g, "green_black", "Sending ", clibeacon.count, " beacons to ", addr.String())
 						go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, addr)
 						return
@@ -1328,16 +1330,18 @@ func cmdBeacon(g *gocui.Gui, args []string) {
 				}
 			}
 			// Otherwise we have more args than 1 so send the beacon from the first arg
-			if addr := sarnet.UDPAddress(args[1]); addr != nil {
+			if addr, err := sarnet.UDPAddress(args[1]); err == nil {
 				MsgPrintln(g, "green_black", "Sending ", clibeacon.count, " beacons to ", addr.String())
 				go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, addr)
 				return
+			} else {
+				ErrPrintln(g, "blue_black", err.Error())
 			}
 			if args[1] == "off" {
 				disable = true
 			}
 		default:
-			if addr := sarnet.UDPAddress(args[argcnt]); addr != nil {
+			if addr, err := sarnet.UDPAddress(args[argcnt]); err == nil {
 				if disable {
 					// Remove the host from the list
 					clibeacon.hosts = sarnet.RemoveUDPAddrValue(clibeacon.hosts, addr)
@@ -1543,7 +1547,7 @@ func cmdGet(g *gocui.Gui, args []string) {
 	case 3:
 		// var t transfer.CTransfer
 
-		if udpad := sarnet.UDPAddress(args[1]); udpad != nil {
+		if udpad, err := sarnet.UDPAddress(args[1]); err == nil {
 			if _, err := NewInitiator(g, "get", udpad, args[2], sarflags.Cliflag); err != nil {
 				return
 			}
@@ -1566,7 +1570,7 @@ func cmdGetdir(g *gocui.Gui, args []string) {
 			return
 		}
 	case 3:
-		if udpad := sarnet.UDPAddress(args[1]); udpad != nil {
+		if udpad, err := sarnet.UDPAddress(args[1]); err == nil {
 			if _, err := NewInitiator(g, "getdir", udpad, args[2], sarflags.Cliflag); err != nil {
 				MsgPrintln(g, "magenta_black", prhelp("getdir"))
 				ErrPrintln(g, "green_black", prusage("getdir"))
@@ -1592,7 +1596,7 @@ func cmdGetrm(g *gocui.Gui, args []string) {
 			return
 		}
 	case 3:
-		if udpad := sarnet.UDPAddress(args[1]); udpad != nil {
+		if udpad, err := sarnet.UDPAddress(args[1]); err == nil {
 			if _, err := NewInitiator(g, "getrm", udpad, args[2], sarflags.Cliflag); err != nil {
 				MsgPrintln(g, "magenta_black", prhelp("getrm"))
 				ErrPrintln(g, "green_black", prusage("getrm"))
@@ -1819,7 +1823,7 @@ func cmdPut(g *gocui.Gui, args []string) {
 			return
 		}
 	case 3:
-		if udpad := sarnet.UDPAddress(args[1]); udpad != nil {
+		if udpad, err := sarnet.UDPAddress(args[1]); err == nil {
 			if t, err := NewInitiator(g, "put", udpad, args[2], sarflags.Cliflag); err == nil && t != nil {
 				errflag := make(chan error, 1) // The return channel holding the saratoga errflag
 				go t.Do(g, errflag)            // Actually do the transfer
@@ -1860,7 +1864,7 @@ func cmdPutblind(g *gocui.Gui, args []string) {
 		}
 	case 3:
 		// We send the Metadata and do not bother with request/status exchange
-		if udpad := sarnet.UDPAddress(args[1]); udpad != nil {
+		if udpad, err := sarnet.UDPAddress(args[1]); err == nil {
 			if t, err := NewInitiator(g, "putblind", udpad, args[2], sarflags.Cliflag); err == nil && t != nil {
 				errflag := make(chan error, 1) // The return channel holding the saratoga errflag
 				go t.Do(g, errflag)            // Actually do the transfer
@@ -1901,7 +1905,7 @@ func cmdPutrm(g *gocui.Gui, args []string) {
 		}
 	case 3:
 		// var t *transfer.Transfer
-		if udpad := sarnet.UDPAddress(args[1]); udpad != nil {
+		if udpad, err := sarnet.UDPAddress(args[1]); err == nil {
 			if t, err := NewInitiator(g, "putrm", udpad, args[2], sarflags.Cliflag); err == nil && t != nil {
 				errflag := make(chan error, 1) // The return channel holding the saratoga errflag
 				go t.Do(g, errflag)            // Actually do the transfer
@@ -1969,7 +1973,7 @@ func cmdRm(g *gocui.Gui, args []string) {
 			return
 		}
 	case 3:
-		if udpad := sarnet.UDPAddress(args[1]); udpad != nil {
+		if udpad, err := sarnet.UDPAddress(args[1]); err == nil {
 			if t, err := NewInitiator(g, "rm", udpad, args[2], sarflags.Cliflag); err == nil && t != nil {
 				errflag := make(chan error, 1) // The return channel holding the saratoga errflag
 				go t.Do(g, errflag)            // Actually do the transfer
@@ -2009,7 +2013,7 @@ func cmdRmdir(g *gocui.Gui, args []string) {
 			return
 		}
 	case 3:
-		if udpad := sarnet.UDPAddress(args[1]); udpad != nil {
+		if udpad, err := sarnet.UDPAddress(args[1]); err == nil {
 			if t, err := NewInitiator(g, "rmdir", udpad, args[2], sarflags.Cliflag); err == nil && t != nil {
 				errflag := make(chan error, 1) // The return channel holding the saratoga errflag
 				go t.Do(g, errflag)            // Actually do the transfer
