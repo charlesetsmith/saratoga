@@ -492,7 +492,8 @@ func (c *Cliflags) ReadConfig(fname string) error {
 				DirentFlags[dkey] = tmp
 			}
 		case "timestamps":
-			timestamps := value.(interface{})
+			timestamps := value
+			// timestamps := value.(interface{})
 			info := timestamps.(map[string]interface{})
 			for ikey, ival := range info {
 				switch ikey {
@@ -592,6 +593,7 @@ func FlagValue(flags, flag string) string {
 }
 
 // Replace an existing flag or add a new flag
+// e.g. value:descriptor, option:d64 becomes "descriptor=d64"
 func ReplaceFlag(flags, value, option string) string {
 	var newflags string
 	var replaced bool

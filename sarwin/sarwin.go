@@ -2279,7 +2279,7 @@ func cmdTimestamp(g *gocui.Gui, args []string) {
 
 	switch len(args) {
 	case 1:
-		MsgPrintln(g, "green_black", "Timestamps  are",
+		MsgPrintln(g, "green_black", "Timestamps are ",
 			sarflags.Cliflag.Global["reqtstamp"], " and ", sarflags.Cliflag.Timestamp)
 		return
 	case 2:
