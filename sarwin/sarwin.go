@@ -20,6 +20,7 @@ import (
 
 	"github.com/charlesetsmith/saratoga/beacon"
 	"github.com/charlesetsmith/saratoga/dirent"
+	"github.com/charlesetsmith/saratoga/fileio"
 	"github.com/charlesetsmith/saratoga/holes"
 	"github.com/charlesetsmith/saratoga/metadata"
 	"github.com/charlesetsmith/saratoga/request"
@@ -910,13 +911,23 @@ func NewInitiator(g *gocui.Gui, ttype string, peer *net.UDPAddr, fname string, c
 			}
 			return nil, errors.New(emsg)
 		}
-		if peer.String() == i.Conn.RemoteAddr().String() && fname == i.Filename { // We can't write to same file
-			emsg := fmt.Sprintf("Initiator Transfer for %s to %s is currently in progress, cannnot add transfer",
+		// If the file currently exists on our system and we try to "get" it then we won;t allow that
+		// We cant overwrite an existing file on our system
+		if fileio.FileExists(fname) && (ttype == "get" || ttype == "getdelete" || ttype == "getdir") {
+			emsg := fmt.Sprintf("File %s already exists, cannot overwrite", fname)
+			ErrPrintln(g, "red_black", emsg)
+			return nil, errors.New(emsg)
+		}
+		// We do not allow duplicate transfers of a file to the same peer
+		if fname == i.Filename && peer.String() == i.Peer.String() {
+			emsg := fmt.Sprintf("Initiator %s to %s currently in progress",
 				fname, peer.String())
 			ErrPrintln(g, "red_black", emsg)
 			return nil, errors.New(emsg)
 		}
 	}
+
+	// OK lets create the transfer
 
 	// Lock it as we are going to add a new transfer slice
 	Trmu.Lock()
@@ -935,6 +946,11 @@ func NewInitiator(g *gocui.Gui, ttype string, peer *net.UDPAddr, fname string, c
 	}
 
 	t.Filename = fname
+	if t.Ttype == "get" || t.Ttype == "getdelete" || t.Ttype == "getdir" {
+		if t.Fp, err = fileio.FileOpen(t.Filename, t.Ttype); err != nil {
+			ErrPrintln(g, "red_black", err)
+		}
+	}
 
 	// Copy the FLAGS to t.cliflags
 	if t.Cliflags, err = c.CopyCliflags(); err != nil {
