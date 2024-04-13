@@ -27,7 +27,7 @@ type Data struct {
 type Dinfo struct {
 	Session uint32
 	Offset  uint64
-	Payload []byte
+	Payload []byte // Sllice of bytes - make sure you "append" to copy them here
 }
 
 // New - Construct a data frame - return byte slice of frame and Data structure

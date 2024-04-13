@@ -22,16 +22,31 @@ func TestData(t *testing.T) {
 	// Load up the Data Structure
 	dat.Session = 1234
 	dat.Offset = 56789
-	dat.Payload = nil
+	var i uint8
+	for i = 0; i < 255; i++ {
+		dat.Payload = append(dat.Payload, i)
+	}
 
+	var err error
 	var d Data
+	var buff []byte
+	// var buff []byte
 	dptr := &d
 
 	// Create a new Data Frame
 	f := "descriptor=d32,reqstatus=yes,eod=no,reqtstamp=yes"
-	if err := dptr.New(f, &dat); err != nil {
+	if err = dptr.New(f, &dat); err != nil {
 		t.Fatal(err)
 	}
+
+	if buff, err = dptr.Encode(); err != nil {
+		t.Fatal(err.Error())
+	}
+	t.Log("New:" + dptr.Print())
+	if err = dptr.Decode(buff); err != nil {
+		t.Fatal(err.Error())
+	}
+	t.Log("Decode:" + dptr.Print())
+
 	// fmt.Println("Data Frame: ", dptr.Print())
-	t.Log(dptr.Print())
 }
