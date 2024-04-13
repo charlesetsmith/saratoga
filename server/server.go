@@ -1,5 +1,6 @@
 // Server Transfer
-
+// DO NOT USE THIS CODE IT IS DEPRECATED
+// Grab some ideas from it but dont use as we have moved on from client/server to peer/peer
 package transfer
 
 /*

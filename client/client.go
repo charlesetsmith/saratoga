@@ -1,6 +1,7 @@
 // Client Transfer
 // THIS CODE IS IS NOW ALL DEPRECATED!!!!
-// GRAB SOME IDEAS FROM IIT BUT DONT USE IT OR TRY TO FIX IIT
+// We have moved on from client/server to peer/peer
+// GRAB SOME IDEAS FROM IT BUT DONT USE IT OR TRY TO FIX IT
 package transfer
 
 import (
