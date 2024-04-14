@@ -85,6 +85,21 @@ func TestFileio(t *testing.T) {
 	if err = FileClose(fp); err != nil {
 		t.Fatal(err)
 	}
+	// Now calculate its checksum
+	var csum []byte
+
+	if csum, err = Checksum("crc32", fname); err != nil {
+		t.Fatal(err)
+	}
+	t.Log("CRC32 Checksum: ", fmt.Sprint(csum))
+	if csum, err = Checksum("md5", fname); err != nil {
+		t.Fatal(err)
+	}
+	t.Log("MD5 Checksum: ", fmt.Sprint(csum))
+	if csum, err = Checksum("sha1", fname); err != nil {
+		t.Fatal(err)
+	}
+	t.Log("SHA1 Checksum: ", fmt.Sprint(csum))
 
 	// Now lets read in a file to a buffer
 	var pos uint64 = 0
@@ -108,4 +123,16 @@ func TestFileio(t *testing.T) {
 		rb = slices.Concat(rb, b)
 	}
 	t.Log("Read Total File Length: ", len(rb))
+	if err = FileClose(pfp); err != nil {
+		t.Fatal(err)
+	}
+
+	// Now calculate its checksum
+	var cb []byte
+
+	if cb, err = Checksum("crc32", fname); err != nil {
+		t.Fatal(err)
+	}
+	s := string(cb)
+	t.Log(s)
 }
