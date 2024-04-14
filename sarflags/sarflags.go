@@ -256,6 +256,7 @@ type config struct {
 	Sardir      string   `json:"sardir"`      // What is the default directory for saratoga files
 	Prompt      string   `json:"prompt"`      // Command line prompt: saratoga
 	Ppad        int      `json:"ppad"`        // Padding length in prompt for []:
+	Buffersize  int      `json:"buffersize"`  // Size in bytes of fileio read and write buffers
 	Timeout     Timeouts // Various Timers
 }
 
@@ -272,10 +273,11 @@ type Cliflags struct {
 	Timestamp   string   // What timestamp to use
 	Timeout     Timeouts // Various timeouts
 	// Datacnt     int      // # data frames to send before a request flag is set
-	Timezone string // Timezone for logs utc or local time
-	Prompt   string // Prompt
-	Ppad     int    // Length of Padding around Prompt []: = 3
-	Sardir   string // Saratoga working directory
+	Timezone   string // Timezone for logs utc or local time
+	Prompt     string // Prompt
+	Ppad       int    // Length of Padding around Prompt []: = 3
+	Sardir     string // Saratoga working directory
+	Buffersize int    // Size in bytes of file read/write buffer
 }
 
 // Glabal Variable holding the Command line interface flags
@@ -381,6 +383,8 @@ func (c *Cliflags) ReadConfig(fname string) error {
 			conf.Prompt = value.(string)
 		case "ppad":
 			conf.Ppad = int(value.(float64))
+		case "buffersize":
+			conf.Buffersize = int(value.(float64))
 		case "timeout": // This is a map in json so copy it to the Timeout structure vars
 			// fmt.Println(key, "=", value)
 			timers := value.(map[string]interface{})
@@ -524,9 +528,10 @@ func (c *Cliflags) ReadConfig(fname string) error {
 	c.Global["reqstatus"] = conf.Reqstatus
 	c.Global["udplite"] = conf.Udplite
 	c.Global["descriptor"] = conf.Descriptor
-	c.V4Multicast = conf.V4multicast
-	c.V6Multicast = conf.V6multicast
-	c.Port = conf.Port
+	c.V4Multicast = conf.V4multicast                 // The v4 Multicast address
+	c.V6Multicast = conf.V6multicast                 // THe v6 Multicast address
+	c.Port = conf.Port                               // The Saratoga Port #
+	c.Buffersize = conf.Buffersize                   // Buffersize for file i/o
 	c.Timestamp = conf.Timestamp                     // Default timestamp type to use
 	c.Timeout.Metadata = conf.Timeout.Metadata       // Seconds
 	c.Timeout.Request = conf.Timeout.Request         // Seconds
@@ -625,6 +630,7 @@ func (s *Cliflags) CopyCliflags() (*Cliflags, error) {
 	d.Prompt = s.Prompt
 	d.Ppad = s.Ppad
 	d.Sardir = s.Sardir
+	d.Buffersize = s.Buffersize
 	// Copy the various Timeouts
 	d.Timeout.Binterval = s.Timeout.Binterval
 	d.Timeout.Metadata = s.Timeout.Metadata

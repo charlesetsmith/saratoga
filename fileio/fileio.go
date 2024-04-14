@@ -58,7 +58,7 @@ func FileOpen(fname string, ttype string) (*os.File, error) {
 		}
 		return nil, err
 	case "delete": // We are deleting a file from a remote system. We dont do that here!
-		return nil, fmt.Errorf("invalid use of Open for %s", fname)
+		return nil, nil
 	default:
 		return nil, fmt.Errorf("invalid transfer type %s", ttype)
 	}
@@ -88,7 +88,7 @@ func FileSeek(fp *os.File, pos uint64) error {
 func FileRead(fp *os.File, pos uint64, blen int) ([]byte, error) {
 	var err error
 	var n int
-	buf := make([]byte, 10)
+	buf := make([]byte, blen)
 
 	if fp == nil {
 		return nil, fmt.Errorf("fileRead: file is closed")
@@ -101,10 +101,7 @@ func FileRead(fp *os.File, pos uint64, blen int) ([]byte, error) {
 	if n, err = fp.Read(buf); err != nil {
 		return nil, fmt.Errorf("fileread: only read %d, should be %d", n, blen)
 	}
-	// Go back to beginning of file
-	if err = FileSeek(fp, 0); err != nil {
-		return nil, err
-	}
+	buf = buf[0:n]
 	return buf, nil
 }
 
@@ -121,11 +118,7 @@ func FileWrite(fp *os.File, pos uint64, buf []byte) (int, error) {
 	if n, err = fp.Write(buf); err != nil {
 		return n, err
 	}
-	// Not written as much as we should
-	if n != len(buf) {
-		return n, fmt.Errorf("filewrite: wrote %d of %d bytes to %s", n, len(buf), fp.Name())
-	}
-	// All good
+	// All good n can be <= len(buf)
 	return n, err
 }
 

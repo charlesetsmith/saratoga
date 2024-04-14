@@ -945,11 +945,10 @@ func NewInitiator(g *gocui.Gui, ttype string, peer *net.UDPAddr, fname string, c
 		ErrPrintln(g, "red_black", "Cannot dial peer "+peer.String()+" "+err.Error())
 	}
 
+	// Open up the local for i/o
 	t.Filename = fname
-	if t.Ttype == "get" || t.Ttype == "getdelete" || t.Ttype == "getdir" {
-		if t.Fp, err = fileio.FileOpen(t.Filename, t.Ttype); err != nil {
-			ErrPrintln(g, "red_black", err)
-		}
+	if t.Fp, err = fileio.FileOpen(t.Filename, t.Ttype); err != nil {
+		ErrPrintln(g, "red_black", err)
 	}
 
 	// Copy the FLAGS to t.cliflags

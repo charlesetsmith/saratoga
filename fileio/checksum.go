@@ -33,18 +33,20 @@ const (
 )
 
 // Checksum -- Calculate the checksum of the file
-func Checksum(csumtype string, fname string) (csum []byte, err error) {
+func Checksum(csumtype string, fname string) ([]byte, error) {
 
 	var hash hash.Hash
+	var fp *os.File
+	var err error
+	var csum []byte
 
-	//Open the fhe file located at the given path and check for errors
-	file, err := os.Open(fname)
-	if err != nil {
+	// Open the the file located at the given path and check for errors "put" means for reading in
+	// this circumstance
+	if fp, err = FileOpen(fname, "put"); err != nil {
 		return nil, err
 	}
-
-	//Tell the program to close the file when the function returns
-	defer file.Close()
+	//Tell the function to close the file when the function returns
+	defer fp.Close()
 
 	switch csumtype {
 	case "none":
@@ -64,7 +66,7 @@ func Checksum(csumtype string, fname string) (csum []byte, err error) {
 	}
 	// input := strings.NewReader(fname)
 
-	if _, err := io.Copy(hash, file); err != nil {
+	if _, err = io.Copy(hash, fp); err != nil {
 		return csum, err
 	}
 	csum = hash.Sum(nil)
@@ -72,12 +74,10 @@ func Checksum(csumtype string, fname string) (csum []byte, err error) {
 	var bsize int
 
 	if bsize = sarflags.Value("csumlen", csumtype); bsize < 0 {
-		e := fmt.Sprintf("Checksum Length of %d not supported", bsize)
-		return csum, errors.New(e)
+		return nil, fmt.Errorf("Checksum Length of %d not supported", bsize)
 	}
 	if bsize*4 != len(csum) {
-		e := fmt.Sprintf("Checksum Length of %d != %d", bsize*4, len(csum))
-		return csum, errors.New(e)
+		return nil, fmt.Errorf("Checksum Length of %d != %d", bsize*4, len(csum))
 	}
 	return csum, nil
 

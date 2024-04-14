@@ -17,6 +17,7 @@
 	"sardir" :		    "/Users/chas/sardir",
     "prompt" :          "saratoga",
     "ppad"  :   		3,
+	"buffersize":		1024,
 	"timeout" : {
 		"metadata" : 	55,
 		"request" :  	56,
