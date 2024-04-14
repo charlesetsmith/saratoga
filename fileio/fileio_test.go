@@ -37,14 +37,29 @@ func TestFileio(t *testing.T) {
 	defer fp.Close()
 	t.Log("Created file for writing: ", fname)
 
-	// Create a slice one bigger than buffersize for the test
+	// Create a slice three bytes bigger than buffersize for the test
 	var b []byte
-	for i := 0; i < conf.Buffersize; i++ {
-		b = append(b, 'w')
+	var c byte
+	for j := 0; j < 4; j++ {
+		switch j { // Yes I know this is CRAP!
+		case 0:
+			c = 'A'
+		case 1:
+			c = 'B'
+		case 2:
+			c = 'C'
+		case 3:
+			c = 'D'
+		}
+		for i := 0; i < conf.Buffersize; i++ {
+			b = append(b, c)
+		}
 	}
-	b = append(b, 'x')
-	b = append(b, 'y')
-	b = append(b, 'z')
+	b = append(b, '0')
+	b = append(b, '1')
+	b = append(b, '2')
+
+	var filelength int = 0
 
 	var framenumb int
 	var n int
@@ -62,10 +77,11 @@ func TestFileio(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		s := fmt.Sprintf("wrote: %d totframes: %d framenumb: %d pos: %d", n, totframes, framenumb, pos)
+		s := fmt.Sprintf("Write framenumb: %d pos: %d len: %d", framenumb, pos, n)
+		filelength += n
 		t.Log(s)
-		t.Log("Wrote Frame Len:", n)
 	}
+	t.Log("Write total file length: ", filelength)
 	if err = FileClose(fp); err != nil {
 		t.Fatal(err)
 	}
