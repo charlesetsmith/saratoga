@@ -6,10 +6,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
-	"time"
 
+	"github.com/charlesetsmith/saratoga/fileio"
 	"github.com/charlesetsmith/saratoga/sarflags"
 	"github.com/charlesetsmith/saratoga/sarsys"
 	"github.com/charlesetsmith/saratoga/timestamp"
@@ -35,66 +34,15 @@ func (from *DirEnt) Copy() (to *DirEnt) {
 	return to
 }
 
-// File Information Summary
-type FileMetaData struct {
-	Path        string      // File Name
-	Origin      string      // Origin File NName for Symymbolic Links
-	Mode        os.FileMode // Mode rwx etc.
-	Info        os.FileInfo // Summary of Info in case you want to use this
-	Size        int64       // Size of the File
-	ModTime     time.Time   // Modification Time
-	IsDir       bool        // Are we a directory or
-	IsRegular   bool        // are we a regular file or
-	IsNamedPipe bool        // are we a named pipe or
-	IsSymLink   bool        // are we a symbolic link
-	Uid         int         // Uid (0 for Windows)
-	Gid         int         // Gid (0 for Windows)
-}
-
-// FileMeta - Get file metadata information
-func (fs *FileMetaData) FileMeta(filePath string) error {
-
-	var err error
-	var info os.FileInfo
-	if info, err = os.Lstat(filePath); os.IsNotExist(err) {
-		fmt.Println("File Does not exist:", filePath)
-		return err
-	}
-	// Symbolic Links and Named Pipes are treated as "special files"
-	if info.Mode()&os.ModeSymlink == os.ModeSymlink {
-		fs.IsSymLink = true
-		fs.Origin, _ = os.Readlink(fs.Path)
-		var patherr error
-		if fs.Origin, patherr = os.Readlink(filePath); patherr != nil {
-			return patherr
-		}
-		origstat, _ := os.Lstat(fs.Origin)
-		// Yes we can be a symbolic link to a directory so both are true
-		fs.IsDir = origstat.IsDir()
-	} else {
-		fs.IsDir = info.IsDir()
-	}
-	if info.Mode()&os.ModeNamedPipe == os.ModeNamedPipe {
-		fs.IsNamedPipe = true
-	}
-	fs.Info = info
-	fs.Mode = info.Mode()
-	fs.Path = info.Name()
-	fs.Size = info.Size()
-	fs.Uid, fs.Gid = sarsys.GetOwnerAndGroup(info) // 0, 0 for Windows of course...
-	fs.ModTime = info.ModTime()
-	fs.IsRegular = info.Mode().IsRegular()
-	return nil
-}
-
 // StatFile -- Get file information - size, mtime, ctime
 // The mtime & ctime values are y2k epoch formats
-func (d *DirEnt) Statfile(name string) (err error) {
+func (d *DirEnt) Statfile(name string) error {
+
+	var fi *fileio.FileMetaData
+	var err error
 
 	// Stat the file/directory name
-	fi := new(FileMetaData)
-
-	if err := fi.FileMeta(name); err != nil {
+	if fi, err = fileio.FileMeta(name); err != nil {
 		// fi, err := os.Stat(name)
 		return err
 	}
@@ -105,11 +53,11 @@ func (d *DirEnt) Statfile(name string) (err error) {
 	ft.NewTime(fi.Info)
 
 	// Mtime
-	if err := d.Mtime.New("epoch2000_32", ft.Mtime); err != nil {
+	if err = d.Mtime.New("epoch2000_32", ft.Mtime); err != nil {
 		return err
 	}
 	// Ctime
-	if err := d.Ctime.New("epoch2000_32", ft.Ctime); err != nil {
+	if err = d.Ctime.New("epoch2000_32", ft.Ctime); err != nil {
 		return err
 	}
 	return nil

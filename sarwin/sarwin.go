@@ -840,34 +840,34 @@ var smu sync.Mutex
 var sessionid uint32
 
 type Transfer struct {
-	Direction  bool                // Am I the Initiator of; or Responder to a transfer
-	Session    uint32              // Session ID - This is the unique key
-	Conn       *net.UDPConn        // The connection to the remote peer
-	Peer       *net.UDPAddr        // ip address and port of the peer
-	Ttype      string              // Transfer type "get,getrm,put,putrm,putblind,rm"
-	Tstamp     timestamp.Timestamp // Latest timestamp received from Data
-	Tstamptype string              // Timestamp type "localinterp,posix32,posix64,posix32_32,posix64_32,epoch2000_32"
-	Filename   string              // Local File name to receive or remove from remote host or send from local host
-	Fp         *os.File            // File pointer for local file
+	Direction  bool                 // Am I the Initiator of; or Responder to a transfer
+	Session    uint32               // Session ID - This is the unique key
+	Conn       *net.UDPConn         // The connection to the remote peer
+	Peer       *net.UDPAddr         // ip address and port of the peer
+	Ttype      string               // Transfer type "get,getrm,put,putrm,putblind,rm"
+	Tstamp     timestamp.Timestamp  // Latest timestamp received from Data
+	Tstamptype string               // Timestamp type "localinterp,posix32,posix64,posix32_32,posix64_32,epoch2000_32"
+	Filename   string               // Local File name to receive or remove from remote host or send from local host
+	Fp         *os.File             // File pointer for local file
+	Filemeta   *fileio.FileMetaData // File metadata of the local file
 	// frames    [][]byte           // Frames to process
 	// holes     holes.Holes        // Holes to process
-	Version    string               // Flag
-	Fileordir  string               // Flag
-	Udplite    string               // Flag
-	Descriptor string               // Flag
-	Stream     string               // Flag
-	Csumtype   string               // What type of checksum are we using
-	Havemeta   bool                 // Have we recieved a metadata yet
-	Checksum   []byte               // Checksum of the remote file to be get/put if requested
-	Dir        *dirent.DirEnt       // Directory entry info of the file to get/put
-	Fileinfo   *dirent.FileMetaData // File metadata of the local file
-	Data       []byte               // Buffered data
-	Dcount     uint64               // Number Data frames sent/recieved
-	Framecount uint64               // Total number frames received in this transfer (so we can schedule status)
-	Progress   uint64               // Current Progress indicator
-	Inrespto   uint64               // In respose to indicator
-	Curfills   holes.Holes          // What has been received
-	Cliflags   *sarflags.Cliflags   // Global flags used in this transfer
+	Version    string             // Flag
+	Fileordir  string             // Flag
+	Udplite    string             // Flag
+	Descriptor string             // Flag
+	Stream     string             // Flag
+	Csumtype   string             // What type of checksum are we using
+	Havemeta   bool               // Have we recieved a metadata yet
+	Checksum   []byte             // Checksum of the remote file to be get/put if requested
+	Dir        *dirent.DirEnt     // Directory entry info of the file to get/put
+	Data       []byte             // Buffered data
+	Dcount     uint64             // Number Data frames sent/recieved
+	Framecount uint64             // Total number frames received in this transfer (so we can schedule status)
+	Progress   uint64             // Current Progress indicator
+	Inrespto   uint64             // In respose to indicator
+	Curfills   holes.Holes        // What has been received
+	Cliflags   *sarflags.Cliflags // Global flags used in this transfer
 }
 
 // Transfers - protected transfers in progress
@@ -950,6 +950,9 @@ func NewInitiator(g *gocui.Gui, ttype string, peer *net.UDPAddr, fname string, c
 	if t.Fp, err = fileio.FileOpen(t.Filename, t.Ttype); err != nil {
 		ErrPrintln(g, "red_black", err)
 	}
+	if t.Filemeta, err = fileio.FileMeta(fname); err != nil {
+		ErrPrintln(g, "red_black", err)
+	}
 
 	// Copy the FLAGS to t.cliflags
 	if t.Cliflags, err = c.CopyCliflags(); err != nil {
@@ -963,7 +966,7 @@ func NewInitiator(g *gocui.Gui, ttype string, peer *net.UDPAddr, fname string, c
 }
 
 // New - Add a new transfer to the Transfers list upon receipt of a request
-// when we receive a request we are therefore a "server"
+// when we receive a request we are therefore a responder
 func NewResponder(g *gocui.Gui, r request.Request, peer string) error {
 
 	var err error
@@ -1003,10 +1006,10 @@ func NewResponder(g *gocui.Gui, r request.Request, peer string) error {
 	t.Stream = sarflags.GetStr(r.Header, "stream")         // Denotes a named pipe
 	t.Descriptor = sarflags.GetStr(r.Header, "descriptor") // What descriptor we use for the transfer
 
-	t.Havemeta = false
-	t.Framecount = 0 // No data yet. count of data frames
-	t.Csumtype = ""  // We don't know checksum type until we get a metadata
-	t.Checksum = nil // Nor do we know what it is
+	t.Havemeta = false // We have not received a Metadata yet from the peer
+	t.Framecount = 0   // No data yet. count of data frames
+	t.Csumtype = ""    // We don't know checksum type until we get a metadata
+	t.Checksum = nil   // Nor do we know what it is
 	t.Filename = r.Fname
 	t.Tstamptype = "" // Filled out with status or data frame "localinterp,posix32,posix64,posix32_32,posix64_32,epoch2000_32"
 	t.Progress = 0    // Current progress indicator
@@ -1021,16 +1024,15 @@ func NewResponder(g *gocui.Gui, r request.Request, peer string) error {
 
 	switch t.Ttype {
 	case "get", "getrm", "rm": // We are acting on a file local to this system
-		// Find the file metadata to get it's properties
-		t.Fileinfo = new(dirent.FileMetaData)
-		if err = t.Fileinfo.FileMeta(t.Filename); err != nil {
+		// Find the local files metadata to get it's properties
+		if t.Filemeta, err = fileio.FileMeta(t.Filename); err != nil {
 			t.Conn.Close()
 			return err
 		}
-		if t.Fileinfo.IsDir {
+		if t.Filemeta.IsDir {
 			flags = sarflags.AddFlag("", "property", "normaldirectory")
 			flags = sarflags.AddFlag(flags, "reliability", "yes")
-		} else if t.Fileinfo.IsRegular {
+		} else if t.Filemeta.IsRegular {
 			flags = sarflags.AddFlag("", "property", "normalfile")
 			flags = sarflags.AddFlag(flags, "reliability", "yes")
 		} else { // specialfile (no such thing as a "specialdirectory")

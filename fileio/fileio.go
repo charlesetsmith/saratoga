@@ -4,8 +4,10 @@ package fileio
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/charlesetsmith/saratoga/sarflags"
+	"github.com/charlesetsmith/saratoga/sarsys"
 )
 
 // Check to see if a file or directory exists on our local system
@@ -141,4 +143,58 @@ func FileDelete(fp *os.File) error {
 		return FileRm(fname)
 	}
 	return fmt.Errorf("no existing open file to delete")
+}
+
+// File Information Summary
+type FileMetaData struct {
+	Path        string      // File Name
+	Origin      string      // Origin File Name for Symymbolic Links
+	Mode        os.FileMode // Mode rwx etc.
+	Info        os.FileInfo // Summary of Info in case you want to use this
+	Size        int64       // Size of the File
+	ModTime     time.Time   // Modification Time
+	IsDir       bool        // Are we a directory or
+	IsRegular   bool        // are we a regular file or
+	IsNamedPipe bool        // are we a named pipe or
+	IsSymLink   bool        // are we a symbolic link
+	Uid         int         // Uid (0 for Windows)
+	Gid         int         // Gid (0 for Windows)
+}
+
+// FileMeta - Get file metadata information
+func FileMeta(filePath string) (*FileMetaData, error) {
+
+	var fs *FileMetaData = new(FileMetaData)
+
+	var err error
+	var info os.FileInfo
+	if info, err = os.Lstat(filePath); os.IsNotExist(err) {
+		fmt.Println("File Does not exist:", filePath)
+		return nil, err
+	}
+	// Symbolic Links and Named Pipes are treated as "special files"
+	if info.Mode()&os.ModeSymlink == os.ModeSymlink {
+		fs.IsSymLink = true
+		fs.Origin, _ = os.Readlink(fs.Path)
+		var patherr error
+		if fs.Origin, patherr = os.Readlink(filePath); patherr != nil {
+			return nil, patherr
+		}
+		origstat, _ := os.Lstat(fs.Origin)
+		// Yes we can be a symbolic link to a directory so both are true
+		fs.IsDir = origstat.IsDir()
+	} else {
+		fs.IsDir = info.IsDir()
+	}
+	if info.Mode()&os.ModeNamedPipe == os.ModeNamedPipe {
+		fs.IsNamedPipe = true
+	}
+	fs.Info = info
+	fs.Mode = info.Mode()
+	fs.Path = info.Name()
+	fs.Size = info.Size()
+	fs.Uid, fs.Gid = sarsys.GetOwnerAndGroup(info) // 0, 0 for Windows of course...
+	fs.ModTime = info.ModTime()
+	fs.IsRegular = info.Mode().IsRegular()
+	return fs, nil
 }
