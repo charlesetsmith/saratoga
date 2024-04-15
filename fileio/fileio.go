@@ -169,7 +169,6 @@ func FileMeta(filePath string) (*FileMetaData, error) {
 	var err error
 	var info os.FileInfo
 	if info, err = os.Lstat(filePath); os.IsNotExist(err) {
-		fmt.Println("File Does not exist:", filePath)
 		return nil, err
 	}
 	// Symbolic Links and Named Pipes are treated as "special files"

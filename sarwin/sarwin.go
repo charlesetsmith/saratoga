@@ -101,6 +101,25 @@ type Cmdinfo struct {
 	Numlines int      // How many lines do we have
 }
 
+// Clear a window
+func Clearwin(g *gocui.Gui, win string) {
+
+	var newview *gocui.View
+
+	curview := g.CurrentView()
+	curname := curview.Name()
+	if win == "cmd" || win == "msg" || win == "err" || win == "packet" {
+		newview, _ = g.SetCurrentView(win)
+	} else {
+		return
+	}
+	newview.Clear()
+	newview.SetCursor(0, 0)
+	if curname != newview.Name() {
+		g.SetCurrentView(curname)
+	}
+}
+
 // Cinfo - Information held on the cmd view
 var Cinfo Cmdinfo
 
@@ -1078,10 +1097,10 @@ func Info(g *gocui.Gui, ttype string) {
 		var maxaddrlen, maxfname int // Work out the width for the table
 		for key := range tinfo {
 			if len(tinfo[key].Peer.String()) > maxaddrlen {
-				maxaddrlen = len(tinfo[key].Conn.RemoteAddr().String())
+				maxaddrlen = len(tinfo[key].Peer.String())
 			}
 			if len(tinfo[key].Filename) > maxfname {
-				maxfname = len(tinfo[key].Conn.RemoteAddr().String())
+				maxfname = len(tinfo[key].Filename)
 			}
 		}
 		// Table format
@@ -1105,7 +1124,7 @@ func Info(g *gocui.Gui, ttype string) {
 		MsgPrintln(g, "magenta_black", sbuf)
 	} else {
 		msg := fmt.Sprintf("No %s transfers currently in progress", ttype)
-		MsgPrintln(g, "green_black", msg)
+		MsgPrintln(g, "magenta_black", msg)
 	}
 }
 
@@ -1413,6 +1432,42 @@ func cmdChecksum(g *gocui.Gui, args []string) {
 		ErrPrintln(g, "green_red", prusage("checksum"))
 	}
 	ErrPrintln(g, "green_red", prusage("checksum"))
+}
+
+// cmdClear -- Clear windows cmd,msg,err,packet
+func cmdClear(g *gocui.Gui, args []string) {
+
+	if len(args) == 1 {
+		MsgPrintln(g, "green_black", "Cleared all windows")
+		Clearwin(g, "cmd")
+		Clearwin(g, "msg")
+		Clearwin(g, "err")
+		Clearwin(g, "packet")
+		return
+	}
+	if len(args) == 2 {
+		switch args[1] {
+		case "?": // usage
+			MsgPrintln(g, "magenta_black", prhelp("clear"))
+			MsgPrintln(g, "green_black", prusage("clear"))
+		case "cmd", "msg", "err", "packet":
+			MsgPrintln(g, "green_black", "Cleared Window:", args[1])
+			Clearwin(g, args[1])
+		default:
+			ErrPrintln(g, "red_black", prusage("clear"))
+		}
+		return
+	}
+	for arg := 1; arg < len(args); arg++ {
+		switch args[arg] {
+		case "cmd", "msg", "err", "packet":
+			MsgPrintln(g, "green_black", "Cleared Window:", args[arg])
+			Clearwin(g, args[arg])
+		default:
+			ErrPrintln(g, "red_black", prusage("clear"))
+			return
+		}
+	}
 }
 
 // cmdDescriptor -- set descriptor size 16,32,64,128 bits
@@ -2444,6 +2499,7 @@ var cmdhandler = map[string]cmdfunc{
 	"beacon":     cmdBeacon,
 	"cancel":     cmdCancel,
 	"checksum":   cmdChecksum,
+	"clear":      cmdClear,
 	"descriptor": cmdDescriptor,
 	"exit":       cmdExit,
 	"files":      cmdFiles,

@@ -366,7 +366,9 @@ func (b *Beacon) NewPeer(from *net.UDPAddr) bool {
 			pmu.Lock()
 			defer pmu.Unlock()
 			// Has anything changed since the last beacon for this peer ?
-			if Peers[p].Freespace != b.Freespace || Peers[p].Eid != b.Eid || Peers[p].Maxdesc != sarflags.GetStr(b.Header, "descriptor") {
+			if Peers[p].Freespace != b.Freespace ||
+				Peers[p].Eid != b.Eid ||
+				Peers[p].Maxdesc != sarflags.GetStr(b.Header, "descriptor") {
 				Peers[p].Freespace = b.Freespace
 				Peers[p].Eid = b.Eid
 				Peers[p].Maxdesc = sarflags.GetStr(b.Header, "descriptor")

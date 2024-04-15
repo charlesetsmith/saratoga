@@ -43,6 +43,10 @@
 			"usage" : "checksum [off|none|crc32|md5|sha1]",
 			"help" : "set checksums required and type"
 		},
+		"clear" : {
+			"usage" : "clear [cmd|msg|err|packet]...",
+			"help" : "clear display window"
+		},
 		"descriptor" : {
 			"usage" : "descriptor [auto|d16|d32|d64|d128]",
 			"help" : "advertise & set default descriptor size"
