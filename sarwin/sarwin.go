@@ -185,9 +185,9 @@ func Layout(g *gocui.Gui) error {
 		cmd.Editable = true
 		cmd.Overwrite = true
 		cmd.Wrap = true
-		cmd.Autoscroll = false
+		cmd.Autoscroll = true
 	}
-	// This is the error msg view -- mic errors go here
+	// This is the error msg view -- errors go here
 	if cmd, err = g.SetView("err", maxx/2, maxy-(maxy/ratio)+1, maxx-1, maxy-1); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
@@ -199,7 +199,7 @@ func Layout(g *gocui.Gui) error {
 		cmd.Editable = false
 		cmd.Overwrite = false
 		cmd.Wrap = true
-		cmd.Autoscroll = false
+		cmd.Autoscroll = true
 	}
 	// This is the packet trace window - packet trace history goes here
 	// Toggles on/off with CtrlP
@@ -217,7 +217,7 @@ func Layout(g *gocui.Gui) error {
 		packet.Autoscroll = false
 	}
 
-	// This is the message view window - Status & error messages go here
+	// This is the message view window - Status and command output messages go here
 	if msg, err = g.SetView("msg", 0, 0, maxx-1, maxy-maxy/ratio); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
@@ -229,7 +229,7 @@ func Layout(g *gocui.Gui) error {
 		msg.Editable = false
 		msg.Wrap = true
 		msg.Overwrite = false
-		msg.Autoscroll = false
+		msg.Autoscroll = true
 	}
 
 	// Display the prompt without the \n first time around
@@ -238,14 +238,14 @@ func Layout(g *gocui.Gui) error {
 		g.Highlight = true
 		g.SelFgColor = gocui.ColorRed
 		g.SelBgColor = gocui.ColorWhite
-		// All inputs happen via the cmd view
+		// All inputs happen via entries in the cmd view
 		if cmd, err = g.SetCurrentView("cmd"); err != nil {
 			return err
 		}
 		cmd.SetCursor(0, 0)
 		Cinfo.Curline = 0
-		cmdv, _ := g.View("cmd")
-		Prompt(g, cmdv)
+		// cmdv, _ := g.View("cmd")
+		Prompt(g, cmd)
 		FirstPass = false
 	}
 	return nil
