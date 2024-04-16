@@ -44,8 +44,8 @@
 			"help" : "set checksums required and type"
 		},
 		"clear" : {
-			"usage" : "clear [cmd|msg|err|packet]...",
-			"help" : "clear display window"
+			"usage" : "clear [msg|err|packet]...",
+			"help" : "clear display window view"
 		},
 		"descriptor" : {
 			"usage" : "descriptor [auto|d16|d32|d64|d128]",

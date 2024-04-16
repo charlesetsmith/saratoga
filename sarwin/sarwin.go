@@ -108,14 +108,11 @@ func Clearwin(g *gocui.Gui, win string) {
 
 	curview := g.CurrentView()
 	curname := curview.Name()
-	if win == "cmd" || win == "msg" || win == "err" || win == "packet" {
+	// x, y := curview.Cursor()
+	if win == "msg" || win == "err" || win == "packet" {
 		newview, _ = g.SetCurrentView(win)
-	} else {
-		return
-	}
-	newview.Clear()
-	newview.SetCursor(0, 0)
-	if curname != newview.Name() {
+		newview.Clear()
+		newview.SetCursor(0, 0)
 		g.SetCurrentView(curname)
 	}
 }
@@ -181,7 +178,7 @@ func Layout(g *gocui.Gui) error {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
-		cmd.Title = "Command Line"
+		cmd.Title = "Command Line - cmd"
 		cmd.Highlight = false
 		cmd.BgColor = gocui.ColorBlack
 		cmd.FgColor = gocui.ColorGreen
@@ -195,7 +192,7 @@ func Layout(g *gocui.Gui) error {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
-		cmd.Title = "Errors"
+		cmd.Title = "Errors - err"
 		cmd.Highlight = false
 		cmd.BgColor = gocui.ColorBlack
 		cmd.FgColor = gocui.ColorGreen
@@ -210,7 +207,7 @@ func Layout(g *gocui.Gui) error {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
-		packet.Title = "Packets"
+		packet.Title = "Packets - packet"
 		packet.Highlight = false
 		packet.BgColor = gocui.ColorBlack
 		packet.FgColor = gocui.ColorMagenta
@@ -225,7 +222,7 @@ func Layout(g *gocui.Gui) error {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
-		msg.Title = "Messages"
+		msg.Title = "Messages - msg"
 		msg.Highlight = false
 		msg.BgColor = gocui.ColorBlack
 		msg.FgColor = gocui.ColorYellow
@@ -1439,7 +1436,6 @@ func cmdClear(g *gocui.Gui, args []string) {
 
 	if len(args) == 1 {
 		MsgPrintln(g, "green_black", "Cleared all windows")
-		Clearwin(g, "cmd")
 		Clearwin(g, "msg")
 		Clearwin(g, "err")
 		Clearwin(g, "packet")
@@ -1450,7 +1446,7 @@ func cmdClear(g *gocui.Gui, args []string) {
 		case "?": // usage
 			MsgPrintln(g, "magenta_black", prhelp("clear"))
 			MsgPrintln(g, "green_black", prusage("clear"))
-		case "cmd", "msg", "err", "packet":
+		case "msg", "err", "packet":
 			MsgPrintln(g, "green_black", "Cleared Window:", args[1])
 			Clearwin(g, args[1])
 		default:
@@ -1460,7 +1456,7 @@ func cmdClear(g *gocui.Gui, args []string) {
 	}
 	for arg := 1; arg < len(args); arg++ {
 		switch args[arg] {
-		case "cmd", "msg", "err", "packet":
+		case "msg", "err", "packet":
 			MsgPrintln(g, "green_black", "Cleared Window:", args[arg])
 			Clearwin(g, args[arg])
 		default:
