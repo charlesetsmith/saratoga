@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/jroimartin/gocui"
 
@@ -245,7 +246,7 @@ func Layout(g *gocui.Gui) error {
 		cmd.SetCursor(0, 0)
 		Cinfo.Curline = 0
 		// cmdv, _ := g.View("cmd")
-		Prompt(g, cmd)
+		prompt(g, cmd)
 		FirstPass = false
 	}
 	return nil
@@ -515,7 +516,7 @@ func promptlen(v Cmdinfo) int {
 // var Cprompt = "saratoga" // If not set in saratoga.json set it to saratoga
 
 // Display the prompt
-func Prompt(g *gocui.Gui, v *gocui.View) {
+func prompt(g *gocui.Gui, v *gocui.View) {
 	if g == nil || v == nil || v.Name() != "cmd" {
 		log.Fatal("prompt must be in cmd view")
 	}
@@ -526,17 +527,18 @@ func Prompt(g *gocui.Gui, v *gocui.View) {
 		if FirstPass { // Just the prompt no precedin \n as we are the first line
 			CmdPrintf(g, "yellow_black", "%s[%d]:", Cinfo.Prompt, Cinfo.Curline)
 			v.SetCursor(promptlen(Cinfo), cy)
-		} else { // End the last command by going to new lin \n then put up the new prompt
-			Cinfo.Curline++
-			CmdPrintf(g, "yellow_black", "\n%s[%d]:", Cinfo.Prompt, Cinfo.Curline)
-			_, cy := v.Cursor()
-			v.SetCursor(promptlen(Cinfo), cy)
-			if err := CursorDown(g, v); err != nil {
-				ErrPrintln(g, "red_black", "Cannot move to next line")
-			}
-			_, cy = v.Cursor()
-			v.SetCursor(promptlen(Cinfo), cy+1)
+			return
 		}
+		// End the last command by going to new lin \n then put up the new prompt
+		Cinfo.Curline++
+		CmdPrintf(g, "yellow_black", "\n%s[%d]:", Cinfo.Prompt, Cinfo.Curline)
+		_, cy := v.Cursor()
+		v.SetCursor(promptlen(Cinfo), cy)
+		if err := CursorDown(g, v); err != nil {
+			ErrPrintln(g, "red_black", "Cannot move to next line")
+		}
+		_, cy = v.Cursor()
+		v.SetCursor(promptlen(Cinfo), cy+1)
 	}
 }
 
@@ -597,7 +599,7 @@ func GetLine(g *gocui.Gui, v *gocui.View) error {
 		}
 		// RUN THE COMMAND ENTERED!!!
 		Run(g, command[1])
-		Prompt(g, v)
+		prompt(g, v)
 	case "msg", "packet", "err":
 		return CursorDown(g, v)
 	}
@@ -694,34 +696,44 @@ func appendunique(slice []string, i string) []string {
 
 // All of the different command line input handlers
 // Send count beacons to host
-func sendbeacons(g *gocui.Gui, flags string, count uint, interval uint, addr *net.UDPAddr) {
+func sendbeacons(g *gocui.Gui, clib Beaconcmd, addr *net.UDPAddr) {
 	// We have a hostname maybe with multiple addresses
 	var err error
 	var txb beacon.Beacon // The assembled beacon to transmita
 	var conn *net.UDPConn
-	b := &txb
 
-	errflag := make(chan string, 1) // The return channel holding the saratoga errflag
-
-	MsgPrintln(g, "cyan_black", "Sending beacon to ", addr.String())
-	binfo := beacon.Binfo{Freespace: 0, Eid: ""}
-	if err = txb.New(flags, &binfo); err == nil {
-		if conn, err = net.DialUDP("udp", nil, addr); err != nil {
-			ErrPrintln(g, "red_black", "Error:", err,
-				"Unable to Dial", addr.String())
-			return
-		}
-		txb.Sendmore(conn, count, interval, errflag)
-		errcode := <-errflag
-		if errcode != "success" {
-			ErrPrintln(g, "red_black", "Error:", errcode,
-				"Unable to send beacon to ", addr)
-			return
-		}
-		PacketPrintln(g, "cyan_black", "Tx ", b.ShortPrint())
+	if conn, err = net.DialUDP("udp", nil, addr); err != nil {
+		ErrPrintln(g, "red_black", "Error:", err.Error(),
+			"Unable to Dial", addr.String())
 		return
 	}
-	ErrPrintln(g, "red_black", "cannot create beacon in txb.New:", err.Error())
+	defer conn.Close()
+
+	MsgPrintln(g, "cyan_black", "Sending beacon to ", addr.String())
+	eid := fmt.Sprintf("%s-%d", conn.LocalAddr().String(), os.Getpid())
+	binfo := beacon.Binfo{Freespace: 0, Eid: eid} // We work out the Freespace in txb.New
+	if err = txb.New(clib.flags, &binfo); err != nil {
+		ErrPrintln(g, "red_black", "New Beacon Error:", err.Error())
+		return
+	}
+	// We send out beacons every interval seconds (if that is 0 we just send 1 beacon)
+	iterations := 10 // Maximum number of iterations
+	for {
+		if iterations == 0 {
+			return
+		}
+		if err = txb.Send(conn); err != nil {
+			ErrPrintln(g, "red_black", "Error:", err.Error(),
+				" Unable to send beacon to ", addr.String())
+			return
+		}
+		PacketPrintln(g, "cyan_black", "Tx ", addr.String(), "\n", txb.ShortPrint())
+		if clib.count == 0 {
+			return
+		}
+		time.Sleep(time.Duration(clib.interval) * time.Second)
+		iterations--
+	}
 }
 
 /* ********************************************************************************* */
@@ -1279,42 +1291,37 @@ func cmdBeacon(g *gocui.Gui, args []string) {
 	clibeacon.count = 1                                              // Default is always to send a single beacon
 
 	disable := false
+
 	for argcnt := 0; argcnt < len(args); argcnt++ {
 		switch argcnt {
-		case 0:
+		case 0: // beacon
 			if len(args) == 1 {
-				// Show current Cbeacon flags and lists - beacon
-				if clibeacon.count != 0 && clibeacon.count != 1 {
-					MsgPrintln(g, "yellow_black", clibeacon.count, " beacons to be sent")
-				} else {
-					clibeacon.count = 1
-					MsgPrintln(g, "yellow_black", "Single Beacon to be sent")
+				if !clibeacon.v4mcast && !clibeacon.v6mcast && len(clibeacon.hosts) == 0 {
+					MsgPrintln(g, "yellow_black", "No beacons currently being sent")
+					return
 				}
 				if clibeacon.v4mcast {
-					MsgPrintln(g, "yellow_black", "Sending IPv4 multicast beacons")
+					MsgPrintf(g, "yellow_black", "Sending %d IPv4 multicast beacons", clibeacon.count)
 				}
 				if clibeacon.v6mcast {
-					MsgPrintln(g, "yellow_black", "Sending IPv6 multicast beacons")
+					MsgPrintf(g, "yellow_black", "Sending %d IPv6 multicast beacons", clibeacon.count)
 				}
 				if len(clibeacon.hosts) > 0 {
-					MsgPrintln(g, "cyan_black", "Sending beacons to:")
+					MsgPrintf(g, "cyan_black", "Sending %d beacons to:", clibeacon.count)
 					for _, h := range clibeacon.hosts {
 						MsgPrintln(g, "cyan_black", "\t", h.String())
 					}
-				}
-				if !clibeacon.v4mcast && !clibeacon.v6mcast && len(clibeacon.hosts) == 0 {
-					MsgPrintln(g, "yellow_black", "No beacons currently being sent")
 				}
 				return
 			}
 		case 1:
 			if len(args) == 2 {
 				switch args[1] {
-				case "?":
+				case "?": // beacon ?
 					MsgPrintln(g, "magenta_black", prhelp("beacon"))
 					MsgPrintln(g, "green_black", prusage("beacon"))
 					return
-				case "off":
+				case "off": // beacon off
 					clibeacon.flags = sarflags.Setglobal("beacon", sarflags.Cliflag)
 					clibeacon.count = 0
 					clibeacon.interval = sarflags.Cliflag.Timeout.Binterval
@@ -1322,7 +1329,7 @@ func cmdBeacon(g *gocui.Gui, args []string) {
 					// remove and disable all beacons
 					clibeacon.hosts = nil
 					return
-				case "v4":
+				case "v4": // beacon v4
 					// V4 Multicast
 					MsgPrintln(g, "cyan_black", "Sending beacon to IPv4 Multicast")
 					clibeacon.flags = sarflags.Setglobal("beacon", sarflags.Cliflag)
@@ -1330,10 +1337,10 @@ func cmdBeacon(g *gocui.Gui, args []string) {
 					clibeacon.count = 1
 					// Start up the beacon client sending count IPv4 beacons
 					if addr, err := sarnet.UDPAddress(sarflags.Cliflag.V4Multicast); err == nil {
-						go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, addr)
+						go sendbeacons(g, clibeacon, addr)
 					}
 					return
-				case "v6":
+				case "v6": // beacon v6
 					// V6 Multicast
 					MsgPrintln(g, "cyan_black", "Sending beacon to IPv6 Multicast")
 					clibeacon.flags = sarflags.Setglobal("beacon", sarflags.Cliflag)
@@ -1341,23 +1348,22 @@ func cmdBeacon(g *gocui.Gui, args []string) {
 					clibeacon.count = 1
 					if addr, err := sarnet.UDPAddress(sarflags.Cliflag.V6Multicast); err == nil {
 						// Start up the beacon client sending count IPv6 beacons
-						go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, addr)
+						go sendbeacons(g, clibeacon, addr)
 					}
 					return
-				default:
-					// beacon <count> or beacon <ipaddr>
+				default: // beacon <count> or beacon <ipaddr>
+					// We have an IP Address so send it a beacon
+					if addr, err := sarnet.UDPAddress(args[1]); err == nil {
+						MsgPrintln(g, "green_black", "Sending ", clibeacon.count, " beacons to ", addr.String())
+						go sendbeacons(g, clibeacon, addr)
+						return
+					}
 					if n, err := strconv.ParseUint(args[1], 10, 32); err == nil {
 						// We have a number so it is the counter
 						clibeacon.count = uint(n)
 						if clibeacon.count == 0 {
 							clibeacon.count = 1
 						}
-						return
-					}
-					// We have an IP Address so send it a beacon
-					if addr, err := sarnet.UDPAddress(args[1]); err == nil {
-						MsgPrintln(g, "green_black", "Sending ", clibeacon.count, " beacons to ", addr.String())
-						go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, addr)
 						return
 					}
 					ErrPrintln(g, "red_black", "Invalid IP Address:", args[1])
@@ -1368,7 +1374,7 @@ func cmdBeacon(g *gocui.Gui, args []string) {
 			// Otherwise we have more args than 1 so send the beacon from the first arg
 			if addr, err := sarnet.UDPAddress(args[1]); err == nil {
 				MsgPrintln(g, "green_black", "Sending ", clibeacon.count, " beacons to ", addr.String())
-				go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, addr)
+				go sendbeacons(g, clibeacon, addr)
 				return
 			} else {
 				ErrPrintln(g, "blue_black", err.Error())
@@ -1385,7 +1391,7 @@ func cmdBeacon(g *gocui.Gui, args []string) {
 				}
 				// Send the beacons to the host
 				MsgPrintln(g, "green_black", "Sending ", clibeacon.count, " beacons to ", addr.String())
-				go sendbeacons(g, clibeacon.flags, clibeacon.count, clibeacon.interval, addr)
+				go sendbeacons(g, clibeacon, addr)
 				return
 			}
 			ErrPrintln(g, "red_black", "Invalid IP Address:", args[argcnt])

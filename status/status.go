@@ -30,9 +30,26 @@ type Sinfo struct {
 	Progress uint64
 	Inrespto uint64
 	Holes    holes.Holes
-	Start    []uint64 // Start of Each Hole
-	End      []uint64 // End of Each Hole
+}
 
+type Packet struct {
+	Addr net.UDPAddr
+	Info Status
+}
+
+// Assemble the Packet with to/from address
+// No pointers in return as used in channel
+func (s *Status) Val(addr *net.UDPAddr) Packet {
+	// We have to copy across and send all of the holes!!!!!
+	return Packet{
+		Addr: *addr,
+		Info: Status{Header: s.Header, Session: s.Session, Tstamp: s.Tstamp,
+			Progress: s.Progress, Inrespto: s.Inrespto, Holes: s.Holes}}
+}
+
+func (s *Status) Values() Status {
+	return Status{Header: s.Header, Session: s.Session, Tstamp: s.Tstamp, Progress: s.Progress,
+		Inrespto: s.Inrespto, Holes: s.Holes}
 }
 
 // New - Construct a Status frame - return byte slice of frame

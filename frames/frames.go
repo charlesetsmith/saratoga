@@ -6,6 +6,11 @@ import (
 	"net"
 )
 
+type FrameVal interface {
+	Val() Frame
+	Print() string
+}
+
 // Frame - Handler for different frames
 //
 //	beacon, data, metadata, request, status
@@ -17,6 +22,11 @@ type Frame interface {
 	New(string, interface{}) error         // Create New Frame with flags & info via interface
 	Make(uint32, interface{}) error        // Make New Frame with header & info via interface
 	Send(*net.UDPConn, *net.UDPAddr) error // Send a Frame to the remote peer
+	Val(*net.UDPAddr) Frame                // Frame field information (beacon,data,request,metadata,status)
+}
+
+func Val(f Frame, addr *net.UDPAddr) Frame {
+	return f.Val(addr)
 }
 
 // Decode a frame into its structure via Frame interface

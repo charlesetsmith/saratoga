@@ -12,7 +12,6 @@ import (
 	"strings"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/charlesetsmith/saratoga/sarflags"
 	"github.com/charlesetsmith/saratoga/timestamp"
@@ -27,6 +26,17 @@ type Beacon struct {
 type Binfo struct {
 	Freespace uint64
 	Eid       string
+}
+
+type Packet struct {
+	Addr net.UDPAddr
+	Info Beacon
+}
+
+// No pointers returned, as we are sending/receiving these to/on channels
+func (b *Beacon) Val(addr *net.UDPAddr) Packet {
+	return Packet{Addr: *addr,
+		Info: Beacon{Header: b.Header, Freespace: b.Freespace, Eid: b.Eid}}
 }
 
 // New - Construct a beacon - Fill in the Beacon struct
@@ -267,7 +277,7 @@ func (b *Beacon) Decode(frame []byte) error {
 }
 
 // Print - Print out details of Beacon struct
-func (b Beacon) Print() string {
+func (b *Beacon) Print() string {
 	sflag := fmt.Sprintf("Beacon: 0x%x\n", b.Header)
 	bflags := sarflags.Values("beacon")
 	for _, f := range bflags {
@@ -282,7 +292,7 @@ func (b Beacon) Print() string {
 }
 
 // ShortPrint - Quick printout of Beacon struct
-func (b Beacon) ShortPrint() string {
+func (b *Beacon) ShortPrint() string {
 	sflag := fmt.Sprintf("Beacon: 0x%x\n", b.Header)
 	if sarflags.GetStr(b.Header, "freespace") == "yes" {
 		sflag += fmt.Sprintf("  free:%dkB\n", b.Freespace)
@@ -297,6 +307,10 @@ func (b Beacon) Send(conn *net.UDPConn) error {
 	var buf []byte
 	var wlen int
 
+	//	txb := b
+	//	eid := fmt.Sprintf("%s-%d", conn.LocalAddr().String(), os.Getpid())
+	//	txb.Eid = eid
+
 	if buf, err = b.Encode(); err != nil {
 		return err
 	}
@@ -308,37 +322,6 @@ func (b Beacon) Send(conn *net.UDPConn) error {
 			wlen, conn.RemoteAddr().String(), len(buf))
 	}
 	return nil
-}
-
-// Sendmore - Send beacon(s) to a peer at interval seconds
-func (b *Beacon) Sendmore(conn *net.UDPConn, count uint, interval uint, errflag chan string) {
-
-	var eid string // Is IPv4:Socket.PID or [IPv6]:Socket.PID
-
-	txb := b // As this is called as a go routine and we need to alter the eid so make a copy
-
-	eid = fmt.Sprintf("%s-%d", conn.LocalAddr().String(), os.Getpid())
-	txb.Eid = eid
-
-	// Make sure we have at least 1 beacon going out
-	if count == 0 {
-		count = 1
-		interval = 0
-	}
-
-	var i uint
-	for i = 0; i < count; i++ {
-		if err := txb.Send(conn); err != nil {
-			errflag <- "cantsend"
-		}
-
-		// select { // We may need to add some more channel i/o here so use select
-		// default:
-		time.Sleep(time.Duration(interval) * time.Second)
-		// }
-	}
-	errflag <- "success"
-	conn.Close()
 }
 
 // Peer - beacon peer
@@ -356,7 +339,7 @@ var pmu sync.Mutex // Protect Peers
 var Peers []Peer
 
 // NewPeer - Add/Change peer info from received beacon
-func (b *Beacon) NewPeer(from *net.UDPAddr) bool {
+func (b Beacon) NewPeer(from *net.UDPAddr) bool {
 	if from == nil {
 		return false
 	}

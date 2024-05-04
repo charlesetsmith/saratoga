@@ -21,12 +21,25 @@ type MetaData struct {
 	Header   uint32
 	Session  uint32
 	Checksum []byte
-	Dir      *dirent.DirEnt
+	Dir      dirent.DirEnt // We want the actual values in here not a pointer as we pass values on channels
 }
 
 type Minfo struct {
 	Session uint32
 	Fname   string
+}
+
+type Packet struct {
+	Addr net.UDPAddr
+	Info MetaData
+}
+
+// Exchange information via the Frame Interface
+// No pointers in return as used in a channel
+func (m *MetaData) Val(addr *net.UDPAddr) Packet {
+	return Packet{Addr: *addr,
+		Info: MetaData{Header: m.Header, Session: m.Session, Checksum: m.Checksum,
+			Dir: m.Dir.Value()}}
 }
 
 // THERE MIGHT BE PROBLEMS HERE with direntflags
@@ -144,10 +157,15 @@ func (m *MetaData) New(flags string, info interface{}) error {
 	}
 
 	// Create Directory Entry
-	m.Dir = new(dirent.DirEnt)
-	if err = m.Dir.New(direntflags, fname); err != nil {
+	d := new(dirent.DirEnt)
+	if err = d.New(direntflags, fname); err != nil {
 		return err
 	}
+	m.Dir.Header = d.Header
+	m.Dir.Size = d.Size
+	m.Dir.Ctime = d.Ctime
+	m.Dir.Mtime = d.Ctime
+	m.Dir.Path = d.Path
 
 	// Checksum calculation
 	if sarflags.GetStr(m.Header, "transfer") != "stream" {
@@ -190,11 +208,17 @@ func (m *MetaData) Make(header uint32, info interface{}) error {
 	if direntflags, err = statfile(fname, m.Header); err != nil {
 		return err
 	}
-	// Directory Entry
-	m.Dir = new(dirent.DirEnt)
-	if err = m.Dir.New(direntflags, fname); err != nil {
+
+	// Create Directory Entry
+	d := new(dirent.DirEnt)
+	if err = d.New(direntflags, fname); err != nil {
 		return err
 	}
+	m.Dir.Header = d.Header
+	m.Dir.Size = d.Size
+	m.Dir.Ctime = d.Ctime
+	m.Dir.Mtime = d.Ctime
+	m.Dir.Path = d.Path
 
 	// Make sure we dont try and calc a checksum of a named pipe "stream" (it will wait forever)
 	if sarflags.GetStr(m.Header, "transfer") != "stream" {

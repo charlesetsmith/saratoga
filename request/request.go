@@ -26,6 +26,17 @@ type Rinfo struct {
 	Auth    []byte
 }
 
+type Packet struct {
+	Addr net.UDPAddr
+	Info Request
+}
+
+// No o pointers in return as used in channels
+func (r *Request) Val(addr *net.UDPAddr) Packet {
+	return Packet{Addr: *addr,
+		Info: Request{Header: r.Header, Session: r.Session, Fname: r.Fname, Auth: r.Auth}}
+}
+
 // New - Construct a request - Fill in the request struct
 // func (r *Request) New(flags string, session uint32, fname string, auth []byte) error {
 func (r *Request) New(flags string, info interface{}) error {

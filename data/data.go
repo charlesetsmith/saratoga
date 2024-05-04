@@ -30,6 +30,18 @@ type Dinfo struct {
 	Payload []byte // Sllice of bytes - make sure you "append" to copy them here
 }
 
+type Packet struct {
+	Addr net.UDPAddr
+	Info Data
+}
+
+// No pointers returned, as we are sending/receiving these to/on channels
+func (d *Data) Val(addr *net.UDPAddr) Packet {
+	return Packet{Addr: *addr,
+		Info: Data{Header: d.Header, Session: d.Session,
+			Tstamp: d.Tstamp, Offset: d.Offset, Payload: d.Payload}}
+}
+
 // New - Construct a data frame - return byte slice of frame and Data structure
 // Flags is of format "flagname1=flagval1,flagname2=flagval2...
 // The timestamp type to use is also in the flags as "timestamp=flagval"

@@ -34,6 +34,10 @@ func (from *DirEnt) Copy() (to *DirEnt) {
 	return to
 }
 
+func (d *DirEnt) Value() DirEnt {
+	return DirEnt{Header: d.Header, Size: d.Size, Mtime: d.Mtime, Ctime: d.Ctime, Path: d.Path}
+}
+
 // StatFile -- Get file information - size, mtime, ctime
 // The mtime & ctime values are y2k epoch formats
 func (d *DirEnt) Statfile(name string) error {

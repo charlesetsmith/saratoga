@@ -23,6 +23,7 @@ import (
 	"github.com/jroimartin/gocui"
 )
 
+/*
 // Request Handler for the Responder
 func reqrxhandler(g *gocui.Gui, r request.Request, remoteAddr *net.UDPAddr) string {
 	// Handle the request
@@ -59,7 +60,9 @@ func reqrxhandler(g *gocui.Gui, r request.Request, remoteAddr *net.UDPAddr) stri
 		return "badrequest"
 	}
 }
+*/
 
+/*
 // Metadata handler for Responder
 func metrxhandler(g *gocui.Gui, m metadata.MetaData, remoteAddr *net.UDPAddr) string {
 	// Handle the metadata
@@ -77,7 +80,9 @@ func metrxhandler(g *gocui.Gui, m metadata.MetaData, remoteAddr *net.UDPAddr) st
 		sarnet.UDPinfo(remoteAddr))
 	return "badpacket"
 }
+*/
 
+/*
 // Data handler for responder
 func datrxhandler(g *gocui.Gui, d data.Data, conn *net.UDPConn, remoteAddr *net.UDPAddr) string {
 	// Handle the data
@@ -127,7 +132,9 @@ func datrxhandler(g *gocui.Gui, d data.Data, conn *net.UDPConn, remoteAddr *net.
 		sarnet.UDPinfo(remoteAddr))
 	return "badpacket"
 }
+*/
 
+/*
 // Status handler for responder - LOTS OF CODE TO WRWRITE HERE!!!!
 func starxhandler(g *gocui.Gui, s status.Status, conn *net.UDPConn, remoteAddr *net.UDPAddr) string {
 	var t *sarwin.Transfer
@@ -147,46 +154,56 @@ func starxhandler(g *gocui.Gui, s status.Status, conn *net.UDPConn, remoteAddr *
 
 	return "success"
 }
+*/
 
 // Listen -- Go routine for recieving IPv4 & IPv6 for incoming frames and shunt them off to the
 // correct frame handlers
-func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
+// incoming frames are via rx channel interface,
+// outgoing frames are to the tx channel interface -- These are status frames on a read error
+func listen(g *gocui.Gui, conn *net.UDPConn, rx chan interface{}, tx chan interface{}, quit chan error) {
 
 	// Investigate using conn.PathMTU()
 	maxframesize := sarflags.Mtu() - 60   // Handles IPv4 & IPv6 header
 	buf := make([]byte, maxframesize+100) // Just in case...
 	framelen := 0
 	err := error(nil)
+	// Create some space to hold the remote address in
 	var remoteAddr *net.UDPAddr = new(net.UDPAddr)
+
+	// THE MAIN LOOP HERE
 	for err == nil { // Loop forever grabbing frames
-		// Read into buf
+		// Actually Read the frame into buf
 		framelen, remoteAddr, err = conn.ReadFromUDP(buf)
 		if err != nil {
+			// We failed to read.. That is pretty bad, so lets tell caller we have failed
 			sarwin.ErrPrintln(g, "red_black", "Sarataga listener failed:", err)
 			quit <- err
 			return
 		}
-		sarwin.MsgPrintln(g, "green_black", "Listen read ", framelen, " bytes from ", remoteAddr.String())
+
+		// sarwin.MsgPrintln(g, "green_black", "Listen read ", framelen, " bytes from ", remoteAddr.String())
 
 		// Very basic frame checks before we get into what it is
 		if framelen < 8 {
 			// Saratoga packet too small
 			sarwin.ErrPrintln(g, "red_black", "Rx Saratoga Frame too short from ",
 				sarnet.UDPinfo(remoteAddr))
+			// drop it and just continue reading
 			continue
 		}
 		if framelen > maxframesize {
 			sarwin.ErrPrintln(g, "red_black", "Rx Saratoga Frame too long ", framelen,
 				" from ", sarnet.UDPinfo(remoteAddr))
+			// drop it and just continue reading
 			continue
 		}
 
 		// OK so we might have a valid frame so copy it to to the frame byte slice
-		frame := make([]byte, framelen)
-		copy(frame, buf[:framelen])
-		// fmt.Println("We have a frame of length:", framelen)
+		framebuf := make([]byte, framelen)
+		copy(framebuf, buf[:framelen])
+
 		// Grab the Saratoga Header which is the first 32 bits
-		header := binary.BigEndian.Uint32(frame[:4])
+		header := binary.BigEndian.Uint32(framebuf[:4])
 		// Check the version
 		if sarflags.GetStr(header, "version") != "v1" { // Make sure we are Version 1
 			// If a bad version received then send back a Status errcode to the initiator
@@ -196,85 +213,89 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 				sarnet.UDPinfo(remoteAddr))
 			if st.New("errcode=badpacket", &sinfo) != nil {
 				sarwin.ErrPrintln(g, "red_black", "Cannot create badpacket status")
+				continue // drop it
 			}
-			// Send it out the connection
-			if err := st.Send(conn, remoteAddr); err != nil {
-				sarwin.ErrPrintln(g, "red_black", err.Error())
-			}
+			tx <- st.Val(remoteAddr)
 			continue
 		}
-		sarwin.MsgPrintln(g, "white_black", "Received: ", sarflags.GetStr(header, "frametype"))
 
 		// Process the received frame
 		switch sarflags.GetStr(header, "frametype") {
 		case "beacon":
 			// We have received a beacon on the connection
 			rxb := new(beacon.Beacon)
-			// var rxb beacon.Beacon
-			if rxerr := rxb.Decode(frame); rxerr != nil {
+			if rxerr := rxb.Decode(framebuf); rxerr != nil {
 				// We just drop bad beacons
 				sarwin.ErrPrintln(g, "red_black", "Bad Beacon:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr))
-				// Ignore and throw it away
+				// Ignore and throw it away, we dont send status frames for beacons
 				continue
 			}
+			rx <- rxb.Val(remoteAddr)
+			continue
+			// Move this up out of listen
 			// Handle the beacon
 			// Create or update the Peer table
-			sarwin.MsgPrintln(g, "blue_black", "Beacon from ", sarnet.UDPinfo(remoteAddr))
-			if rxb.NewPeer(remoteAddr) {
-				sarwin.MsgPrintln(g, "green_black", "New or updated Peer: ", sarnet.UDPinfo(remoteAddr))
-			}
-			sarwin.PacketPrintln(g, "green_black", "Listen Rx ", rxb.ShortPrint())
-			continue
+			// sarwin.MsgPrintln(g, "blue_black", "Beacon from ", sarnet.UDPinfo(remoteAddr))
+			// if rxb.NewPeer(remoteAddr) {
+			// 	sarwin.MsgPrintln(g, "green_black", "New or updated Peer: ", sarnet.UDPinfo(remoteAddr))
+			// }
+			// sarwin.PacketPrintln(g, "green_black", "Listen Rx ", rxb.ShortPrint())
+			// sarwin.MsgPrintln(g, "white_black", "Decoded beacon ", rxb.Print())
+			// Pass it up to the rx channel for further handling
 
 		case "request":
-			// We are a "Responder"
 			// Handle incoming request
-			var r request.Request
+			var req request.Request
 			var rxerr error
-			if rxerr = r.Decode(frame); rxerr != nil {
+			if rxerr = req.Decode(framebuf); rxerr != nil {
 				// We just drop bad requests
 				sarwin.ErrPrintln(g, "red_black", "Bad Request:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr))
 				continue
 			}
-			sarwin.PacketPrintln(g, "green_black", "Listen Rx ", r.ShortPrint())
-
-			// t := sarwin.Lookup(sarwin.Initiator, session, remoteAddr.String())
-			errcode := reqrxhandler(g, r, remoteAddr) // process the request
-			// Create the status header with the errcode to send back
-			stheader := "descriptor=" + sarflags.GetStr(header, "descriptor") +
-				",metadatarecvd=no,allholes=yes,reqholes=requested,errcode=" + errcode
-			if errcode != "success" {
-				var st status.Status
-				sinfo := status.Sinfo{Session: r.Session, Progress: 0, Inrespto: 0, Holes: nil}
-				if st.New(stheader, &sinfo) != nil {
-					sarwin.ErrPrintln(g, "red_black", "Cannot create badpacket status")
-					continue
-				}
-				// Send it out the connection
-				if err := st.Send(conn, remoteAddr); err != nil {
-					sarwin.ErrPrintln(g, "red_black", err.Error())
-				}
-				// Just send an error status back, dont create a transfer
-				sarwin.ErrPrintln(g, "red_black", "Bad Status:", rxerr, " from ",
-					sarnet.UDPinfo(remoteAddr), " session ", r.Session)
-				continue
-			}
-			// Lookup or create the Transfer and Acknowledge the request to the Initiator
-			var t *sarwin.Transfer
-			if t = sarwin.Lookup(sarwin.Responder, r.Session, remoteAddr.String()); t != nil {
-				// Write off the status to the Initiator
-				t.WriteStatus(g, stheader)
-			}
+			rx <- req.Val(remoteAddr)
 			continue
+			// sarwin.PacketPrintln(g, "green_black", "Listen Rx ", req.ShortPrint())
+			// sarwin.MsgPrintln(g, "white_black", "Decoded request ", req.Print())
+			// Pass it up to the rx channel for further handling
+			// Move this out of here
+			// errcode := reqrxhandler(g, req, remoteAddr) // process the request
+			// Create the status header with the errcode to send back
+			// stheader := "descriptor=" + sarflags.GetStr(header, "descriptor") +
+			// 	",metadatarecvd=no,allholes=yes,reqholes=requested,errcode=" + errcode
+			// if errcode != "success" {
+			// 	var st status.Status
+			// 	sinfo := status.Sinfo{Session: req.Session, Progress: 0, Inrespto: 0, Holes: nil}
+			// 	if st.New(stheader, &sinfo) != nil {
+			// 		sarwin.ErrPrintln(g, "red_black", "Cannot create badpacket status")
+			// 		continue
+			// 	}
+			// Send it out the connecton
+			// Move the send out of here!!!
+			// 	if err := st.Send(conn, remoteAddr); err != nil {
+			// 		sarwin.ErrPrintln(g, "red_black", err.Error())
+			// 	}
+			// Just send an error status back, dont create a transfer
+			// 	sarwin.ErrPrintln(g, "red_black", "Bad Status:", rxerr, " from ",
+			// 		sarnet.UDPinfo(remoteAddr), " session ", req.Session)
+			// 		tx <- st.Val(remoteAddr)
+			//	continue
+			//  }
+			// Send it out the connection
+			// move the Send and Lookup out of here!!!
+			// Lookup or create the Transfer and Acknowledge the request to the Initiator
+			// var t *sarwin.Transfer
+			// if t = sarwin.Lookup(sarwin.Responder, req.Session, remoteAddr.String()); t != nil {
+			// 	// Write off the status to the Initiator
+			// 	t.WriteStatus(g, stheader)
 
 		case "data":
 			// Handle incoming data
 			var d data.Data
 			var rxerr error
-			sarwin.MsgPrintln(g, "white_black", "Data frame length is:", len(frame))
-			if rxerr = d.Decode(frame); rxerr != nil {
+			sarwin.MsgPrintln(g, "white_black", "Data frame length is:", len(framebuf))
+			if rxerr = d.Decode(framebuf); rxerr != nil {
 				// Bad Packet send back a Status to the sender with current offset and session
 				var st status.Status
 				stheader := "descriptor=" + sarflags.GetStr(header, "descriptor") +
@@ -284,41 +305,40 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 					sarwin.ErrPrintln(g, "red_black", "Cannot create badpacket status")
 					continue
 				}
-				// Send it out the connection
-				if err := st.Send(conn, remoteAddr); err != nil {
-					sarwin.ErrPrintln(g, "red_black", err.Error())
-				}
 				sarwin.ErrPrintln(g, "red_black", "Bad Data:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr), " session ", d.Session)
+				// Send a badpacket status back to the sender
+				tx <- st.Val(remoteAddr)
 				continue
 			}
-			// Ok we have received a good data frame, process it
-			sarwin.PacketPrintln(g, "green_black", "Listen Rx ", d.ShortPrint())
-
-			// sarwin.MsgPrintln(g, "white_black", "Decoded data ", d.Print())
-			errcode := datrxhandler(g, d, conn, remoteAddr) // process the data
-			if errcode != "success" {                       // If we have a error send back a status with it
-				stheader := "descriptor=" + sarflags.GetStr(header, "descriptor") + // echo the descriptor
-					",metadatarecvd=no,allholes=yes,reqholes=requested," +
-					"errcode=" + errcode
-				// Send back a status to the client to tell it the error or that we have a success with creating the transfer
-				var st status.Status
-				sinfo := status.Sinfo{Session: d.Session, Progress: d.Offset, Inrespto: 0, Holes: nil}
-				if st.New(stheader, &sinfo) != nil {
-					sarwin.ErrPrintln(g, "red_black", "Cannot asemble status")
-				}
-				if se := st.Send(conn, remoteAddr); se != nil {
-					sarwin.ErrPrintln(g, "red_black", se.Error())
-				}
-			}
+			rx <- d.Val(remoteAddr)
 			continue
+			// Move this out of here
+			// Ok we have received a good data frame, process it
+			// sarwin.PacketPrintln(g, "green_black", "Listen Rx ", d.ShortPrint())
+			// sarwin.MsgPrintln(g, "white_black", "Decoded data ", d.Print())
+			// Pass it up to the rx channel for further handling
+			// errcode := datrxhandler(g, d, conn, remoteAddr) // process the data
+			// if errcode != "success" {                       // If we have a error send back a status with it
+			// 	stheader := "descriptor=" + sarflags.GetStr(header, "descriptor") + // echo the descriptor
+			// 		",metadatarecvd=no,allholes=yes,reqholes=requested," +
+			// 		"errcode=" + errcode
+			// 	// Send back a status to the client to tell it the error or that we have a success with creating the transfer
+			// 	var st status.Status
+			// 	sinfo := status.Sinfo{Session: d.Session, Progress: d.Offset, Inrespto: 0, Holes: nil}
+			// 	if st.New(stheader, &sinfo) != nil {
+			// 		sarwin.ErrPrintln(g, "red_black", "Cannot asemble status")
+			// 	}
+			// 	if se := st.Send(conn, remoteAddr); se != nil {
+			// 		sarwin.ErrPrintln(g, "red_black", se.Error())
+			// 	}
 
 		case "metadata":
 			// Handle incoming metadata
 			var m metadata.MetaData
 			var rxerr error
-			if rxerr = m.Decode(frame); rxerr != nil {
-				session := binary.BigEndian.Uint32(frame[4:8])
+			if rxerr = m.Decode(framebuf); rxerr != nil {
+				session := binary.BigEndian.Uint32(framebuf[4:8])
 				var st status.Status
 				// Bad Packet send back a Status to the client
 				stheader := "descriptor=" + sarflags.GetStr(header, "descriptor") +
@@ -326,70 +346,81 @@ func listen(g *gocui.Gui, conn *net.UDPConn, quit chan error) {
 				sinfo := status.Sinfo{Session: session, Progress: 0, Inrespto: 0, Holes: nil}
 				if st.New(stheader, &sinfo) != nil {
 					sarwin.ErrPrintln(g, "red_black", "Cannot assemble status")
-				}
-				if se := st.Send(conn, remoteAddr); se != nil {
-					sarwin.ErrPrintln(g, "red_black", se.Error())
+					continue
 				}
 				sarwin.ErrPrintln(g, "red_black", "Bad MetaData:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr), " session ", session)
+				// Pass it up to the tx channel for further handling
+				tx <- st.Val(remoteAddr)
 				continue
 			}
-			sarwin.PacketPrintln(g, "green_black", "Listen Rx ", m.ShortPrint())
-
-			errcode := metrxhandler(g, m, remoteAddr) // process the metadata
-			if errcode != "success" {                 // If we have a error send back a status with it
-				var st status.Status
-				stheader := "descriptor=" + sarflags.GetStr(header, "descriptor") +
-					",metadatarecvd=no,allholes=yes,reqholes=requested,errcode=" + errcode
-				sinfo := status.Sinfo{Session: m.Session, Progress: 0, Inrespto: 0, Holes: nil}
-				if st.New(stheader, &sinfo) != nil {
-					sarwin.ErrPrintln(g, "red_black", "Cannot assemble status")
-				}
-				if se := st.Send(conn, remoteAddr); se != nil {
-					sarwin.ErrPrintln(g, "red_black", se.Error())
-				}
-				sarwin.ErrPrintln(g, "red_black", "Bad Metadata:", rxerr, " from ",
-					sarnet.UDPinfo(remoteAddr), " session ", m.Session)
-			}
+			rx <- m.Val(remoteAddr)
 			continue
+
+			// Move this out of here
+			// sarwin.PacketPrintln(g, "green_black", "Listen Rx ", m.ShortPrint())
+			// sarwin.MsgPrintln(g, "white_black", "Decoded metadata ", m.Print())
+			// Pass it up to the rx channel for further handling
+			// errcode := metrxhandler(g, m, remoteAddr) // process the metadata
+			// if errcode != "success" {                 // If we have a error send back a status with it
+			// 	var st status.Status
+			// 	stheader := "descriptor=" + sarflags.GetStr(header, "descriptor") +
+			// 		",metadatarecvd=no,allholes=yes,reqholes=requested,errcode=" + errcode
+			// 	sinfo := status.Sinfo{Session: m.Session, Progress: 0, Inrespto: 0, Holes: nil}
+			// 	if st.New(stheader, &sinfo) != nil {
+			// 		sarwin.ErrPrintln(g, "red_black", "Cannot assemble status")
+			// 	}
+			// 	if se := st.Send(conn, remoteAddr); se != nil {
+			// 		sarwin.ErrPrintln(g, "red_black", se.Error())
+			// 	}
+			// 	sarwin.ErrPrintln(g, "red_black", "Bad Metadata:", rxerr, " from ",
+			// 		sarnet.UDPinfo(remoteAddr), " session ", m.Session)
+			// 	tx <- st.Val(remoteAddr)
+			// }
 
 		case "status":
 			// Handle incoming status
 			var s status.Status
-			if rxerr := s.Decode(frame); rxerr != nil {
-				session := binary.BigEndian.Uint32(frame[4:8])
+			if rxerr := s.Decode(framebuf); rxerr != nil {
+				session := binary.BigEndian.Uint32(framebuf[4:8])
 				var st status.Status
-				// Bad Packet send back a Status to the client
+				// Bad Packet send back a Status to the sender
 				stheader := "descriptor=" + sarflags.GetStr(header, "descriptor") +
 					",metadatarecvd=no,allholes=yes,reqholes=requested,errcode=badpacket"
 				sinfo := status.Sinfo{Session: session, Progress: 0, Inrespto: 0, Holes: nil}
 				if st.New(stheader, &sinfo) != nil {
 					sarwin.ErrPrintln(g, "red_black", "Cannot assemble status")
-				}
-				if se := st.Send(conn, remoteAddr); se != nil {
-					sarwin.ErrPrintln(g, "red_black", se.Error())
+					continue
 				}
 				sarwin.ErrPrintln(g, "red_black", "Bad Status:", rxerr, " from ",
 					sarnet.UDPinfo(remoteAddr), " session ", session)
+				// Pass it up to the tx channel for further handling
+				tx <- st.Val(remoteAddr)
 				continue
 			} // Handle the status
 			sarwin.PacketPrintln(g, "green_black", "Listen Rx ", s.ShortPrint())
-			errcode := starxhandler(g, s, conn, remoteAddr) // process the status
-			if errcode != "success" {                       // If we have a error send back a status with it
-				var st status.Status
-				stheader := "descriptor=" + sarflags.GetStr(header, "descriptor") + // echo the descriptor
-					",metadatarecvd=no,allholes=yes,reqholes=requested,errcode=" + errcode
-				sinfo := status.Sinfo{Session: s.Session, Progress: s.Progress, Inrespto: s.Inrespto, Holes: nil}
-				if st.New(stheader, &sinfo) != nil {
-					sarwin.ErrPrintln(g, "red_black", "Cannot assemble status")
-				}
-				if se := st.Send(conn, remoteAddr); se != nil {
-					sarwin.ErrPrintln(g, "red_black", se.Error())
-				}
-				sarwin.ErrPrintln(g, "red_black", "Bad Status:", errcode, " from ",
-					sarnet.UDPinfo(remoteAddr), " session ", s.Session)
-			}
+			sarwin.MsgPrintln(g, "white_black", "Decoded status ", s.Print())
+			// Pass it up to the rx channel for further handling
+			rx <- s.Val(remoteAddr)
 			continue
+
+			// Move rest of this off out of here
+			// errcode := starxhandler(g, s, conn, remoteAddr) // process the status
+			// if errcode != "success" {                       // If we have a error send back a status with it
+			// 	var st status.Status
+			// 	stheader := "descriptor=" + sarflags.GetStr(header, "descriptor") + // echo the descriptor
+			// 		",metadatarecvd=no,allholes=yes,reqholes=requested,errcode=" + errcode
+			// 	sinfo := status.Sinfo{Session: s.Session, Progress: s.Progress, Inrespto: s.Inrespto, Holes: nil}
+			// 	if st.New(stheader, &sinfo) != nil {
+			// 		sarwin.ErrPrintln(g, "red_black", "Cannot assemble status")
+			// 	}
+			// 	if se := st.Send(conn, remoteAddr); se != nil {
+			// 		sarwin.ErrPrintln(g, "red_black", se.Error())
+			// 	}
+			// 	sarwin.ErrPrintln(g, "red_black", "Bad Status:", errcode, " from ",
+			// 		sarnet.UDPinfo(remoteAddr), " session ", s.Session)
+			// 	tx <- st.Val(remoteAddr)
+			// }
 
 		default:
 			// Bad Packet drop it
@@ -475,24 +506,23 @@ func main() {
 
 	// Show Host Interfaces & Address's
 	for _, ifi := range ifis {
-		if ifi.Name == os.Args[argnumb] { // || ifi.Name == "lo0" {
+		if ifi.Name == os.Args[argnumb] {
 			sarwin.MsgPrintln(g, "green_black", ifi.Name, " MTU ", ifi.MTU, " ", ifi.Flags.String(), ":")
 			adrs, _ := ifi.Addrs()
 			for _, adr := range adrs {
 				if strings.Contains(adr.Network(), "ip") {
 					sarwin.MsgPrintln(g, "green_black", "\t Unicast ", adr.String(), " ", adr.Network())
-
 				}
 			}
-			/*
-				madrs, _ := ifi.MulticastAddrs()
-				for _, madr := range madrs {
-					if strings.Contains(madr.Network(), "ip") {
-						sarwin.ErrPrintln(g, "green_black", "\t Multicast ", madr.String(),
-						 "Net:", madr.Network())
-					}
+			//
+			madrs, _ := ifi.MulticastAddrs()
+			for _, madr := range madrs {
+				if strings.Contains(madr.Network(), "ip") {
+					sarwin.MsgPrintln(g, "green_black", "Multicast ", madr.String(),
+						" Net:", madr.Network())
 				}
-			*/
+			}
+			//
 		}
 	}
 	// Open up V6 sockets for listening on the Saratoga Port
@@ -531,17 +561,15 @@ func main() {
 	sarwin.MsgPrintf(g, "green_black", "Available space is %d MB\n",
 		(uint64(fs.Bsize)*fs.Bavail)/1024/1024)
 
-	/*
-		// Lets see what our integer sizes are on this system
-		sarwin.ErrPrintln(g, "green_black", "MaxInt=", sarflags.MaxInt)
-		sarwin.ErrPrintln(g, "green_black", "MaxUint=", sarflags.MaxUint)
-		sarwin.ErrPrintln(g, "green_black", "MaxInt16=", sarflags.MaxInt16)
-		sarwin.ErrPrintln(g, "green_black", "MaxUint16=", sarflags.MaxUint16)
-		sarwin.ErrPrintln(g, "green_black", "MaxInt32=", sarflags.MaxInt32)
-		sarwin.ErrPrintln(g, "green_black", "MaxUint32=", sarflags.MaxUint32)
-		sarwin.ErrPrintln(g, "green_black", "MaxInt64=", sarflags.MaxInt64)
-		sarwin.ErrPrintln(g, "green_black", "MaxUint64=", sarflags.MaxUint64)
-	*/
+	// Lets see what our integer sizes are on this system
+	sarwin.MsgPrintln(g, "green_black", "MaxInt=", sarflags.MaxInt)
+	sarwin.MsgPrintln(g, "green_black", "MaxUint=", sarflags.MaxUint)
+	sarwin.MsgPrintln(g, "green_black", "MaxInt16=", sarflags.MaxInt16)
+	sarwin.MsgPrintln(g, "green_black", "MaxUint16=", sarflags.MaxUint16)
+	sarwin.MsgPrintln(g, "green_black", "MaxInt32=", sarflags.MaxInt32)
+	sarwin.MsgPrintln(g, "green_black", "MaxUint32=", sarflags.MaxUint32)
+	sarwin.MsgPrintln(g, "green_black", "MaxInt64=", sarflags.MaxInt64)
+	sarwin.MsgPrintln(g, "green_black", "MaxUint64=", sarflags.MaxUint64)
 
 	sarwin.MsgPrintln(g, "green_black", "Maximum Descriptor is:", sarflags.MaxDescriptor)
 
@@ -549,16 +577,18 @@ func main() {
 	sarwin.MsgPrintln(g, "white_black", "^Space - Rotate/Change View")
 
 	// Listen for incoming v6 frames
-	// When will we return from listening for v6 frames
-	v6listenquit := make(chan error)
-	go listen(g, v6mcastcon, v6listenquit)
+	v6listenquit := make(chan error)    // When will we return from listening for v6 frames
+	rxv6frame := make(chan interface{}) // We receive v6 decoded frames on this channel
+	txv6frame := make(chan interface{}) // We transmit v6 encoded frames on this channel
+	go listen(g, v6mcastcon, rxv6frame, txv6frame, v6listenquit)
 	sarwin.MsgPrintln(g, "green_black", "Saratoga IPv6 Multicast Listener started on ",
 		sarnet.UDPinfo(&v6mcastaddr))
 
 	// Listen for incoming v4 frames
-	// When will we return from listening for v4 frames
-	v4listenquit := make(chan error)
-	go listen(g, v4mcastcon, v4listenquit)
+	v4listenquit := make(chan error)    // When will we return from listening for v4 frames
+	rxv4frame := make(chan interface{}) // Wee receive decoded v4 frames on this channel
+	txv4frame := make(chan interface{}) // We transmit encoded v4 frames on this channel
+	go listen(g, v4mcastcon, rxv4frame, txv4frame, v4listenquit)
 	sarwin.MsgPrintln(g, "green_black", "Saratoga IPv4 Multicast Listener started on ",
 		sarnet.UDPinfo(&v4mcastaddr))
 
@@ -566,17 +596,121 @@ func main() {
 	errflag := make(chan error, 1)
 	go gocuimainloop(g, errflag)
 
-	select {
-	case v4err := <-v4listenquit:
-		log.Fatal("Saratoga v4 listener has quit with error:", v4err)
-	case v6err := <-v6listenquit:
-		log.Fatal("Saratoga v6 listener has quit with error:", v6err)
-	case err := <-errflag:
-		if err != nil {
-			log.Fatal("Mainloop has quit with error:", err.Error())
+	// This is the major handler of incoming frames. First decode what type they are
+	// and where they came from then handle them
+	sarwin.MsgPrintln(g, "red_black", "OK We got to the main select loop")
+	for {
+		select {
+		case rxv4 := <-rxv4frame:
+			switch rxv4.(type) {
+			case beacon.Packet:
+				sarwin.MsgPrintln(g, "white_black", "Received v4 Saratoga BEACON Frame")
+				pkt := rxv4.(beacon.Packet)
+				sarwin.PacketPrintln(g, "white_black", "Rx", pkt.Info.ShortPrint())
+			case data.Packet:
+				sarwin.MsgPrintln(g, "white_black", "Received v4 Saratoga DATA Frame")
+				pkt := rxv4.(data.Packet)
+				sarwin.PacketPrintln(g, "white_black", "Rx", pkt.Info.ShortPrint())
+			case metadata.Packet:
+				sarwin.MsgPrintln(g, "white_black", "Received v4 Saratoga METADATA Frame")
+				pkt := rxv4.(metadata.Packet)
+				sarwin.PacketPrintln(g, "white_black", "Rx", pkt.Info.ShortPrint())
+			case request.Packet:
+				sarwin.MsgPrintln(g, "white_black", "Received v4 Saratoga REQUEST Frame")
+				pkt := rxv4.(request.Packet)
+				sarwin.PacketPrintln(g, "white_black", "Rx", pkt.Info.ShortPrint())
+			case status.Packet:
+				sarwin.MsgPrintln(g, "white_black", "Received v4 Saratoga STATUS Frame")
+				pkt := rxv4.(status.Packet)
+				sarwin.PacketPrintln(g, "white_black", "Rx", pkt.Info.ShortPrint())
+			default:
+				sarwin.ErrPrintln(g, "white_black", "Received v4 Saratoga INVALID Frame")
+			}
+		case rxv6 := <-rxv6frame:
+			switch rxv6.(type) {
+			case beacon.Packet:
+				sarwin.MsgPrintln(g, "white_black", "Received v6 Saratoga BEACON Frame")
+				pkt := rxv6.(beacon.Packet)
+				sarwin.PacketPrintln(g, "white_black", "Rx", pkt.Info.ShortPrint())
+			case data.Packet:
+				sarwin.MsgPrintln(g, "white_black", "Received v6 Saratoga DATA Frame")
+				pkt := rxv6.(data.Packet)
+				sarwin.PacketPrintln(g, "white_black", "Rx", pkt.Info.ShortPrint())
+			case metadata.Packet:
+				sarwin.MsgPrintln(g, "white_black", "Received v6 Saratoga METADATA Frame")
+				pkt := rxv6.(metadata.Packet)
+				sarwin.PacketPrintln(g, "white_black", "Rx", pkt.Info.ShortPrint())
+			case request.Packet:
+				sarwin.MsgPrintln(g, "white_black", "Received v6 Saratoga REQUEST Frame")
+				pkt := rxv6.(request.Packet)
+				sarwin.PacketPrintln(g, "white_black", "Rx", pkt.Info.ShortPrint())
+			case status.Packet:
+				sarwin.MsgPrintln(g, "white_black", "Received v6 Saratoga STATUS Frame")
+				pkt := rxv6.(status.Packet)
+				sarwin.PacketPrintln(g, "white_black", "Rx", pkt.Info.ShortPrint())
+			default:
+				sarwin.ErrPrintln(g, "white_black", "Received v6 Saratoga INVALID Frame")
+			}
+		case txv4 := <-txv4frame:
+			switch txv4.(type) {
+			case beacon.Packet:
+				sarwin.MsgPrintln(g, "blue_black", "Need to send v4 Saratoga BEACON Frame")
+				pkt := txv4.(beacon.Packet)
+				sarwin.MsgPrintln(g, "blue_black", pkt.Info.ShortPrint())
+			case data.Packet:
+				sarwin.MsgPrintln(g, "blue_black", "Need to send v4 Saratoga DATA Frame")
+				pkt := txv4.(data.Packet)
+				sarwin.MsgPrintln(g, "blue_black", pkt.Info.ShortPrint())
+			case metadata.Packet:
+				sarwin.MsgPrintln(g, "blue_black", "Need to send v4 Saratoga METADATA Frame")
+				pkt := txv4.(metadata.Packet)
+				sarwin.MsgPrintln(g, "blue_black", pkt.Info.ShortPrint())
+			case request.Packet:
+				sarwin.MsgPrintln(g, "blue_black", "Need to send v4 Saratoga REQUEST Frame")
+				pkt := txv4.(request.Packet)
+				sarwin.MsgPrintln(g, "blue_black", pkt.Info.ShortPrint())
+			case status.Packet:
+				sarwin.MsgPrintln(g, "blue_black", "Need to send v4 Saratoga STATUS Frame")
+				pkt := txv4.(status.Packet)
+				sarwin.MsgPrintln(g, "blue_black", pkt.Info.ShortPrint())
+			default:
+				sarwin.ErrPrintln(g, "red_black", "Need to send v4 Saratoga INVALID Frame")
+			}
+		case txv6 := <-txv6frame:
+			switch txv6.(type) {
+			case beacon.Packet:
+				sarwin.MsgPrintln(g, "blue_black", "Need to send v6 Saratoga BEACON Frame")
+				pkt := txv6.(beacon.Packet)
+				sarwin.MsgPrintln(g, "blue_black", pkt.Info.ShortPrint())
+			case data.Packet:
+				sarwin.MsgPrintln(g, "blue_black", "Need to send v6 Saratoga DATA Frame")
+				pkt := txv6.(data.Packet)
+				sarwin.MsgPrintln(g, "blue_black", pkt.Info.ShortPrint())
+			case metadata.Packet:
+				sarwin.MsgPrintln(g, "blue_black", "Need to send v6 Saratoga METADATA Frame")
+				pkt := txv6.(metadata.Packet)
+				sarwin.MsgPrintln(g, "blue_black", pkt.Info.ShortPrint())
+			case request.Packet:
+				sarwin.MsgPrintln(g, "blue_black", "Need to send v6 Saratoga REQUEST Frame")
+				pkt := txv6.(request.Packet)
+				sarwin.MsgPrintln(g, "blue_black", pkt.Info.ShortPrint())
+			case status.Packet:
+				sarwin.MsgPrintln(g, "blue_black", "Need to send v6 Saratoga STATUS Frame")
+				pkt := txv6.(status.Packet)
+				sarwin.MsgPrintln(g, "blue_black", pkt.Info.ShortPrint())
+			default:
+				sarwin.ErrPrintln(g, "blue_black", "Need to send v6 Saratoga INVALID Frame")
+			}
+		case v4err := <-v4listenquit:
+			log.Fatal("Saratoga v4 listener has quit with error:", v4err)
+		case v6err := <-v6listenquit:
+			log.Fatal("Saratoga v6 listener has quit with error:", v6err)
+		case err := <-errflag:
+			if err != nil {
+				log.Fatal("Mainloop has quit with error:", err.Error())
+			}
+			log.Fatal("Saratoga has quit")
 		}
-		fmt.Println("Saratoga has quit")
-		break
 	}
 }
 
