@@ -257,6 +257,7 @@ type config struct {
 	Prompt      string   `json:"prompt"`      // Command line prompt: saratoga
 	Ppad        int      `json:"ppad"`        // Padding length in prompt for []:
 	Buffersize  int      `json:"buffersize"`  // Size in bytes of fileio read and write buffers
+	Bcount      uint     `json:"bcount"`      // Default number of beacon frames to send
 	Timeout     Timeouts // Various Timers
 }
 
@@ -278,6 +279,7 @@ type Cliflags struct {
 	Ppad       int    // Length of Padding around Prompt []: = 3
 	Sardir     string // Saratoga working directory
 	Buffersize int    // Size in bytes of file read/write buffer
+	Bcount     uint   // Default # of Beaeacon frames to send
 }
 
 // Glabal Variable holding the Command line interface flags
@@ -385,6 +387,8 @@ func (c *Cliflags) ReadConfig(fname string) error {
 			conf.Ppad = int(value.(float64))
 		case "buffersize":
 			conf.Buffersize = int(value.(float64))
+		case "bcount":
+			conf.Bcount = uint(value.(float64))
 		case "timeout": // This is a map in json so copy it to the Timeout structure vars
 			// fmt.Println(key, "=", value)
 			timers := value.(map[string]interface{})
@@ -518,7 +522,7 @@ func (c *Cliflags) ReadConfig(fname string) error {
 	}
 
 	// Give default values to flags from saratoga JSON config
-	c.Global = make(map[string]string, 9)
+	c.Global = make(map[string]string, 10)
 	c.Global["csumtype"] = conf.Csumtype
 	c.Global["freespace"] = conf.Freespace
 	c.Global["txwilling"] = conf.Txwilling
@@ -533,6 +537,7 @@ func (c *Cliflags) ReadConfig(fname string) error {
 	c.Port = conf.Port                               // The Saratoga Port #
 	c.Buffersize = conf.Buffersize                   // Buffersize for file i/o
 	c.Timestamp = conf.Timestamp                     // Default timestamp type to use
+	c.Bcount = conf.Bcount                           // Default number of Beacons to send
 	c.Timeout.Metadata = conf.Timeout.Metadata       // Seconds
 	c.Timeout.Request = conf.Timeout.Request         // Seconds
 	c.Timeout.Status = conf.Timeout.Status           // Seconds

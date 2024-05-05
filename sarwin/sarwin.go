@@ -717,22 +717,14 @@ func sendbeacons(g *gocui.Gui, clib Beaconcmd, addr *net.UDPAddr) {
 		return
 	}
 	// We send out beacons every interval seconds (if that is 0 we just send 1 beacon)
-	iterations := 10 // Maximum number of iterations
-	for {
-		if iterations == 0 {
-			return
-		}
+	for iterations := clib.count; iterations > 0; iterations-- {
 		if err = txb.Send(conn); err != nil {
 			ErrPrintln(g, "red_black", "Error:", err.Error(),
 				" Unable to send beacon to ", addr.String())
 			return
 		}
 		PacketPrintln(g, "cyan_black", "Tx ", addr.String(), "\n", txb.ShortPrint())
-		if clib.count == 0 {
-			return
-		}
 		time.Sleep(time.Duration(clib.interval) * time.Second)
-		iterations--
 	}
 }
 
@@ -1283,120 +1275,93 @@ var clibeacon Beaconcmd
 // cmdBeacon - Beacon commands
 func cmdBeacon(g *gocui.Gui, args []string) {
 
-	// var bmu sync.Mutex // Protects beacon.Beacon structure (EID)
+	// Protects beacon.Beacon structure (EID)
 	sarflags.Climu.Lock()
 	defer sarflags.Climu.Unlock()
+
 	clibeacon.flags = sarflags.Setglobal("beacon", sarflags.Cliflag) // Initialise Global Beacon flags
 	clibeacon.interval = sarflags.Cliflag.Timeout.Binterval          // Set up the correct interval
-	clibeacon.count = 1                                              // Default is always to send a single beacon
+	clibeacon.count = sarflags.Cliflag.Bcount
 
-	disable := false
-
-	for argcnt := 0; argcnt < len(args); argcnt++ {
-		switch argcnt {
-		case 0: // beacon
-			if len(args) == 1 {
-				if !clibeacon.v4mcast && !clibeacon.v6mcast && len(clibeacon.hosts) == 0 {
-					MsgPrintln(g, "yellow_black", "No beacons currently being sent")
-					return
-				}
-				if clibeacon.v4mcast {
-					MsgPrintf(g, "yellow_black", "Sending %d IPv4 multicast beacons", clibeacon.count)
-				}
-				if clibeacon.v6mcast {
-					MsgPrintf(g, "yellow_black", "Sending %d IPv6 multicast beacons", clibeacon.count)
-				}
-				if len(clibeacon.hosts) > 0 {
-					MsgPrintf(g, "cyan_black", "Sending %d beacons to:", clibeacon.count)
-					for _, h := range clibeacon.hosts {
-						MsgPrintln(g, "cyan_black", "\t", h.String())
-					}
-				}
-				return
-			}
-		case 1:
-			if len(args) == 2 {
-				switch args[1] {
-				case "?": // beacon ?
-					MsgPrintln(g, "magenta_black", prhelp("beacon"))
-					MsgPrintln(g, "green_black", prusage("beacon"))
-					return
-				case "off": // beacon off
-					clibeacon.flags = sarflags.Setglobal("beacon", sarflags.Cliflag)
-					clibeacon.count = 0
-					clibeacon.interval = sarflags.Cliflag.Timeout.Binterval
-					MsgPrintln(g, "green_black", "Beacons Disabled")
-					// remove and disable all beacons
-					clibeacon.hosts = nil
-					return
-				case "v4": // beacon v4
-					// V4 Multicast
-					MsgPrintln(g, "cyan_black", "Sending beacon to IPv4 Multicast")
-					clibeacon.flags = sarflags.Setglobal("beacon", sarflags.Cliflag)
-					clibeacon.v4mcast = true
-					clibeacon.count = 1
-					// Start up the beacon client sending count IPv4 beacons
-					if addr, err := sarnet.UDPAddress(sarflags.Cliflag.V4Multicast); err == nil {
-						go sendbeacons(g, clibeacon, addr)
-					}
-					return
-				case "v6": // beacon v6
-					// V6 Multicast
-					MsgPrintln(g, "cyan_black", "Sending beacon to IPv6 Multicast")
-					clibeacon.flags = sarflags.Setglobal("beacon", sarflags.Cliflag)
-					clibeacon.v6mcast = true
-					clibeacon.count = 1
-					if addr, err := sarnet.UDPAddress(sarflags.Cliflag.V6Multicast); err == nil {
-						// Start up the beacon client sending count IPv6 beacons
-						go sendbeacons(g, clibeacon, addr)
-					}
-					return
-				default: // beacon <count> or beacon <ipaddr>
-					// We have an IP Address so send it a beacon
-					if addr, err := sarnet.UDPAddress(args[1]); err == nil {
-						MsgPrintln(g, "green_black", "Sending ", clibeacon.count, " beacons to ", addr.String())
-						go sendbeacons(g, clibeacon, addr)
-						return
-					}
-					if n, err := strconv.ParseUint(args[1], 10, 32); err == nil {
-						// We have a number so it is the counter
-						clibeacon.count = uint(n)
-						if clibeacon.count == 0 {
-							clibeacon.count = 1
-						}
-						return
-					}
-					ErrPrintln(g, "red_black", "Invalid IP Address:", args[1])
-					ErrPrintln(g, "red_black", prusage("beacon"))
-					return
-				}
-			}
-			// Otherwise we have more args than 1 so send the beacon from the first arg
-			if addr, err := sarnet.UDPAddress(args[1]); err == nil {
-				MsgPrintln(g, "green_black", "Sending ", clibeacon.count, " beacons to ", addr.String())
-				go sendbeacons(g, clibeacon, addr)
-				return
-			} else {
-				ErrPrintln(g, "blue_black", err.Error())
-			}
-			if args[1] == "off" {
-				disable = true
-			}
-		default:
-			if addr, err := sarnet.UDPAddress(args[argcnt]); err == nil {
-				if disable {
-					// Remove the host from the list
-					clibeacon.hosts = sarnet.RemoveUDPAddrValue(clibeacon.hosts, addr)
-					return
-				}
-				// Send the beacons to the host
-				MsgPrintln(g, "green_black", "Sending ", clibeacon.count, " beacons to ", addr.String())
-				go sendbeacons(g, clibeacon, addr)
-				return
-			}
-			ErrPrintln(g, "red_black", "Invalid IP Address:", args[argcnt])
-			ErrPrintln(g, "red_black", prusage("beacon"))
+	if len(args) == 1 { // beacon
+		if !clibeacon.v4mcast && !clibeacon.v6mcast && len(clibeacon.hosts) == 0 {
+			MsgPrintln(g, "yellow_black", "No beacons currently being sent")
+			return
 		}
+		if clibeacon.v4mcast {
+			MsgPrintf(g, "yellow_black", "Sending %d IPv4 multicast beacons\n", clibeacon.count)
+		}
+		if clibeacon.v6mcast {
+			MsgPrintf(g, "yellow_black", "Sending %d IPv6 multicast beacons\n", clibeacon.count)
+		}
+		if len(clibeacon.hosts) > 0 {
+			MsgPrintf(g, "cyan_black", "Sending %d beacons to:", clibeacon.count)
+			for _, h := range clibeacon.hosts {
+				MsgPrintln(g, "cyan_black", "\t", h.String())
+			}
+		}
+		return
+	}
+	if len(args) == 2 {
+		switch args[1] {
+		case "?": // beacon ?
+			MsgPrintln(g, "magenta_black", prhelp("beacon"))
+			MsgPrintln(g, "green_black", prusage("beacon"))
+			return
+		case "off": // All beacons off
+			clibeacon.flags = sarflags.Setglobal("beacon", sarflags.Cliflag)
+			MsgPrintln(g, "green_black", "Beacons Disabled")
+			// remove and disable all beacons
+			clibeacon.hosts = nil
+			return
+		case "v4": // beacon v4
+			// V4 Multicast
+			MsgPrintln(g, "cyan_black", "Sending beacon to IPv4 Multicast")
+			clibeacon.flags = sarflags.Setglobal("beacon", sarflags.Cliflag)
+			clibeacon.v4mcast = true
+			// Start up the beacon client sending count IPv4 beacons
+			if addr, err := sarnet.UDPAddress(sarflags.Cliflag.V4Multicast); err == nil {
+				sendbeacons(g, clibeacon, addr)
+			}
+			return
+		case "v6": // beacon v6
+			// V6 Multicast
+			MsgPrintln(g, "cyan_black", "Sending beacon to IPv6 Multicast")
+			clibeacon.flags = sarflags.Setglobal("beacon", sarflags.Cliflag)
+			clibeacon.v6mcast = true
+			if addr, err := sarnet.UDPAddress(sarflags.Cliflag.V6Multicast); err == nil {
+				// Start up the beacon client sending count IPv6 beacons
+				sendbeacons(g, clibeacon, addr)
+			}
+			return
+		default: // beacon <count> or beacon <ipaddr>
+			// beacon ipaddr
+			if addr, err := sarnet.UDPAddress(args[1]); err == nil {
+				MsgPrintln(g, "green_black", "Sending ", clibeacon.count,
+					" beacons to ", addr.String())
+				sendbeacons(g, clibeacon, addr)
+				return
+			}
+			ErrPrintln(g, "red_black", "Invalid IP Address:", args[1])
+			ErrPrintln(g, "red_black", prusage("beacon"))
+			return
+		}
+	}
+	for i := 2; i < len(args); i++ {
+		if args[1] == "off" {
+			if addr, err := sarnet.UDPAddress(args[i]); err == nil {
+				clibeacon.hosts = sarnet.RemoveUDPAddrValue(clibeacon.hosts, addr)
+				continue
+			}
+		}
+		// Otherwise we have more args than 1 so send the beacon from the first arg
+		if addr, err := sarnet.UDPAddress(args[i]); err == nil {
+			MsgPrintln(g, "green_black", "Sending ", clibeacon.count, " beacons to ", addr.String())
+			sendbeacons(g, clibeacon, addr)
+			continue
+		}
+		ErrPrintln(g, "red_black", "Invalid IP Address:", args[i])
+		ErrPrintln(g, "red_black", prusage("beacon"))
 	}
 }
 
@@ -1727,6 +1692,31 @@ func cmdHelp(g *gocui.Gui, args []string) {
 				val.Help))
 		}
 	}
+}
+
+func cmdBcount(g *gocui.Gui, args []string) {
+	sarflags.Climu.Lock()
+	defer sarflags.Climu.Unlock()
+
+	switch len(args) {
+	case 1:
+		MsgPrintln(g, "yellow_black", sarflags.Cliflag.Bcount, " Beacons to be sent")
+		return
+	case 2:
+		switch args[1] {
+		case "?":
+			MsgPrintln(g, "magenta_black", prhelp("bcount"))
+			MsgPrintln(g, "green_black", prusage("bcount"))
+			return
+		default:
+			if n, err := strconv.Atoi(args[1]); err == nil && n >= 0 {
+				sarflags.Cliflag.Bcount = uint(n)
+				return
+			}
+		}
+		ErrPrintln(g, "red_black", prusage("bcount"))
+	}
+	ErrPrintln(g, "red_black", prusage("bcount"))
 }
 
 func cmdInterval(g *gocui.Gui, args []string) {
@@ -2499,6 +2489,7 @@ type cmdfunc func(*gocui.Gui, []string)
 var cmdhandler = map[string]cmdfunc{
 	"?":          cmdHelp,
 	"beacon":     cmdBeacon,
+	"bcount":     cmdBcount,
 	"cancel":     cmdCancel,
 	"checksum":   cmdChecksum,
 	"clear":      cmdClear,
