@@ -339,7 +339,7 @@ var pmu sync.Mutex // Protect Peers
 var Peers []Peer
 
 // NewPeer - Add/Change peer info from received beacon
-func (b Beacon) NewPeer(from *net.UDPAddr) bool {
+func NewPeer(b *Beacon, from *net.UDPAddr) bool {
 	if from == nil {
 		return false
 	}

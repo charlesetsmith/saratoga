@@ -20,6 +20,7 @@ import (
 	"github.com/charlesetsmith/saratoga/sarnet"
 	"github.com/charlesetsmith/saratoga/sarwin" // Most of the cmd input and transfer logic is here
 	"github.com/charlesetsmith/saratoga/status"
+	"github.com/charlesetsmith/saratoga/timestamp"
 	"github.com/jroimartin/gocui"
 )
 
@@ -233,16 +234,6 @@ func listen(g *gocui.Gui, conn *net.UDPConn, rx chan interface{}, tx chan interf
 			}
 			rx <- rxb.Val(remoteAddr)
 			continue
-			// Move this up out of listen
-			// Handle the beacon
-			// Create or update the Peer table
-			// sarwin.MsgPrintln(g, "blue_black", "Beacon from ", sarnet.UDPinfo(remoteAddr))
-			// if rxb.NewPeer(remoteAddr) {
-			// 	sarwin.MsgPrintln(g, "green_black", "New or updated Peer: ", sarnet.UDPinfo(remoteAddr))
-			// }
-			// sarwin.PacketPrintln(g, "green_black", "Listen Rx ", rxb.ShortPrint())
-			// sarwin.MsgPrintln(g, "white_black", "Decoded beacon ", rxb.Print())
-			// Pass it up to the rx channel for further handling
 
 		case "request":
 			// Handle incoming request
@@ -430,6 +421,16 @@ func listen(g *gocui.Gui, conn *net.UDPConn, rx chan interface{}, tx chan interf
 	}
 }
 
+// Peer - beacon peer
+type Peer struct {
+	Addr      string              // The Peer IP Address. is format net.UDPAddr.IP.String()
+	Freespace uint64              // 0 if freespace not advertised
+	Eid       string              // Exactly who sent this and from what PID
+	Maxdesc   string              // The maximum descriptor size of the peer
+	Created   timestamp.Timestamp // When was this Peer created
+	Updated   timestamp.Timestamp // When was this Peer last updated
+}
+
 var Cmdptr *sarflags.Cliflags
 
 // Main
@@ -604,9 +605,12 @@ func main() {
 		case rxv4 := <-rxv4frame:
 			switch rxv4.(type) {
 			case beacon.Packet:
-				sarwin.MsgPrintln(g, "white_black", "Received v4 Saratoga BEACON Frame")
+				// sarwin.MsgPrintln(g, "white_black", "Received v4 Saratoga BEACON Frame")
 				pkt := rxv4.(beacon.Packet)
 				sarwin.PacketPrintln(g, "white_black", "Rx", pkt.Info.ShortPrint())
+				if beacon.NewPeer(&pkt.Info, &pkt.Addr) {
+					sarwin.MsgPrintln(g, "yellow_black", "Added New Peer ", pkt.Addr.String())
+				}
 			case data.Packet:
 				sarwin.MsgPrintln(g, "white_black", "Received v4 Saratoga DATA Frame")
 				pkt := rxv4.(data.Packet)
@@ -629,9 +633,12 @@ func main() {
 		case rxv6 := <-rxv6frame:
 			switch rxv6.(type) {
 			case beacon.Packet:
-				sarwin.MsgPrintln(g, "white_black", "Received v6 Saratoga BEACON Frame")
+				// sarwin.MsgPrintln(g, "white_black", "Received v6 Saratoga BEACON Frame")
 				pkt := rxv6.(beacon.Packet)
 				sarwin.PacketPrintln(g, "white_black", "Rx", pkt.Info.ShortPrint())
+				if beacon.NewPeer(&pkt.Info, &pkt.Addr) {
+					sarwin.MsgPrintln(g, "yellow_black", "Added New Peer ", pkt.Addr.String())
+				}
 			case data.Packet:
 				sarwin.MsgPrintln(g, "white_black", "Received v6 Saratoga DATA Frame")
 				pkt := rxv6.(data.Packet)
