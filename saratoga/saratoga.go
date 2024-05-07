@@ -21,6 +21,8 @@ import (
 	"github.com/charlesetsmith/saratoga/sarwin" // Most of the cmd input and transfer logic is here
 	"github.com/charlesetsmith/saratoga/status"
 	"github.com/charlesetsmith/saratoga/timestamp"
+	"github.com/charlesetsmith/saratoga/trans"
+
 	"github.com/jroimartin/gocui"
 )
 
@@ -599,7 +601,7 @@ func main() {
 
 	// This is the major handler of incoming frames. First decode what type they are
 	// and where they came from then handle them
-	sarwin.MsgPrintln(g, "red_black", "OK We got to the main select loop")
+	// sarwin.MsgPrintln(g, "red_black", "OK We got to the main select loop")
 	for {
 		select {
 		case rxv4 := <-rxv4frame:
@@ -608,6 +610,7 @@ func main() {
 				// sarwin.MsgPrintln(g, "white_black", "Received v4 Saratoga BEACON Frame")
 				pkt := rxv4.(beacon.Packet)
 				sarwin.PacketPrintln(g, "white_black", "Rx", pkt.Info.ShortPrint())
+				// Add a new or update an existing peer information from the beacon
 				if beacon.NewPeer(&pkt.Info, &pkt.Addr) {
 					sarwin.MsgPrintln(g, "yellow_black", "Added New Peer ", pkt.Addr.String())
 				}
@@ -623,6 +626,10 @@ func main() {
 				sarwin.MsgPrintln(g, "white_black", "Received v4 Saratoga REQUEST Frame")
 				pkt := rxv4.(request.Packet)
 				sarwin.PacketPrintln(g, "white_black", "Rx", pkt.Info.ShortPrint())
+				// We have received a request to send or receive a file or dir
+				if trans.Add(g, &pkt.Info, &pkt.Addr) {
+					sarwin.MsgPrintln(g, "yellow_black", "New transaction from ", pkt.Addr.String())
+				}
 			case status.Packet:
 				sarwin.MsgPrintln(g, "white_black", "Received v4 Saratoga STATUS Frame")
 				pkt := rxv4.(status.Packet)
