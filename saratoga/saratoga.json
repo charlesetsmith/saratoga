@@ -52,6 +52,10 @@
 			"usage" : "clear [msg|err|packet]...",
 			"help" : "clear display window view"
 		},
+		"delete" : {
+			"usage" : "delete <peer> <filename>",
+			"help" : "remove a file from a peer"
+		},
 		"descriptor" : {
 			"usage" : "descriptor [auto|d16|d32|d64|d128]",
 			"help" : "advertise & set default descriptor size"
@@ -76,9 +80,9 @@
 			"usage" : "getdir [<peer> <dirname>]",
 			"help" : "get a directory listing from a peer"
 		},
-		"getrm" : {
-			"usage" : "getrm [<peer> <filename>]",
-			"help" : "get a file from a peer and remove it from peer when successfully transferred"
+		"give" : {
+			"usage" : "give <peer> <filename>",
+			"help" : "send a file to a peer and then remove it when successful"
 		},
 		"help" :  {
 			"usage" : "help",
@@ -112,10 +116,6 @@
 			"usage" : "putblind <peer> <filename>",
 			"help" : "send a file to a peer with no initial request/status exchange"
 		},
-		"putrm" : {
-			"usage" : "putrm <peer> <filename>",
-			"help" : "send a file to a peer and then remove it when successful"
-		},
 		"quit" :  {
 			"usage" : "quit [0|1]",
 			"help" : "exit saratoga"
@@ -123,14 +123,6 @@
 		"reqtstamp" :  {
 			"usage" : "reqtstamp [no|yes]",
 			"help" : "request timestamps"
-		},
-		"rm" : {
-			"usage" : "rm <peer> <filename>",
-			"help" : "remove a file from a peer"
-		},
-		"rmdir" : {
-			"usage" : "rmdir <peer> <dirname>",
-			"help" : "remove a directory from a peer"
 		},
 		"rmtran" : {
 			"usage" : "rmtran <peer> <session>",
@@ -143,6 +135,10 @@
 		"stream" : {
 			"usage" : "stream [yes|no]",
 			"help" :  "current stream status or can/cannot handle stream"
+		},
+		"take" : {
+			"usage" : "take [<peer> <filename>]",
+			"help" : "get a file from a peer and remove it from peer when successfully transferred"
 		},
 		"timeout" : {
 			"usage" : "timeout [metadata|request|transfer|status|dataframes] <secs|off>",
@@ -286,8 +282,8 @@
 				"noaction" : 0,
 				"get": 1,
 				"put": 2,
-				"getdelete": 3,
-				"putdelete": 4,
+				"take": 3,
+				"give": 4,
 				"delete": 5,
 				"getdir": 6
 			}
@@ -310,15 +306,6 @@
 			"options" : {
 				"requested": 0,
 				"voluntarily": 1
-			}
-		},
-		"fileordir" : { 
-			"frametypes": [ "request" ],
-			"len" : 1,
-			"msb" : 15,
-			"options" : {
-				"file": 0,
-				"directory": 1
 			}
 		},
 		"reqstatus" : { 

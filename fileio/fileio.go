@@ -10,10 +10,16 @@ import (
 	"github.com/charlesetsmith/saratoga/sarsys"
 )
 
+// Saratoga Directory to read/write local files
+func Sardir() string {
+	return sarflags.Cliflag.Sardir
+}
+
 // Check to see if a file or directory exists on our local system
 // no named pipes or symbolic links supported at this time
 func FileExists(fname string) bool {
-	fileinfo, err := os.Stat(fname)
+	fullname := Sardir() + "/" + fname
+	fileinfo, err := os.Stat(fullname)
 	if err == nil && (fileinfo.Mode().IsDir() || fileinfo.Mode().IsRegular()) {
 		return true
 	}
@@ -24,38 +30,39 @@ func FileExists(fname string) bool {
 func FileOpen(fname string, ttype string) (*os.File, error) {
 	var err error
 	var fp *os.File
+	fullname := Sardir() + "/" + fname
 	switch ttype {
-	case "get", "getremove": // We are getting a remote file
+	case "get", "take": // We are getting a remote file
 		// Open up to write to a local file
 		// Dont stomp on any existing file
-		if FileExists(fname) {
-			return nil, fmt.Errorf("file already exists:  %s", fname)
+		if FileExists(fullname) {
+			return nil, fmt.Errorf("file already exists:  %s", fullname)
 		}
 		// Create the file
-		if fp, err = os.Create(fname); err == nil {
+		if fp, err = os.Create(fullname); err == nil {
 			return fp, nil
 		}
 		return nil, err
 	case "getdir": // We are getting all the files from a remote directory
-		if FileExists(fname) {
-			return nil, fmt.Errorf("directory already exists: %s", fname)
+		if FileExists(fullname) {
+			return nil, fmt.Errorf("directory already exists: %s", fullname)
 		}
 		// Create the Directory
 		// BUT THEN WHAT DO WE DO!!!!
 		// LOTS CODE TO WRITE HERE
-		err = os.Mkdir(fname, os.ModeDir)
+		err = os.Mkdir(fullname, os.ModeDir)
 		if err == nil {
-			if err = os.Chdir(fname); err != nil {
+			if err = os.Chdir(fullname); err != nil {
 				return nil, err
 			}
 		}
 		return nil, err
-	case "put", "putdelete": // We are putting a local file to a remote system
+	case "put", "give": // We are putting a local file to a remote system
 		// Open up to read from the local file
-		if !FileExists(fname) {
-			return nil, fmt.Errorf("file does not exist: %s", fname)
+		if !FileExists(fullname) {
+			return nil, fmt.Errorf("file does not exist: %s", fullname)
 		}
-		if fp, err = os.Open(fname); err == nil {
+		if fp, err = os.Open(fullname); err == nil {
 			return fp, nil
 		}
 		return nil, err
@@ -131,7 +138,8 @@ func FileClose(fp *os.File) error {
 
 // Just Zap the file
 func FileRm(fname string) error {
-	return os.Remove(fname)
+	fullname := Sardir() + "/" + fname
+	return os.Remove(fullname)
 }
 
 // Close the fp and then delete the file
@@ -168,7 +176,8 @@ func FileMeta(filePath string) (*FileMetaData, error) {
 
 	var err error
 	var info os.FileInfo
-	if info, err = os.Lstat(filePath); os.IsNotExist(err) {
+	fullname := Sardir() + "/" + filePath
+	if info, err = os.Lstat(fullname); os.IsNotExist(err) {
 		return nil, err
 	}
 	// Symbolic Links and Named Pipes are treated as "special files"
@@ -176,7 +185,7 @@ func FileMeta(filePath string) (*FileMetaData, error) {
 		fs.IsSymLink = true
 		fs.Origin, _ = os.Readlink(fs.Path)
 		var patherr error
-		if fs.Origin, patherr = os.Readlink(filePath); patherr != nil {
+		if fs.Origin, patherr = os.Readlink(fullname); patherr != nil {
 			return nil, patherr
 		}
 		origstat, _ := os.Lstat(fs.Origin)

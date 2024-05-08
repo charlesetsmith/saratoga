@@ -1626,29 +1626,29 @@ func cmdGetdir(g *gocui.Gui, args []string) {
 }
 
 // Initiator _get_ then _delete_
-func cmdGetrm(g *gocui.Gui, args []string) {
+func cmdTake(g *gocui.Gui, args []string) {
 	switch len(args) {
 	case 1:
 		Info(g, "getrm")
 		return
 	case 2:
 		if args[1] == "?" {
-			MsgPrintln(g, "magenta_black", prhelp("getrm"))
-			MsgPrintln(g, "green_black", prusage("getrm"))
+			MsgPrintln(g, "magenta_black", prhelp("take"))
+			MsgPrintln(g, "green_black", prusage("take"))
 			return
 		}
 	case 3:
 		if udpad, err := sarnet.UDPAddress(args[1]); err == nil {
-			if _, err := NewInitiator(g, "getrm", udpad, args[2], sarflags.Cliflag); err != nil {
-				MsgPrintln(g, "magenta_black", prhelp("getrm"))
-				ErrPrintln(g, "green_black", prusage("getrm"))
+			if _, err := NewInitiator(g, "take", udpad, args[2], sarflags.Cliflag); err != nil {
+				MsgPrintln(g, "magenta_black", prhelp("take"))
+				ErrPrintln(g, "green_black", prusage("take"))
 			}
 		} else {
 			ErrPrintln(g, "green_black", "Invalid IP Address:", args[1])
 		}
 		return
 	}
-	ErrPrintln(g, "red_black", prusage("getrm"))
+	ErrPrintln(g, "red_black", prusage("take"))
 }
 
 func cmdHelp(g *gocui.Gui, args []string) {
@@ -1958,7 +1958,7 @@ func cmdPutblind(g *gocui.Gui, args []string) {
 
 // Initiator _put_
 // send a file file to a remote destination then remove it from the origin
-func cmdPutrm(g *gocui.Gui, args []string) {
+func cmdGive(g *gocui.Gui, args []string) {
 
 	switch len(args) {
 	case 1:
@@ -1966,14 +1966,14 @@ func cmdPutrm(g *gocui.Gui, args []string) {
 		return
 	case 2:
 		if args[1] == "?" {
-			MsgPrintln(g, "magenta_black", prhelp("putrm"))
-			MsgPrintln(g, "green_black", prusage("putrm"))
+			MsgPrintln(g, "magenta_black", prhelp("give"))
+			MsgPrintln(g, "green_black", prusage("give"))
 			return
 		}
 	case 3:
 		// var t *transfer.Transfer
 		if udpad, err := sarnet.UDPAddress(args[1]); err == nil {
-			if t, err := NewInitiator(g, "putrm", udpad, args[2], sarflags.Cliflag); err == nil && t != nil {
+			if t, err := NewInitiator(g, "give", udpad, args[2], sarflags.Cliflag); err == nil && t != nil {
 				errflag := make(chan error, 1) // The return channel holding the saratoga errflag
 				go t.Do(g, errflag)            // Actually do the transfer
 				errcode := <-errflag
@@ -1986,7 +1986,7 @@ func cmdPutrm(g *gocui.Gui, args []string) {
 				}
 				MsgPrintln(g, "green_black", "putrm completed closing channel")
 				close(errflag)
-				MsgPrintln(g, "red_black", "Put and now removing (NOT) (ADD MORE CODE  HERE!!!!) file:", t.Print())
+				MsgPrintln(g, "red_black", "Give and remove (ADD MORE CODE  HERE!!!!) local file:", t.Print())
 				return
 			}
 			ErrPrintln(g, "green_black", "Invalid IP Address:", args[1])
@@ -2027,7 +2027,7 @@ func cmdReqtstamp(g *gocui.Gui, args []string) {
 
 // Initiator _delete_
 // remove a file from a remote destination
-func cmdRm(g *gocui.Gui, args []string) {
+func cmdDelete(g *gocui.Gui, args []string) {
 
 	switch len(args) {
 	case 1:
@@ -2035,74 +2035,34 @@ func cmdRm(g *gocui.Gui, args []string) {
 		return
 	case 2:
 		if args[1] == "?" {
-			MsgPrintln(g, "magenta_black", prhelp("rm"))
-			MsgPrintln(g, "green_black", prusage("rm"))
+			MsgPrintln(g, "magenta_black", prhelp("delete"))
+			MsgPrintln(g, "green_black", prusage("delete"))
 			return
 		}
 	case 3:
 		if udpad, err := sarnet.UDPAddress(args[1]); err == nil {
-			if t, err := NewInitiator(g, "rm", udpad, args[2], sarflags.Cliflag); err == nil && t != nil {
+			if t, err := NewInitiator(g, "delete", udpad, args[2], sarflags.Cliflag); err == nil && t != nil {
 				errflag := make(chan error, 1) // The return channel holding the saratoga errflag
 				go t.Do(g, errflag)            // Actually do the transfer
 				errcode := <-errflag
 				if errcode != nil {
 					ErrPrintln(g, "red_black", "Error:", errcode,
-						" Unable to remove file:", t.Print())
+						" Unable to delete file:", t.Print())
 					if derr := t.Remove(); derr != nil {
 						MsgPrintln(g, "red_black", "Unable to remove transfer:", t.Print())
 					}
 				}
-				MsgPrintln(g, "green_black", "rm completed closing channel")
+				MsgPrintln(g, "green_black", "delete completed closing channel")
 				close(errflag)
 				return
 			}
-			MsgPrintln(g, "magenta_black", prhelp("rm"))
-			ErrPrintln(g, "green_black", prusage("rm"))
+			MsgPrintln(g, "magenta_black", prhelp("delete"))
+			ErrPrintln(g, "green_black", prusage("delete"))
 			return
 		}
 		ErrPrintln(g, "green_black", "Invalid IP Address:", args[1])
 	}
-	ErrPrintln(g, "red_black", prusage("rm"))
-}
-
-// Initiator _getdir_, _delete_ ...
-// remove a directory from a remote destination
-func cmdRmdir(g *gocui.Gui, args []string) {
-
-	switch len(args) {
-	case 1:
-		Info(g, "rmdir")
-		return
-	case 2:
-		if args[1] == "?" {
-			MsgPrintln(g, "magenta_black", prhelp("rmdir"))
-			MsgPrintln(g, "green_black", prusage("rmdir"))
-			return
-		}
-	case 3:
-		if udpad, err := sarnet.UDPAddress(args[1]); err == nil {
-			if t, err := NewInitiator(g, "rmdir", udpad, args[2], sarflags.Cliflag); err == nil && t != nil {
-				errflag := make(chan error, 1) // The return channel holding the saratoga errflag
-				go t.Do(g, errflag)            // Actually do the transfer
-				errcode := <-errflag
-				if errcode != nil {
-					ErrPrintln(g, "red_black", "Error:", errcode,
-						" Unable to remove file:", t.Print())
-					if derr := t.Remove(); derr != nil {
-						MsgPrintln(g, "red_black", "Unable to remove transfer:", t.Print())
-					}
-				}
-				MsgPrintln(g, "green_black", "rmdir completed closing channel")
-				close(errflag)
-				return
-			}
-			MsgPrintln(g, "magenta_black", prhelp("rmdir"))
-			ErrPrintln(g, "green_black", prusage("rmdir"))
-			return
-		}
-		ErrPrintln(g, "green_black", "Invalid IP Address:", args[1])
-	}
-	ErrPrintln(g, "red_black", prusage("rmdir"))
+	ErrPrintln(g, "red_black", prusage("delete"))
 }
 
 func cmdRmtran(g *gocui.Gui, args []string) {
@@ -2493,13 +2453,14 @@ var cmdhandler = map[string]cmdfunc{
 	"cancel":     cmdCancel,
 	"checksum":   cmdChecksum,
 	"clear":      cmdClear,
+	"delete":     cmdDelete, // _delete_
 	"descriptor": cmdDescriptor,
 	"exit":       cmdExit,
 	"files":      cmdFiles,
 	"freespace":  cmdFreespace,
 	"get":        cmdGet,    // _get_
 	"getdir":     cmdGetdir, // _getdir_
-	"getrm":      cmdGetrm,  // _get_,_delete_
+	"give":       cmdGive,   // _put_ (delete local)
 	"help":       cmdHelp,
 	"history":    cmdHistory,
 	"home":       cmdHome,
@@ -2508,14 +2469,12 @@ var cmdhandler = map[string]cmdfunc{
 	"peers":      cmdPeers,
 	"put":        cmdPut,      // _put_
 	"putblind":   cmdPutblind, // _put_ (no _status_)
-	"putrm":      cmdPutrm,    // _put_ (delete local)
 	"quit":       cmdExit,
 	"reqtstamp":  cmdReqtstamp,
-	"rm":         cmdRm, // _delete_
 	"rmtran":     cmdRmtran,
-	"rmdir":      cmdRmdir, // _getdir_, _delete_ ...
 	"rxwilling":  cmdRxwilling,
 	"stream":     cmdStream,
+	"take":       cmdTake, // _get_,_delete_
 	"timeout":    cmdTimeout,
 	"timestamp":  cmdTimestamp,
 	"timezone":   cmdTimezone,
