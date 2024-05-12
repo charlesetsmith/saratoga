@@ -54,7 +54,8 @@ import (
 // * | | | | | | | | |X|X|-> Descriptor - f_descriptor
 // * | | | | | | | | | | |0|-> Undefined used to be Bundles
 // * | | | | | | | | | | | |X|-> Streams - f_stream
-// * | | | | | | | | | | | | |0|0|0|0|-> Undefined
+// * | | | | | | | | | | | | |X|X|-> Tx Willing - f_txwilling
+// * | | | | | | | | | | | | | | |X|X|-> Rx Willing- f_rxwilling
 // * | | | | | | | | | | | | | | | | |X|-> UDP Lite - f_udptype
 // * | | | | | | | | | | | | | | | | | | | | | | | | |X|X|X|X|X|X|X|X|-> f_requesttype
 // * | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |

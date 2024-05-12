@@ -31,7 +31,7 @@ type Packet struct {
 	Info Request
 }
 
-// No o pointers in return as used in channels
+// No pointers in return as used in channels
 func (r *Request) Val(addr *net.UDPAddr) Packet {
 	return Packet{Addr: *addr,
 		Info: Request{Header: r.Header, Session: r.Session, Fname: r.Fname, Auth: r.Auth}}
@@ -59,7 +59,8 @@ func (r *Request) New(flags string, info interface{}) error {
 	for fl := range flag {
 		f := strings.Split(flag[fl], "=") // f[0]=name f[1]=val
 		switch f[0] {
-		case "frametype", "version", "descriptor", "stream", "fileordir", "reqtype", "udplite":
+		case "frametype", "version", "descriptor", "stream", "txwilling",
+			"rxwilling", "fileordir", "reqtype", "udplite":
 			if r.Header, err = sarflags.Set(r.Header, f[0], f[1]); err != nil {
 				return err
 			}
@@ -121,7 +122,7 @@ func (r *Request) Encode() ([]byte, error) {
 func (r *Request) Decode(frame []byte) error {
 
 	if len(frame) < 9 {
-		return errors.New("request.Get - request frame too short")
+		return errors.New("request.Decode - request frame too short")
 	}
 	r.Header = binary.BigEndian.Uint32(frame[:4])
 	r.Session = binary.BigEndian.Uint32(frame[4:8])

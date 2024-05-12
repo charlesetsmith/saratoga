@@ -153,7 +153,7 @@
 			"help" : "show current or set to use local or universal time"
 		},
 		"tran" : {
-			"usage" : "tran [get|getrm|getdir|put|putblind|putrm|rm|rmdir]",
+			"usage" : "tran [get|take|getdir|put|give|putblind|rm|rmdir]",
 			"help" : "list current active transfers of specific type or all"
 		},
 		"txwilling" : {
@@ -168,7 +168,7 @@
 	"frameflags" :
 	{
 		"beacon" :  ["version", "frametype", "descriptor", "stream", "txwilling", "rxwilling", "udplite", "freespace", "freespaced"],
-		"request":  ["version", "frametype", "descriptor", "stream", "reqtype", "fileordir", "udplite"],
+		"request":  ["version", "frametype", "descriptor", "stream", "txwilling", "rxwilling", "reqtype", "fileordir", "udplite"],
 		"metadata": ["version", "frametype", "descriptor", "transfer", "progress", "reliability", "csumlen", "csumtype"],
 		"data":     ["version", "frametype", "descriptor", "transfer", "reqtstamp", "reqstatus", "eod"],
 		"status":   ["version", "frametype", "descriptor", "reqtstamp", "metadatarecvd", "allholes", "reqholes", "errcode"]
@@ -246,7 +246,7 @@
 			}
 		},
 		"txwilling" : { 
-			"frametypes" :  [ "beacon" ],
+			"frametypes" :  [ "beacon", "request" ],
 			"len" : 2,
 			"msb" : 12,
 			"options" : {
@@ -289,7 +289,7 @@
 			}
 		},
 		"rxwilling" : { 
-			"frametypes" :  [ "beacon" ],
+			"frametypes" :  [ "beacon", "request"],
 			"len" : 2,
 			"msb" : 14,
 			"options" : {

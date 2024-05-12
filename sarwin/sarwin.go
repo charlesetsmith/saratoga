@@ -864,7 +864,7 @@ type Transfer struct {
 	Session    uint32               // Session ID - This is the unique key
 	Conn       *net.UDPConn         // The connection to the remote peer
 	Peer       *net.UDPAddr         // ip address and port of the peer
-	Ttype      string               // Transfer type "get,getrm,put,putrm,putblind,rm"
+	Ttype      string               // Transfer type "get,take,put,give,putblind,delete"
 	Tstamp     timestamp.Timestamp  // Latest timestamp received from Data
 	Tstamptype string               // Timestamp type "localinterp,posix32,posix64,posix32_32,posix64_32,epoch2000_32"
 	Filename   string               // Local File name to receive or remove from remote host or send from local host
