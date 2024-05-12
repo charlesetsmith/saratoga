@@ -627,7 +627,7 @@ func main() {
 				pkt := rxv4.(request.Packet)
 				sarwin.PacketPrintln(g, "white_black", "Rx", pkt.Info.ShortPrint())
 				// We have received a request to send or receive a file or dir
-				if trans.AddRx(g, &pkt.Info, &pkt.Addr) {
+				if trans.AddRxTran(g, &pkt.Info, &pkt.Addr, txv4frame) {
 					sarwin.MsgPrintln(g, "yellow_black", "New transfer request from ", pkt.Addr.String())
 				}
 			case status.Packet:
@@ -655,9 +655,13 @@ func main() {
 				pkt := rxv6.(metadata.Packet)
 				sarwin.PacketPrintln(g, "white_black", "Rx", pkt.Info.ShortPrint())
 			case request.Packet:
+				// We have received a request to send or receive a file or dir
 				sarwin.MsgPrintln(g, "white_black", "Received v6 Saratoga REQUEST Frame")
 				pkt := rxv6.(request.Packet)
 				sarwin.PacketPrintln(g, "white_black", "Rx", pkt.Info.ShortPrint())
+				if trans.AddRxTran(g, &pkt.Info, &pkt.Addr, txv6frame) {
+					sarwin.MsgPrintln(g, "yellow_black", "New transfer request from ", pkt.Addr.String())
+				}
 			case status.Packet:
 				sarwin.MsgPrintln(g, "white_black", "Received v6 Saratoga STATUS Frame")
 				pkt := rxv6.(status.Packet)

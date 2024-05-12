@@ -1811,13 +1811,19 @@ func cmdPeers(g *gocui.Gui, args []string) {
 		}
 		// Table format
 		// Work out the max length of each field
-		var addrlen, eidlen, dcrelen, dmodlen int
+		var addrlen, eidlen, dcrelen, dmodlen, cantxlen, canrxlen int
 		for p := range beacon.Peers {
 			if len(beacon.Peers[p].Addr) > addrlen {
 				addrlen = len(beacon.Peers[p].Addr)
 			}
 			if len(beacon.Peers[p].Eid) > eidlen {
 				eidlen = len(beacon.Peers[p].Eid)
+			}
+			if len(beacon.Peers[p].Canrx) > canrxlen {
+				canrxlen = len(beacon.Peers[p].Canrx)
+			}
+			if len(beacon.Peers[p].Cantx) > cantxlen {
+				cantxlen = len(beacon.Peers[p].Cantx)
 			}
 			if len(beacon.Peers[p].Created.Print()) > dcrelen {
 				dcrelen = len(beacon.Peers[p].Created.Print())
@@ -1830,24 +1836,28 @@ func cmdPeers(g *gocui.Gui, args []string) {
 			eidlen = 3
 		}
 
-		bfmt := fmt.Sprintf("+%%%ds+%%6s+%%%ds+%%3s+%%%ds+%%%ds+\n",
-			addrlen, eidlen, dcrelen, dmodlen)
+		bfmt := fmt.Sprintf("+%%%ds+%%6s+%%%ds+%%3s+%%%ds+%%%ds+%%%ds+%%%ds+\n",
+			addrlen, eidlen, canrxlen, cantxlen, dcrelen, dmodlen)
 		sborder := fmt.Sprintf(bfmt,
 			strings.Repeat("-", addrlen),
 			strings.Repeat("-", 6),
 			strings.Repeat("-", eidlen),
 			strings.Repeat("-", 3),
+			strings.Repeat("-", canrxlen),
+			strings.Repeat("-", cantxlen),
 			strings.Repeat("-", dcrelen),
 			strings.Repeat("-", dmodlen))
 
-		sfmt := fmt.Sprintf("|%%%ds|%%6s|%%%ds|%%3s|%%%ds|%%%ds|\n",
-			addrlen, eidlen, dcrelen, dmodlen)
+		sfmt := fmt.Sprintf("|%%%ds|%%6s|%%%ds|%%3s|%%%ds|%%%ds|%%%ds|%%%ds|\n",
+			addrlen, eidlen, canrxlen, cantxlen, dcrelen, dmodlen)
 		var sslice sort.StringSlice
 		for key := range beacon.Peers {
 			pinfo := fmt.Sprintf(sfmt, beacon.Peers[key].Addr,
 				strconv.Itoa(int(beacon.Peers[key].Freespace/1024/1024)),
 				beacon.Peers[key].Eid,
 				beacon.Peers[key].Maxdesc,
+				beacon.Peers[key].Canrx,
+				beacon.Peers[key].Cantx,
 				beacon.Peers[key].Created.Print(),
 				beacon.Peers[key].Updated.Print())
 			sslice = append(sslice, pinfo)
@@ -1855,7 +1865,7 @@ func cmdPeers(g *gocui.Gui, args []string) {
 		sort.Sort(sslice)
 
 		sbuf := sborder
-		sbuf += fmt.Sprintf(sfmt, "IP", "GB", "EID", "Des", "Created", "Modified")
+		sbuf += fmt.Sprintf(sfmt, "IP", "GB", "EID", "Des", "Rx", "Tx", "Created", "Modified")
 		sbuf += sborder
 		for key := 0; key < len(sslice); key++ {
 			sbuf += sslice[key]

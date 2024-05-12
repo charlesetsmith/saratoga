@@ -330,6 +330,8 @@ type Peer struct {
 	Freespace uint64              // 0 if freespace not advertised
 	Eid       string              // Exactly who sent this and from what PID
 	Maxdesc   string              // The maximum descriptor size of the peer
+	Canrx     string              // Files can be received
+	Cantx     string              // Files can be transmitted
 	Created   timestamp.Timestamp // When was this Peer created
 	Updated   timestamp.Timestamp // When was this Peer last updated
 }
@@ -351,10 +353,14 @@ func NewPeer(b *Beacon, from *net.UDPAddr) bool {
 			// Has anything changed since the last beacon for this peer ?
 			if Peers[p].Freespace != b.Freespace ||
 				Peers[p].Eid != b.Eid ||
-				Peers[p].Maxdesc != sarflags.GetStr(b.Header, "descriptor") {
+				Peers[p].Maxdesc != sarflags.GetStr(b.Header, "descriptor") ||
+				Peers[p].Canrx != sarflags.GetStr(b.Header, "rxwilling") ||
+				Peers[p].Cantx != sarflags.GetStr(b.Header, "txwilling") {
 				Peers[p].Freespace = b.Freespace
 				Peers[p].Eid = b.Eid
 				Peers[p].Maxdesc = sarflags.GetStr(b.Header, "descriptor")
+				Peers[p].Canrx = sarflags.GetStr(b.Header, "rxwilling")
+				Peers[p].Cantx = sarflags.GetStr(b.Header, "txwilling")
 				Peers[p].Updated.Now("posix32_32") // Last updated now
 				return true
 			}
@@ -368,6 +374,8 @@ func NewPeer(b *Beacon, from *net.UDPAddr) bool {
 	newp.Freespace = b.Freespace
 	newp.Eid = b.Eid
 	newp.Maxdesc = sarflags.GetStr(b.Header, "descriptor")
+	newp.Canrx = sarflags.GetStr(b.Header, "rxwilling")
+	newp.Cantx = sarflags.GetStr(b.Header, "txwilling")
 	newp.Created.Now("posix32_32")
 	newp.Updated = newp.Created
 	pmu.Lock()
